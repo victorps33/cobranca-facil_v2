@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  doc       String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+  charges   Charge[]
+}
+
+model Charge {
+  id               String            @id @default(cuid())
+  customerId       String
+  customer         Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  description      String
+  amountCents      Int
+  dueDate          DateTime
+  status           ChargeStatus      @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  boleto           Boleto?
+  notificationLogs NotificationLog[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+enum ChargeStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+model Boleto {
+  id             String   @id @default(cuid())
+  chargeId       String   @unique
+  charge         Charge   @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  linhaDigitavel String
+  barcodeValue   String
+  publicUrl      String
+  createdAt      DateTime @default(now())
+}
+
+model DunningRule {
+  id        String        @id @default(cuid())
+  name      String
+  active    Boolean       @default(true)
+  timezone  String        @default("America/Sao_Paulo")
+  createdAt DateTime      @default(now())
+  steps     DunningStep[]
+}
+
+model DunningStep {
+  id               String            @id @default(cuid())
+  ruleId           String
+  rule             DunningRule       @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  trigger          DunningTrigger
+  offsetDays       Int               @default(0)
+  channel          Channel
+  template         String
+  enabled          Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  notificationLogs NotificationLog[]
+
+  @@index([ruleId])
+  @@index([trigger])
+  @@index([enabled])
+}
+
+enum DunningTrigger {
+  BEFORE_DUE
+  ON_DUE
+  AFTER_DUE
+}
+
+enum Channel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+model NotificationLog {
+  id              String             @id @default(cuid())
+  chargeId        String
+  charge          Charge             @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  stepId          String
+  step            DunningStep        @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  channel         Channel
+  status          NotificationStatus
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  renderedMessage String
+  metaJson        String
+  createdAt       DateTime           @default(now())
+
+  @@index([chargeId])
+  @@index([stepId])
+  @@index([scheduledFor])
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model AppState {
+  id           Int       @id @default(1)
+  simulatedNow DateTime?
+}
+
+model Franqueadora {
+  id                 String   @id @default(cuid())
+  nome               String
+  razaoSocial        String
+  cnpj               String?
+  email              String   @unique
+  emailSecundario    String?
+  endereco           String?
+  celular            String?
+  celularSecundario  String?
+  telefone           String?
+  telefoneSecundario String?
+  responsavel        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
