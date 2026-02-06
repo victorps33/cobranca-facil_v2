@@ -11,8 +11,8 @@ type MenloLogoProps = {
 };
 
 const sizes = {
-  sm: { w: 120, h: 30 },
-  md: { w: 148, h: 36 },
+  sm: { w: 28, h: 28 },
+  md: { w: 112, h: 28 },
 };
 
 export function MenloLogo({
