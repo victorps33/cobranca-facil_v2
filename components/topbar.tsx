@@ -32,7 +32,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-      <div className="flex items-center justify-end px-6 py-3">
+      <div className="flex h-16 items-center justify-end px-6">
         <div className="flex items-center gap-4">
           {/* Date Badge */}
           {appNowInfo && (
