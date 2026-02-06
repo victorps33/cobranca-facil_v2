@@ -13,8 +13,6 @@ import {
   ChevronLeft,
   Plus,
   Calculator,
-  Send,
-  AlertCircle,
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
@@ -24,9 +22,7 @@ const navigation = [
   { name: "Insights", href: "/insights", icon: Sparkles },
   { name: "Cadastro", href: "/clientes", icon: Users },
   { name: "Apuração", href: "/apuracao", icon: Calculator },
-  { name: "Emissão", href: "/emissao", icon: Send },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt },
-  { name: "Dívidas", href: "/dividas", icon: AlertCircle },
   { name: "Réguas", href: "/reguas", icon: Bell },
 ];
 
