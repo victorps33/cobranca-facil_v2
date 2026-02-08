@@ -1,5 +1,18 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import Anthropic from "@anthropic-ai/sdk";
+import { franqueadosDummy } from "@/lib/data/clientes-dummy";
+import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
+import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
+
+// ── Anthropic client ──
+
+function getAnthropicClient(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key || key.startsWith("sk-ant-your")) return null;
+  return new Anthropic({ apiKey: key });
+}
+
+// ── System prompt ──
 
 const JULIA_SYSTEM_PROMPT = `Você é Júlia, a Agente Menlo IA — analista de dados especializada em redes de franquias e gestão de cobranças.
 
@@ -10,10 +23,10 @@ const JULIA_SYSTEM_PROMPT = `Você é Júlia, a Agente Menlo IA — analista de 
 - Estilo: Direto, com insights acionáveis
 
 **Diretrizes de resposta:**
-1. Seja concisa e objetiva
-2. Use dados quando disponíveis
+1. Seja concisa e objetiva (máximo 250 palavras)
+2. Use os dados reais fornecidos abaixo — cite números concretos
 3. Sempre sugira ações concretas
-4. Formate com bullet points e negrito para destaque
+4. Formate com bullet points e **negrito** para destaque
 5. Termine com uma pergunta ou sugestão de próximo passo
 
 **Formato padrão:**
@@ -21,7 +34,7 @@ const JULIA_SYSTEM_PROMPT = `Você é Júlia, a Agente Menlo IA — analista de 
 <1-2 frases resumindo a análise>
 
 **Insights**
-- <insight 1 com número/dado se disponível>
+- <insight 1 com número/dado>
 - <insight 2>
 - <insight 3>
 
@@ -32,11 +45,111 @@ const JULIA_SYSTEM_PROMPT = `Você é Júlia, a Agente Menlo IA — analista de 
 **Próximo passo**
 <sugestão ou pergunta para continuar>`;
 
-// Mock responses baseadas no contexto
-const contextResponses: Record<string, Record<string, string>> = {
-  insights: {
-    inadimplencia: `**Resumo**
-A inadimplência está concentrada principalmente na região Nordeste (42%) e em franqueados com menos de 2 anos de operação.
+const SUGGESTIONS_INSTRUCTION = `
+
+IMPORTANTE: Ao final da sua resposta, após uma linha em branco, adicione exatamente 3 sugestões curtas de follow-up (máx 50 caracteres cada) neste formato exato:
+<<SUGESTÕES>>
+Sugestão curta 1
+Sugestão curta 2
+Sugestão curta 3`;
+
+// ── Build data context for the AI ──
+
+function buildDataContext(): string {
+  const stats = getCobrancasStats(cobrancasDummy);
+
+  const fmtBRL = (cents: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+  const franqueados = franqueadosDummy;
+  const franqueadosByStatus = {
+    saudavel: franqueados.filter((f) => f.status === "Saudável").length,
+    controlado: franqueados.filter((f) => f.status === "Controlado").length,
+    exigeAtencao: franqueados.filter((f) => f.status === "Exige Atenção").length,
+    critico: franqueados.filter((f) => f.status === "Crítico").length,
+  };
+  const pmrMedio = Math.round(franqueados.reduce((s, f) => s + f.pmr, 0) / franqueados.length);
+  const totalAberto = franqueados.reduce((s, f) => s + f.valorAberto, 0);
+  const totalEmitido = franqueados.reduce((s, f) => s + f.valorEmitido, 0);
+  const totalRecebido = franqueados.reduce((s, f) => s + f.valorRecebido, 0);
+
+  const criticos = franqueados
+    .filter((f) => f.status === "Crítico" || f.status === "Exige Atenção")
+    .map((f) => `  - ${f.nome} (${f.cidade}/${f.estado}): status=${f.status}, PMR=${f.pmr}d, inadimplência=${(f.inadimplencia * 100).toFixed(1)}%, aberto=${fmtBRL(f.valorAberto)}`)
+    .join("\n");
+
+  const todosFranqueados = franqueados
+    .map((f) => `  - ${f.nome} (${f.cidade}/${f.estado}): status=${f.status}, PMR=${f.pmr}d, inadimplência=${(f.inadimplencia * 100).toFixed(1)}%, emitido=${fmtBRL(f.valorEmitido)}, recebido=${fmtBRL(f.valorRecebido)}, aberto=${fmtBRL(f.valorAberto)}`)
+    .join("\n");
+
+  const vencidas = cobrancasDummy.filter((c) => c.status === "Vencida");
+  const valorVencido = vencidas.reduce((s, c) => s + c.valorAberto, 0);
+  const vencidasDetail = vencidas
+    .sort((a, b) => b.valorAberto - a.valorAberto)
+    .slice(0, 10)
+    .map((c) => `  - ${c.cliente}: ${c.descricao} — ${fmtBRL(c.valorAberto)} (venc. ${c.dataVencimento})`)
+    .join("\n");
+
+  const apuracaoSummary = ciclosHistorico
+    .map((c) => `  - ${c.competencia}: ${c.franqueados} franqueados, fat=${fmtBRL(c.faturamentoTotal)}, cobrado=${fmtBRL(c.totalCobrado)}, NFs=${c.nfsEmitidas}`)
+    .join("\n");
+
+  const byRegiao: Record<string, { count: number; aberto: number; inadimplencia: number[] }> = {};
+  franqueados.forEach((f) => {
+    const key = f.estado;
+    if (!byRegiao[key]) byRegiao[key] = { count: 0, aberto: 0, inadimplencia: [] };
+    byRegiao[key].count++;
+    byRegiao[key].aberto += f.valorAberto;
+    byRegiao[key].inadimplencia.push(f.inadimplencia);
+  });
+  const regiaoDetail = Object.entries(byRegiao)
+    .map(([uf, data]) => {
+      const inadMedia = (data.inadimplencia.reduce((s, v) => s + v, 0) / data.inadimplencia.length * 100).toFixed(1);
+      return `  - ${uf}: ${data.count} franqueados, aberto=${fmtBRL(data.aberto)}, inadimplência média=${inadMedia}%`;
+    })
+    .join("\n");
+
+  return `
+=== DADOS DA REDE ===
+
+FRANQUEADOS (${franqueados.length} total):
+- Saudável: ${franqueadosByStatus.saudavel} | Controlado: ${franqueadosByStatus.controlado} | Exige Atenção: ${franqueadosByStatus.exigeAtencao} | Crítico: ${franqueadosByStatus.critico}
+- PMR médio: ${pmrMedio}d | Emitido: ${fmtBRL(totalEmitido)} | Recebido: ${fmtBRL(totalRecebido)} | Aberto: ${fmtBRL(totalAberto)}
+
+DETALHE POR FRANQUEADO:
+${todosFranqueados}
+
+FRANQUEADOS COM PROBLEMAS:
+${criticos || "  Nenhum em situação crítica."}
+
+COBRANÇAS (${stats.total} total):
+- Abertas: ${stats.byStatus.aberta} | Vencidas: ${stats.byStatus.vencida} (${fmtBRL(valorVencido)}) | Pagas: ${stats.byStatus.paga}
+- Taxa de recebimento: ${stats.taxaRecebimento.toFixed(1)}%
+- Royalties: ${fmtBRL(stats.byCategoria.royalties)} | FNP: ${fmtBRL(stats.byCategoria.fnp)}
+- Boleto: ${stats.byFormaPagamento.boleto} | Pix: ${stats.byFormaPagamento.pix} | Cartão: ${stats.byFormaPagamento.cartao}
+
+COBRANÇAS VENCIDAS (top 10):
+${vencidasDetail || "  Nenhuma."}
+
+DISTRIBUIÇÃO REGIONAL:
+${regiaoDetail}
+
+HISTÓRICO DE APURAÇÃO:
+${apuracaoSummary}
+===`;
+}
+
+// ── Mock responses (fallback) ──
+
+interface MockResponse {
+  reply: string;
+  suggestions: string[];
+}
+
+const mocks: Record<string, MockResponse> = {
+  inadimplencia: {
+    reply: `**Resumo**
+A inadimplência está concentrada principalmente na região Nordeste e em franqueados com menos de 2 anos de operação.
 
 **Insights**
 - **R$ 47.500** em valores vencidos há mais de 60 dias
@@ -51,8 +164,14 @@ A inadimplência está concentrada principalmente na região Nordeste (42%) e em
 
 **Próximo passo**
 Quer que eu detalhe o perfil de cada franqueado inadimplente ou prefere ver as opções de régua de cobrança?`,
-
-    piorando: `**Resumo**
+    suggestions: [
+      "Detalhar os 3 maiores inadimplentes",
+      "Simular cenário de recuperação",
+      "Sugerir régua de cobrança",
+    ],
+  },
+  piorando: {
+    reply: `**Resumo**
 Identificamos 5 franqueados com tendência de piora nos últimos 3 meses, com aumento médio de 34% nos dias de atraso.
 
 **Insights**
@@ -68,8 +187,14 @@ Identificamos 5 franqueados com tendência de piora nos últimos 3 meses, com au
 
 **Próximo passo**
 Posso gerar um relatório detalhado de cada franqueado ou prefere que eu sugira um script de abordagem para a reunião?`,
-
-    efetividade: `**Resumo**
+    suggestions: [
+      "Gerar relatório da Franquia Recife",
+      "Script de abordagem para reunião",
+      "Comparar com trimestre anterior",
+    ],
+  },
+  efetividade: {
+    reply: `**Resumo**
 Sua taxa de recebimento está em **78%**, abaixo da meta de 85%. O PMR médio é de 28 dias.
 
 **Insights**
@@ -85,8 +210,14 @@ Sua taxa de recebimento está em **78%**, abaixo da meta de 85%. O PMR médio é
 
 **Próximo passo**
 Quer que eu simule o impacto financeiro dessas mudanças ou prefere ver a distribuição por forma de pagamento?`,
-
-    risco: `**Resumo**
+    suggestions: [
+      "Simular impacto da migração para Pix",
+      "Ver distribuição por forma de pagamento",
+      "Otimizar régua de WhatsApp",
+    ],
+  },
+  risco: {
+    reply: `**Resumo**
 O risco financeiro total da rede é de **R$ 127.000**, com potencial de perda de R$ 55.000 baseado no score de risco.
 
 **Insights**
@@ -102,186 +233,172 @@ O risco financeiro total da rede é de **R$ 127.000**, com potencial de perda de
 
 **Próximo passo**
 Posso detalhar os cenários de recuperação ou gerar o relatório para o financeiro?`,
-  },
-
-  apuracao: {
-    default: `**Resumo**
-A apuração de Janeiro/2026 está pronta para emissão, com total de **R$ 163.000** entre royalties e FNP.
-
-**Insights**
-- 45 franqueados ativos para esta competência
-- Royalties: R$ 125.000 (76% do total)
-- FNP: R$ 38.000 (24% do total)
-- 3 franqueados têm ajustes pendentes de aprovação
-
-**Ações recomendadas**
-1. Revise os ajustes pendentes antes de emitir
-2. Verifique se há novos franqueados para incluir
-3. Confirme a data de vencimento padrão (dia 15)
-
-**Próximo passo**
-Quer que eu liste os ajustes pendentes ou posso iniciar a emissão com os valores atuais?`,
-  },
-
-  emissao: {
-    default: `**Resumo**
-Você tem **8 franqueados** selecionados para emissão, totalizando R$ 31.860.
-
-**Insights**
-- 5 franqueados preferem boleto (62%)
-- 3 franqueados preferem Pix (38%)
-- 4 solicitaram emissão de NF junto
-- Melhor dia para emissão: terça ou quarta (maior taxa de abertura)
-
-**Ações recomendadas**
-1. Confirme os dados de NF antes de emitir
-2. Considere oferecer desconto de 2% para pagamento via Pix
-3. Agende envio para terça-feira às 9h
-
-**Próximo passo**
-Posso verificar se há inconsistências nos dados ou prefere prosseguir com a emissão?`,
-  },
-
-  dividas: {
-    default: `**Resumo**
-Você tem **6 clientes inadimplentes** com total de R$ 79.000 em aberto e potencial de perda de R$ 55.894.
-
-**Insights**
-- **Franquia Recife** é o caso mais crítico (R$ 28.500, 120 dias)
-- 2 clientes estão em processo de protesto
-- Score de risco médio: 52%
-- Último contato médio: há 12 dias
-
-**Ações recomendadas**
-1. Priorize contato com Franquia Recife hoje
-2. Acione régua de recuperação para valores acima de R$ 10.000
-3. Prepare proposta de parcelamento em até 6x
-
-**Próximo passo**
-Quer que eu prepare o script de negociação ou prefere ver o histórico de contatos?`,
-  },
-
-  reguas: {
-    default: `**Resumo**
-Sua régua ativa tem **4 passos** configurados, com taxa de conversão média de 72%.
-
-**Insights**
-- E-mail D-3 tem taxa de abertura de 45%
-- WhatsApp D-1 converte 23% a mais que e-mail
-- Ligação D+7 recupera 38% dos casos
-- Melhor horário de envio: 9h-11h
-
-**Ações recomendadas**
-1. Adicione WhatsApp em D-1 para todos os perfis
-2. Substitua SMS D+3 por WhatsApp (maior engajamento)
-3. Crie régua específica para inadimplentes reincidentes
-
-**Próximo passo**
-Quer que eu sugira uma régua otimizada ou prefere ajustar a régua atual?`,
+    suggestions: [
+      "Detalhar cenários de recuperação",
+      "Gerar relatório para o financeiro",
+      "Listar os 3 maiores devedores",
+    ],
   },
 };
 
-function getMockResponse(message: string, pageContext: string): string {
-  const lowerMessage = message.toLowerCase();
-  const pageResponses = contextResponses[pageContext] || contextResponses.insights;
-
-  // Check for specific keywords
-  if (lowerMessage.includes("inadimpl") || lowerMessage.includes("concentra")) {
-    return pageResponses.inadimplencia || pageResponses.default || getDefaultResponse(pageContext);
-  }
-  if (lowerMessage.includes("piora") || lowerMessage.includes("tendência") || lowerMessage.includes("franqueados")) {
-    return pageResponses.piorando || pageResponses.default || getDefaultResponse(pageContext);
-  }
-  if (lowerMessage.includes("efetiv") || lowerMessage.includes("cobrança") || lowerMessage.includes("pmr")) {
-    return pageResponses.efetividade || pageResponses.default || getDefaultResponse(pageContext);
-  }
-  if (lowerMessage.includes("risco") || lowerMessage.includes("exposição") || lowerMessage.includes("recuperação")) {
-    return pageResponses.risco || pageResponses.default || getDefaultResponse(pageContext);
-  }
-
-  return pageResponses.default || getDefaultResponse(pageContext);
+function getMockResponse(message: string): MockResponse {
+  const lower = message.toLowerCase();
+  if (lower.includes("inadimpl") || lower.includes("concentra")) return mocks.inadimplencia;
+  if (lower.includes("piora") || lower.includes("tendência")) return mocks.piorando;
+  if (lower.includes("efetiv") || lower.includes("cobrança") || lower.includes("pmr")) return mocks.efetividade;
+  if (lower.includes("risco") || lower.includes("exposição") || lower.includes("recuperação")) return mocks.risco;
+  return mocks.inadimplencia;
 }
 
-function getDefaultResponse(pageContext: string): string {
-  return `**Resumo**
-Estou analisando os dados da sua rede para trazer insights relevantes.
+// ── SSE helpers ──
 
-**Insights**
-- Sua operação está dentro dos parâmetros esperados
-- Não há alertas críticos no momento
-- Recomendo revisar os indicadores semanalmente
-
-**Ações recomendadas**
-1. Continue monitorando os KPIs principais
-2. Verifique a página de Dívidas para casos pendentes
-3. Revise a configuração das réguas de cobrança
-
-**Próximo passo**
-Me conte mais sobre o que você gostaria de analisar — posso ajudar com inadimplência, performance, ou recomendações específicas.`;
+function sseHeaders() {
+  return {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  };
 }
 
-async function getContextData() {
-  try {
-    const [charges, customers] = await Promise.all([
-      prisma.charge.findMany({
-        take: 100,
-        orderBy: { createdAt: "desc" },
-        include: { customer: true },
-      }),
-      prisma.customer.count(),
-    ]);
+const encoder = new TextEncoder();
 
-    const totalRevenue = charges
-      .filter((c) => c.status === "PAID")
-      .reduce((acc, c) => acc + c.amountCents, 0);
-
-    const overdueCharges = charges.filter((c) => c.status === "OVERDUE");
-    const pendingCharges = charges.filter((c) => c.status === "PENDING");
-
-    return {
-      totalRevenue: totalRevenue / 100,
-      totalCustomers: customers,
-      overdueCount: overdueCharges.length,
-      overdueTotal: overdueCharges.reduce((acc, c) => acc + c.amountCents, 0) / 100,
-      pendingCount: pendingCharges.length,
-      pendingTotal: pendingCharges.reduce((acc, c) => acc + c.amountCents, 0) / 100,
-    };
-  } catch (error) {
-    console.error("Error fetching context:", error);
-    return null;
-  }
+function sseEvent(data: string): Uint8Array {
+  return encoder.encode(`data: ${data}\n\n`);
 }
+
+// ── POST handler ──
 
 export async function POST(request: Request) {
   try {
-    const { message, pageContext = "insights" } = await request.json();
+    const body = await request.json();
+    const {
+      messages: conversationMessages,
+      message,
+      stream: isStreaming = false,
+    } = body;
 
-    if (!message) {
-      return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 }
-      );
+    // Build Claude messages from history or single message
+    const claudeMessages: { role: "user" | "assistant"; content: string }[] =
+      conversationMessages
+        ? conversationMessages.map((m: { role: string; content: string }) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          }))
+        : message
+          ? [{ role: "user" as const, content: message }]
+          : [];
+
+    const lastUserMessage =
+      claudeMessages.length > 0
+        ? claudeMessages[claudeMessages.length - 1].content
+        : "";
+
+    if (!lastUserMessage) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    // Get context data from database
-    const context = await getContextData();
+    const anthropic = getAnthropicClient();
+    const dataContext = buildDataContext();
+    const includeSuggestions = isStreaming;
+    const systemPrompt =
+      JULIA_SYSTEM_PROMPT +
+      "\n\n" +
+      dataContext +
+      (includeSuggestions ? SUGGESTIONS_INSTRUCTION : "");
 
-    // Get mock response based on message and page context
-    const reply = getMockResponse(message, pageContext);
+    // ── Streaming mode ──
+    if (isStreaming) {
+      if (anthropic) {
+        try {
+          const readableStream = new ReadableStream({
+            async start(controller) {
+              try {
+                const stream = await anthropic.messages.create({
+                  model: "claude-haiku-4-5-20251001",
+                  max_tokens: 1024,
+                  system: systemPrompt,
+                  messages: claudeMessages,
+                  stream: true,
+                });
 
-    return NextResponse.json({
-      reply,
-      suggestions: [
-        "Como melhorar a taxa de recebimento?",
-        "Quais ações priorizar esta semana?",
-      ],
-      context,
-    });
+                for await (const event of stream) {
+                  if (
+                    event.type === "content_block_delta" &&
+                    event.delta.type === "text_delta"
+                  ) {
+                    controller.enqueue(
+                      sseEvent(JSON.stringify({ text: event.delta.text }))
+                    );
+                  }
+                }
+              } catch {
+                // Fallback: stream mock word-by-word
+                const mock = getMockResponse(lastUserMessage);
+                const fullText =
+                  mock.reply +
+                  "\n\n<<SUGESTÕES>>\n" +
+                  mock.suggestions.join("\n");
+                const words = fullText.split(" ");
+                for (let i = 0; i < words.length; i++) {
+                  const text = (i === 0 ? "" : " ") + words[i];
+                  controller.enqueue(sseEvent(JSON.stringify({ text })));
+                  await new Promise((r) => setTimeout(r, 20));
+                }
+              }
+              controller.enqueue(sseEvent("[DONE]"));
+              controller.close();
+            },
+          });
+
+          return new Response(readableStream, { headers: sseHeaders() });
+        } catch {
+          // Fall through to mock streaming
+        }
+      }
+
+      // Mock streaming (no API key)
+      const mock = getMockResponse(lastUserMessage);
+      const fullText =
+        mock.reply + "\n\n<<SUGESTÕES>>\n" + mock.suggestions.join("\n");
+      const words = fullText.split(" ");
+
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          for (let i = 0; i < words.length; i++) {
+            const text = (i === 0 ? "" : " ") + words[i];
+            controller.enqueue(sseEvent(JSON.stringify({ text })));
+            await new Promise((r) => setTimeout(r, 20));
+          }
+          controller.enqueue(sseEvent("[DONE]"));
+          controller.close();
+        },
+      });
+
+      return new Response(readableStream, { headers: sseHeaders() });
+    }
+
+    // ── Non-streaming mode (card pre-loading) ──
+    if (anthropic) {
+      try {
+        const response = await anthropic.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: claudeMessages,
+        });
+
+        const textContent = response.content.find((c) => c.type === "text");
+        const reply = textContent?.text ?? "";
+        if (reply) return NextResponse.json({ reply });
+      } catch (err) {
+        console.error("Anthropic API error in chat:", err);
+      }
+    }
+
+    // Mock fallback
+    return NextResponse.json({ reply: getMockResponse(lastUserMessage).reply });
   } catch (error) {
     console.error("Error in chat API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -26,18 +26,28 @@ import {
   Circle,
   PartyPopper,
   Calendar,
+  FileText,
+  Search,
+  X,
+  FileSpreadsheet,
+  Trash2,
+  Sparkles,
 } from "lucide-react";
+import {
+  parseApuracaoFile,
+  type ApuracaoRow,
+} from "@/lib/apuracao-upload";
 import {
   type ApuracaoFranqueado,
   type RegraApuracao,
   type ResultadoFranqueado,
   type FonteDados,
+  type NfConfig,
   fontesDummy,
   franqueadosDummy,
   regrasDefault,
+  nfConfigDefault,
   calcularApuracao,
-  getCompetenciaAtual,
-  getDiasParaEmissao,
 } from "@/lib/data/apuracao-dummy";
 
 // ============================================
@@ -68,7 +78,11 @@ const STEPS = [
 // MAIN WIZARD
 // ============================================
 
-export function ApuracaoWizard() {
+interface ApuracaoWizardProps {
+  competencia: string;
+}
+
+export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
   const router = useRouter();
 
   // Wizard state
@@ -87,13 +101,24 @@ export function ApuracaoWizard() {
   });
   const [emitido, setEmitido] = useState(false);
   const [emitindo, setEmitindo] = useState(false);
+  const [nfConfig, setNfConfig] = useState<NfConfig>(nfConfigDefault);
+
+  // Upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadResult, setUploadResult] = useState<{
+    rows: ApuracaoRow[];
+    warnings: string[];
+    summary: string;
+  } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Step 2 — collapsible sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     royalty: true,
     marketing: false,
-    excecoes: false,
+    exceções: false,
     descontos: false,
+    notaFiscal: false,
   });
 
   // Step 3 — checkpoints
@@ -111,9 +136,84 @@ export function ApuracaoWizard() {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleFileUpload = useCallback(async (file: File) => {
+    setUploadedFile(file);
+    setUploading(true);
+    setUploadResult(null);
+
+    try {
+      const parsed = await parseApuracaoFile(file);
+
+      if (parsed.rows.length === 0) {
+        toast({
+          title: "Planilha vazia",
+          description: "Nenhum dado encontrado na planilha.",
+          variant: "destructive",
+        });
+        setUploadedFile(null);
+        setUploading(false);
+        return;
+      }
+
+      // Try AI summary, fallback to basic summary if API fails
+      let summary: string;
+      try {
+        const response = await fetch("/api/apuracao/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rows: parsed.rows,
+            headers: parsed.rawHeaders,
+          }),
+        });
+
+        if (!response.ok) throw new Error("API error");
+
+        const data = await response.json();
+        summary = data.summary;
+      } catch {
+        // Fallback: generate basic summary client-side
+        const totalFat = parsed.rows.reduce((s, r) => s + r.total, 0);
+        const fmtBRL = (cents: number) =>
+          new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+        summary = `Planilha com ${parsed.rows.length} franqueado${parsed.rows.length > 1 ? "s" : ""}. Faturamento total: ${fmtBRL(totalFat)}.`;
+        if (parsed.rows.length > 0) {
+          const sorted = [...parsed.rows].sort((a, b) => b.total - a.total);
+          summary += `\nMaior faturamento: ${sorted[0].nome} (${fmtBRL(sorted[0].total)}).`;
+          summary += `\nMenor faturamento: ${sorted[sorted.length - 1].nome} (${fmtBRL(sorted[sorted.length - 1].total)}).`;
+        }
+      }
+
+      setUploadResult({
+        rows: parsed.rows,
+        warnings: parsed.warnings,
+        summary,
+      });
+
+      toast({
+        title: "Planilha importada!",
+        description: `${parsed.rows.length} franqueados encontrados.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao importar planilha",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+      setUploadedFile(null);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const handleRemoveUpload = () => {
+    setUploadedFile(null);
+    setUploadResult(null);
+  };
+
   const subtitleForStep = (step: number): string => {
     switch (step) {
-      case 1: return "Coleta de dados dos franqueados";
+      case 1: return "";
       case 2: return "Configure as regras de apuração";
       case 3: return "Processando cálculos...";
       case 4: return "Revise os valores calculados";
@@ -174,30 +274,51 @@ export function ApuracaoWizard() {
     // Auto-advance after all checkpoints
     timers.push(
       setTimeout(() => {
-        const results = calcularApuracao(franqueados, regras);
+        const results = calcularApuracao(franqueados, regras, nfConfig);
         setResultados(results);
         setCurrentStep(4);
       }, 3500)
     );
 
     return () => timers.forEach(clearTimeout);
-  }, [currentStep, franqueados, regras]);
+  }, [currentStep, franqueados, regras, nfConfig]);
 
   // ── Step 6: Emit ──
+
+  const nfRoyaltyCount = resultados.filter((r) => r.nfRoyalty).length;
+  const nfMarketingCount = resultados.filter((r) => r.nfMarketing).length;
+  const totalNfs = nfRoyaltyCount + nfMarketingCount;
 
   const handleEmitir = async () => {
     setEmitindo(true);
     try {
-      // Create charges via API for each franqueado
+      // Create separate charges per franqueado (royalties + marketing)
       for (const r of resultados) {
+        // Cobrança de Royalties
         await fetch("/api/charges", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             customerId: r.id,
-            description: `Apuração ${getCompetenciaAtual()} — ${r.nome}`,
-            amountCents: r.totalCobrar,
+            description: `Royalties ${competencia} — ${r.nome}`,
+            amountCents: r.royalty,
             dueDate: emissao.vencimento,
+            categoria: "Royalties",
+            nfEmitida: r.nfRoyalty,
+          }),
+        });
+
+        // Cobrança de Marketing
+        await fetch("/api/charges", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: r.id,
+            description: `Marketing ${competencia} — ${r.nome}`,
+            amountCents: r.marketing,
+            dueDate: emissao.vencimento,
+            categoria: "FNP",
+            nfEmitida: r.nfMarketing,
           }),
         });
       }
@@ -205,7 +326,7 @@ export function ApuracaoWizard() {
       setEmitido(true);
       toast({
         title: "Cobranças emitidas!",
-        description: `${resultados.length} cobranças foram geradas com sucesso.`,
+        description: `${resultados.length * 2} cobranças foram geradas com sucesso.`,
       });
     } catch {
       toast({
@@ -233,6 +354,9 @@ export function ApuracaoWizard() {
     setEmitido(false);
     setEmitindo(false);
     setCheckpoints(0);
+    setNfConfig({ ...nfConfigDefault, exceçõesRoyalty: [], exceçõesMarketing: [] });
+    setUploadedFile(null);
+    setUploadResult(null);
   };
 
   // ── Derived data ──
@@ -265,20 +389,6 @@ export function ApuracaoWizard() {
       {/* ════════════════════════════════════════════ */}
       {currentStep === 1 && (
         <div className="space-y-6">
-          {/* Header info */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Cafe & Cia &middot; {franqueados.length} franqueados ativos
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {getCompetenciaAtual()} &middot; {getDiasParaEmissao()} dias para emissao
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Fontes conectadas */}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-3">Fontes conectadas</h3>
@@ -316,16 +426,116 @@ export function ApuracaoWizard() {
 
           {/* Import manual */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Import manual</h3>
-            <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center hover:border-gray-300 transition-colors cursor-pointer">
-              <Upload className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-600">
-                Arraste um arquivo CSV ou Excel aqui
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                ou clique para selecionar
-              </p>
-            </div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Faça upload do faturamento</h3>
+
+            {/* State: uploading spinner */}
+            {uploading && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                <Loader2 className="h-8 w-8 text-[#85ace6] animate-spin mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-600">
+                  Processando planilha...
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Analisando dados com IA
+                </p>
+              </div>
+            )}
+
+            {/* State: upload result with AI summary */}
+            {!uploading && uploadResult && uploadedFile && (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                {/* File info header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                      <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
+                      <p className="text-xs text-gray-400">
+                        {uploadResult.rows.length} franqueados encontrados
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemoveUpload}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remover
+                  </button>
+                </div>
+
+                {/* AI Summary */}
+                <div className="px-5 py-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4 text-[#85ace6]" />
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Resumo da IA
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                    {uploadResult.summary}
+                  </div>
+                </div>
+
+                {/* Warnings */}
+                {uploadResult.warnings.length > 0 && (
+                  <div className="px-5 py-3 border-t border-gray-100 bg-amber-50/50">
+                    <p className="text-xs font-medium text-amber-700 mb-1">Avisos:</p>
+                    <ul className="space-y-0.5">
+                      {uploadResult.warnings.map((w, i) => (
+                        <li key={i} className="text-xs text-amber-600">
+                          {w}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* State: drop zone (default) */}
+            {!uploading && !uploadResult && (
+              <div
+                className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center hover:border-gray-300 transition-colors cursor-pointer relative"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.add("border-[#85ace6]", "bg-blue-50/30");
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove("border-[#85ace6]", "bg-blue-50/30");
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove("border-[#85ace6]", "bg-blue-50/30");
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleFileUpload(file);
+                }}
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".csv,.xlsx,.xls";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) handleFileUpload(file);
+                  };
+                  input.click();
+                }}
+              >
+                <Upload className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-600">
+                  Arraste um arquivo CSV ou Excel aqui
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  ou clique para selecionar
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tabela de dados */}
@@ -378,15 +588,15 @@ export function ApuracaoWizard() {
       {/* ════════════════════════════════════════════ */}
       {currentStep === 2 && (
         <div className="space-y-4">
-          {/* Royalty */}
+          {/* Royalties */}
           <CollapsibleSection
-            title="Royalty"
+            title="Royalties"
             open={openSections.royalty}
             onToggle={() => toggleSection("royalty")}
           >
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-medium text-gray-700">Percentual de royalty</Label>
+                <Label className="text-sm font-medium text-gray-700">Percentual de royalties</Label>
                 <div className="relative mt-2 max-w-xs">
                   <Input
                     type="number"
@@ -445,13 +655,13 @@ export function ApuracaoWizard() {
             </div>
           </CollapsibleSection>
 
-          {/* Excecoes */}
+          {/* Exceções */}
           <CollapsibleSection
-            title="Excecoes"
-            open={openSections.excecoes}
-            onToggle={() => toggleSection("excecoes")}
+            title="Exceções"
+            open={openSections.exceções}
+            onToggle={() => toggleSection("exceções")}
           >
-            <p className="text-sm text-gray-400">Nenhuma excecao configurada</p>
+            <p className="text-sm text-gray-400">Nenhuma exceção configurada</p>
           </CollapsibleSection>
 
           {/* Descontos */}
@@ -461,6 +671,60 @@ export function ApuracaoWizard() {
             onToggle={() => toggleSection("descontos")}
           >
             <p className="text-sm text-gray-400">Nenhum desconto neste ciclo</p>
+          </CollapsibleSection>
+
+          {/* Nota Fiscal */}
+          <CollapsibleSection
+            title="Nota Fiscal"
+            open={openSections.notaFiscal}
+            onToggle={() => toggleSection("notaFiscal")}
+            subtitle="Configure a emissão por tipo de cobrança"
+          >
+            <div className="space-y-5">
+              {/* Royalties */}
+              <div>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Royalties</p>
+                    <p className="text-xs text-gray-400">Emitir NF para cobranças de royalties</p>
+                  </div>
+                  <TogglePill
+                    label={nfConfig.royalty ? "Ativo" : "Inativo"}
+                    active={nfConfig.royalty}
+                    onToggle={() => setNfConfig((prev) => ({ ...prev, royalty: !prev.royalty }))}
+                  />
+                </div>
+                <NfExceçãoSelector
+                  label={nfConfig.royalty ? "Não emitir NF para:" : "Emitir NF apenas para:"}
+                  franqueados={franqueados}
+                  selecionados={nfConfig.exceçõesRoyalty}
+                  onChange={(ids) => setNfConfig((prev) => ({ ...prev, exceçõesRoyalty: ids }))}
+                />
+              </div>
+
+              <div className="border-t border-gray-100" />
+
+              {/* Marketing */}
+              <div>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Taxa de Marketing</p>
+                    <p className="text-xs text-gray-400">Emitir NF para cobranças de marketing/FNP</p>
+                  </div>
+                  <TogglePill
+                    label={nfConfig.marketing ? "Ativo" : "Inativo"}
+                    active={nfConfig.marketing}
+                    onToggle={() => setNfConfig((prev) => ({ ...prev, marketing: !prev.marketing }))}
+                  />
+                </div>
+                <NfExceçãoSelector
+                  label={nfConfig.marketing ? "Não emitir NF para:" : "Emitir NF apenas para:"}
+                  franqueados={franqueados}
+                  selecionados={nfConfig.exceçõesMarketing}
+                  onChange={(ids) => setNfConfig((prev) => ({ ...prev, exceçõesMarketing: ids }))}
+                />
+              </div>
+            </div>
           </CollapsibleSection>
         </div>
       )}
@@ -472,7 +736,7 @@ export function ApuracaoWizard() {
         <div className="bg-white rounded-2xl border border-gray-100 p-8">
           <div className="flex flex-col items-center justify-center py-8">
             <Loader2 className="h-10 w-10 text-[#85ace6] animate-spin mb-6" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Processando apuracao</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Processando apuração</h2>
 
             <div className="space-y-4 w-full max-w-md">
               {[
@@ -520,13 +784,13 @@ export function ApuracaoWizard() {
               icon={<DollarSign className="h-4 w-4 text-gray-400" />}
               label="Faturamento total"
               value={formatCurrency(totalFaturamento)}
-              caption={getCompetenciaAtual()}
+              caption={competencia}
             />
             <StatCard
               icon={<Calculator className="h-4 w-4 text-gray-400" />}
               label="A cobrar"
               value={formatCurrency(totalCobrar)}
-              caption={`royalty ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              caption={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
             />
           </div>
 
@@ -543,44 +807,62 @@ export function ApuracaoWizard() {
           {/* Tabela detalhada */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" aria-label="Resultado da apuracao">
+              <table className="w-full text-sm" aria-label="Resultado da apuração">
                 <thead>
                   <tr className="border-b border-gray-100 text-left">
                     <th className="px-5 py-3 font-medium text-gray-500">Franqueado</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Faturamento</th>
-                    <th className="px-5 py-3 font-medium text-gray-500 text-right">Royalty</th>
+                    <th className="px-5 py-3 font-medium text-gray-500 text-right">Royalties</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Marketing</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Total</th>
+                    <th className="px-5 py-3 font-medium text-gray-500">NF</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {resultados.map((r) => (
-                    <tr
-                      key={r.id}
-                      className={cn(
-                        "border-b border-gray-50 transition-colors",
-                        r.flagRevisao ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-gray-50/50"
-                      )}
-                    >
-                      <td className="px-5 py-3 font-medium text-gray-900">{r.nome}</td>
-                      <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.faturamento)}</td>
-                      <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.royalty)}</td>
-                      <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.marketing)}</td>
-                      <td className="px-5 py-3 text-right font-medium text-gray-900 tabular-nums">{formatCurrency(r.totalCobrar)}</td>
-                      <td className="px-5 py-3">
-                        {r.flagRevisao ? (
-                          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
-                            {r.variacao > 0 ? "+" : ""}{r.variacao}%
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">
-                            OK
-                          </span>
+                  {resultados.map((r) => {
+                    const nfLabels: string[] = [];
+                    if (r.nfRoyalty) nfLabels.push("Royalties");
+                    if (r.nfMarketing) nfLabels.push("Mkt");
+
+                    return (
+                      <tr
+                        key={r.id}
+                        className={cn(
+                          "border-b border-gray-50 transition-colors",
+                          r.flagRevisao ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-gray-50/50"
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      >
+                        <td className="px-5 py-3 font-medium text-gray-900">{r.nome}</td>
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.faturamento)}</td>
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.royalty)}</td>
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.marketing)}</td>
+                        <td className="px-5 py-3 text-right font-medium text-gray-900 tabular-nums">{formatCurrency(r.totalCobrar)}</td>
+                        <td className="px-5 py-3">
+                          {nfLabels.length > 0 ? (
+                            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">
+                              {nfLabels.join(" + ")}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3">
+                          {r.flagRevisao ? (
+                            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                              {r.variacao > 0 ? "+" : ""}{r.variacao}%
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">
+                              OK
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -605,13 +887,13 @@ export function ApuracaoWizard() {
               icon={<DollarSign className="h-4 w-4 text-gray-400" />}
               label="Faturamento total"
               value={formatCurrency(totalFaturamento)}
-              caption={getCompetenciaAtual()}
+              caption={competencia}
             />
             <StatCard
               icon={<Calculator className="h-4 w-4 text-gray-400" />}
               label="A cobrar"
               value={formatCurrency(totalCobrar)}
-              caption={`royalty ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              caption={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
             />
           </div>
 
@@ -723,6 +1005,55 @@ export function ApuracaoWizard() {
               </div>
             </div>
           </div>
+
+          {/* Nota Fiscal */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-gray-400" />
+              <p className="text-sm font-semibold text-gray-900">Nota Fiscal</p>
+            </div>
+
+            <div className="flex items-center justify-between py-2">
+              <p className="text-sm text-gray-600">Royalties</p>
+              {nfRoyaltyCount > 0 ? (
+                <span className="text-sm font-medium text-emerald-700">
+                  {nfRoyaltyCount} notas fiscais
+                  {nfConfig.exceçõesRoyalty.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-1">
+                      ({nfConfig.exceçõesRoyalty.length} exceç{nfConfig.exceçõesRoyalty.length === 1 ? "ão" : "ões"})
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">Não emitir</span>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100" />
+
+            <div className="flex items-center justify-between py-2">
+              <p className="text-sm text-gray-600">Marketing</p>
+              {nfMarketingCount > 0 ? (
+                <span className="text-sm font-medium text-emerald-700">
+                  {nfMarketingCount} notas fiscais
+                  {nfConfig.exceçõesMarketing.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-1">
+                      ({nfConfig.exceçõesMarketing.length} exceç{nfConfig.exceçõesMarketing.length === 1 ? "ão" : "ões"})
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">Não emitir</span>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100" />
+
+            <div className="flex items-center justify-between py-2">
+              <p className="text-sm font-medium text-gray-900">Total de NFs</p>
+              <p className="text-sm font-bold text-gray-900">{totalNfs}</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -736,14 +1067,18 @@ export function ApuracaoWizard() {
             <h2 className="text-xl font-bold text-gray-900 mb-2">Ciclo concluido!</h2>
             <p className="text-sm text-gray-500 mb-8">Todas as cobrancas foram emitidas com sucesso.</p>
 
-            <div className="grid grid-cols-3 gap-6 mb-8 w-full max-w-md">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8 w-full max-w-lg">
               <div>
-                <p className="text-2xl font-bold text-gray-900 tabular-nums">{resultados.length}</p>
+                <p className="text-2xl font-bold text-gray-900 tabular-nums">{resultados.length * 2}</p>
                 <p className="text-xs text-gray-500 mt-1">cobrancas emitidas</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">{formatCurrency(totalCobrar)}</p>
                 <p className="text-xs text-gray-500 mt-1">valor total</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 tabular-nums">{totalNfs}</p>
+                <p className="text-xs text-gray-500 mt-1">NFs emitidas</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
@@ -806,7 +1141,7 @@ export function ApuracaoWizard() {
               onClick={handleNext}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] transition-colors"
             >
-              Calcular apuracao
+              Calcular apuração
               <ArrowRight className="h-4 w-4" />
             </button>
           )}
@@ -858,11 +1193,13 @@ export function ApuracaoWizard() {
 
 function CollapsibleSection({
   title,
+  subtitle,
   open,
   onToggle,
   children,
 }: {
   title: string;
+  subtitle?: string;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -873,7 +1210,10 @@ function CollapsibleSection({
         onClick={onToggle}
         className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
       >
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <div className="text-left">
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+        </div>
         {open ? (
           <ChevronDown className="h-4 w-4 text-gray-400" />
         ) : (
@@ -910,5 +1250,115 @@ function TogglePill({
     >
       {label}
     </button>
+  );
+}
+
+function NfExceçãoSelector({
+  label,
+  franqueados,
+  selecionados,
+  onChange,
+}: {
+  label: string;
+  franqueados: ApuracaoFranqueado[];
+  selecionados: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(false);
+
+  const disponiveis = franqueados.filter(
+    (f) => !selecionados.includes(f.id) && f.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const selecionadosData = franqueados.filter((f) => selecionados.includes(f.id));
+
+  const addExceção = (id: string) => {
+    onChange([...selecionados, id]);
+    setBusca("");
+  };
+
+  const removeExceção = (id: string) => {
+    onChange(selecionados.filter((s) => s !== id));
+  };
+
+  return (
+    <div className="mt-2">
+      {/* Exceções selecionadas */}
+      {selecionadosData.length > 0 && (
+        <div className="mb-2">
+          <p className="text-xs font-medium text-gray-500 mb-1.5">{label}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {selecionadosData.map((f) => (
+              <span
+                key={f.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-50 text-amber-700"
+              >
+                {f.nome.replace("Franquia ", "")}
+                <button
+                  onClick={() => removeExceção(f.id)}
+                  className="hover:text-amber-900 transition-colors"
+                  aria-label={`Remover ${f.nome}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Botão para abrir seletor */}
+      {!aberto ? (
+        <button
+          onClick={() => setAberto(true)}
+          className="text-xs font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+        >
+          + Adicionar exceção
+        </button>
+      ) : (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar franqueado..."
+              className="w-full pl-9 pr-8 py-2 text-sm border-b border-gray-200 focus:outline-none focus:border-[#85ace6]"
+              autoFocus
+            />
+            <button
+              onClick={() => { setAberto(false); setBusca(""); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
+              aria-label="Fechar"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Lista */}
+          <div className="max-h-40 overflow-y-auto">
+            {disponiveis.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">
+                {busca ? "Nenhum franqueado encontrado" : "Todos já adicionados"}
+              </p>
+            ) : (
+              disponiveis.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => addExceção(f.id)}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                >
+                  <span>{f.nome}</span>
+                  <span className="text-xs text-gray-400">Adicionar</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

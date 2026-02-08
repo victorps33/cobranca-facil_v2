@@ -1,3 +1,5 @@
+import { ciclosHistorico } from "./apuracao-historico-dummy";
+
 export interface Cobranca {
   id: string;
   cliente: string;
@@ -16,338 +18,208 @@ export interface Cobranca {
   competencia: string;
 }
 
-export const cobrancasDummy: Cobranca[] = [
-  {
-    id: "COB-2026-001",
+// ---------------------------------------------------------------------------
+// IDs estáveis por franqueado
+// ---------------------------------------------------------------------------
+
+const clienteIds: Record<string, string> = {
+  "Franquia Morumbi":     "c1a2b3c4-d5e6-7890-abcd-ef1234567890",
+  "Franquia Vila Mariana": "c2b3c4d5-e6f7-8901-bcde-f23456789012",
+  "Franquia Santo Amaro":  "c3c4d5e6-f789-0123-cdef-345678901234",
+  "Franquia Campo Belo":   "c4d5e6f7-8901-2345-def0-456789012345",
+  "Franquia Itaim Bibi":   "c5e6f789-0123-4567-ef01-567890123456",
+  "Franquia Moema":        "c6f78901-2345-6789-f012-678901234567",
+  "Franquia Brooklin":     "c7890123-4567-8901-0123-789012345678",
+  "Franquia Saude":        "c8901234-5678-9012-1234-890123456789",
+  "Franquia Recife":       "c9012345-6789-0123-2345-901234567890",
+  "Franquia Fortaleza":    "ca123456-7890-1234-3456-012345678901",
+  "Franquia Salvador":     "cb234567-8901-2345-4567-123456789012",
+  "Franquia Curitiba":     "cc345678-9012-3456-5678-234567890123",
+};
+
+const mesesExtenso: Record<string, string> = {
+  Jan: "Janeiro", Fev: "Fevereiro", Mar: "Março", Abr: "Abril",
+  Mai: "Maio",   Jun: "Junho",     Jul: "Julho",  Ago: "Agosto",
+  Set: "Setembro", Out: "Outubro", Nov: "Novembro", Dez: "Dezembro",
+};
+
+const formasPagamento: Cobranca["formaPagamento"][] = ["Boleto", "Pix", "Cartão"];
+
+// ---------------------------------------------------------------------------
+// Gera cobranças derivadas dos ciclos de apuração
+// ---------------------------------------------------------------------------
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+// Seed determinístico simples baseado em string
+function hashIndex(str: string, mod: number): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) % mod;
+}
+
+// ---------------------------------------------------------------------------
+// Perfil de pagamento realista — curva S de maturação
+// ---------------------------------------------------------------------------
+// Retorna o dia (relativo à emissão) em que a cobrança será paga, ou null se
+// nunca for paga. Distribui pagamentos ao longo de ~D+3 até D+100, gerando
+// uma curva de recebimento por safra com formato S natural.
+// ---------------------------------------------------------------------------
+
+function getPaymentDay(seed: string): number | null {
+  const h = hashIndex(seed, 100);
+
+  // ~12% nunca pagam
+  if (h >= 88) return null;
+
+  // Sub-hash para variar o dia dentro de cada faixa
+  const h2 = hashIndex(seed + "day", 1000);
+
+  if (h < 5) {
+    // 5%: antecipados via Pix (D+2 a D+6)
+    return 2 + (h2 % 5);
+  } else if (h < 15) {
+    // 10%: adiantados (D+7 a D+12)
+    return 7 + (h2 % 6);
+  } else if (h < 48) {
+    // 33%: em torno do vencimento (D+13 a D+18)
+    return 13 + (h2 % 6);
+  } else if (h < 65) {
+    // 17%: atrasados leves (D+20 a D+35)
+    return 20 + (h2 % 16);
+  } else if (h < 78) {
+    // 13%: atrasados moderados (D+36 a D+55)
+    return 36 + (h2 % 20);
+  } else {
+    // 10%: recuperação tardia (D+60 a D+100)
+    return 60 + (h2 % 41);
+  }
+}
+
+function gerarCobrancasDosCliclos(): Cobranca[] {
+  const cobrancas: Cobranca[] = [];
+  let counter = 1;
+
+  // Ordenar ciclos do mais antigo ao mais recente
+  const ciclosOrdenados = [...ciclosHistorico].reverse();
+  const hoje = new Date("2026-02-07");
+
+  for (const ciclo of ciclosOrdenados) {
+    const [mesAbrev, ano] = ciclo.competencia.split("/");
+    const mesExtenso = mesesExtenso[mesAbrev] ?? mesAbrev;
+    const dataEmissao = ciclo.dataApuracao;
+    const dataVencimento = addDays(dataEmissao, 15);
+    const venc = new Date(dataVencimento + "T12:00:00");
+    const vencido = venc < hoje;
+
+    for (let i = 0; i < ciclo.detalhes.length; i++) {
+      const d = ciclo.detalhes[i];
+      const cid = clienteIds[d.franqueado] ?? `cgen-${hashIndex(d.franqueado, 99999)}`;
+      const seed = `${ciclo.id}-${d.franqueado}`;
+
+      const formaR = formasPagamento[hashIndex(seed + "R", 3)];
+      const formaM = formasPagamento[hashIndex(seed + "M", 3)];
+
+      // Perfil de pagamento para cada cobrança
+      const payDayR = getPaymentDay(seed + "R");
+      const payDayM = getPaymentDay(seed + "M");
+
+      // Determinar status e data de pagamento relativo a "hoje"
+      const resolveStatus = (
+        payDay: number | null,
+      ): { status: Cobranca["status"]; dataPagamento?: string; pago: boolean } => {
+        if (payDay === null) {
+          // Nunca vai pagar
+          return { status: vencido ? "Vencida" : "Aberta", pago: false };
+        }
+        const payDate = addDays(dataEmissao, payDay);
+        const payDateObj = new Date(payDate + "T12:00:00");
+        if (payDateObj <= hoje) {
+          return { status: "Paga", dataPagamento: payDate, pago: true };
+        }
+        // Vai pagar no futuro mas ainda não pagou
+        return { status: vencido ? "Vencida" : "Aberta", pago: false };
+      };
+
+      const resR = resolveStatus(payDayR);
+      const resM = resolveStatus(payDayM);
+
+      // Cobrança de Royalties
+      cobrancas.push({
+        id: `COB-${ano}-${String(counter++).padStart(3, "0")}`,
+        cliente: d.franqueado,
+        clienteId: cid,
+        categoria: "Royalties",
+        descricao: `Cobrança de Royalties - ${mesExtenso} ${ano}`,
+        dataEmissao,
+        dataVencimento,
+        dataPagamento: resR.dataPagamento,
+        valorOriginal: d.royalties,
+        valorPago: resR.pago ? d.royalties : 0,
+        valorAberto: resR.pago ? 0 : d.royalties,
+        formaPagamento: formaR,
+        status: resR.status,
+        nfEmitida: d.nfEmitida,
+        competencia: `${mesAbrev}/${ano}`,
+      });
+
+      // Cobrança de FNP (Marketing)
+      cobrancas.push({
+        id: `COB-${ano}-${String(counter++).padStart(3, "0")}`,
+        cliente: d.franqueado,
+        clienteId: cid,
+        categoria: "FNP",
+        descricao: `Fundo Nacional de Propaganda - ${mesExtenso} ${ano}`,
+        dataEmissao,
+        dataVencimento,
+        dataPagamento: resM.dataPagamento,
+        valorOriginal: d.marketing,
+        valorPago: resM.pago ? d.marketing : 0,
+        valorAberto: resM.pago ? 0 : d.marketing,
+        formaPagamento: formaM,
+        status: resM.status,
+        nfEmitida: d.nfEmitida,
+        competencia: `${mesAbrev}/${ano}`,
+      });
+    }
+  }
+
+  // Cobrança avulsa (Taxa de Franquia) para manter variedade de categorias
+  cobrancas.push({
+    id: `COB-2026-${String(counter++).padStart(3, "0")}`,
     cliente: "Franquia Morumbi",
-    clienteId: "c1a2b3c4-d5e6-7890-abcd-ef1234567890",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-12",
-    valorOriginal: 12500,
-    valorPago: 12500,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-002",
-    cliente: "Franquia Morumbi",
-    clienteId: "c1a2b3c4-d5e6-7890-abcd-ef1234567890",
-    categoria: "FNP",
-    descricao: "Fundo Nacional de Propaganda - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-12",
-    valorOriginal: 3800,
-    valorPago: 3800,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-003",
-    cliente: "Franquia Vila Mariana",
-    clienteId: "c2b3c4d5-e6f7-8901-bcde-f23456789012",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 9800,
-    valorPago: 0,
-    valorAberto: 9800,
-    formaPagamento: "Boleto",
-    status: "Aberta",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-004",
-    cliente: "Franquia Santo Amaro",
-    clienteId: "c3c4d5e6-f789-0123-cdef-345678901234",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-08",
-    valorOriginal: 7200,
-    valorPago: 7200,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-005",
-    cliente: "Franquia Campo Belo",
-    clienteId: "c4d5e6f7-8901-2345-def0-456789012345",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Janeiro 2026",
-    dataEmissao: "2026-01-01",
-    dataVencimento: "2026-01-15",
-    valorOriginal: 6500,
-    valorPago: 0,
-    valorAberto: 6500,
-    formaPagamento: "Boleto",
-    status: "Vencida",
-    nfEmitida: true,
-    competencia: "Jan/2026",
-  },
-  {
-    id: "COB-2026-006",
-    cliente: "Franquia Campo Belo",
-    clienteId: "c4d5e6f7-8901-2345-def0-456789012345",
-    categoria: "FNP",
-    descricao: "Fundo Nacional de Propaganda - Janeiro 2026",
-    dataEmissao: "2026-01-01",
-    dataVencimento: "2026-01-15",
-    valorOriginal: 1950,
-    valorPago: 0,
-    valorAberto: 1950,
-    formaPagamento: "Boleto",
-    status: "Vencida",
-    nfEmitida: true,
-    competencia: "Jan/2026",
-  },
-  {
-    id: "COB-2026-007",
-    cliente: "Franquia Itaim Bibi",
-    clienteId: "c5e6f789-0123-4567-ef01-567890123456",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-10",
-    valorOriginal: 15600,
-    valorPago: 15600,
-    valorAberto: 0,
-    formaPagamento: "Cartão",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-008",
-    cliente: "Franquia Moema",
-    clienteId: "c6f78901-2345-6789-f012-678901234567",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 11200,
-    valorPago: 0,
-    valorAberto: 11200,
-    formaPagamento: "Boleto",
-    status: "Aberta",
-    nfEmitida: false,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-009",
-    cliente: "Franquia Recife",
-    clienteId: "c7890123-4567-8901-0123-789012345678",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Dezembro 2025",
-    dataEmissao: "2025-12-01",
-    dataVencimento: "2025-12-15",
-    valorOriginal: 8900,
-    valorPago: 0,
-    valorAberto: 8900,
-    formaPagamento: "Boleto",
-    status: "Vencida",
-    nfEmitida: true,
-    competencia: "Dez/2025",
-  },
-  {
-    id: "COB-2026-010",
-    cliente: "Franquia Recife",
-    clienteId: "c7890123-4567-8901-0123-789012345678",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Janeiro 2026",
-    dataEmissao: "2026-01-01",
-    dataVencimento: "2026-01-15",
-    valorOriginal: 8900,
-    valorPago: 0,
-    valorAberto: 8900,
-    formaPagamento: "Boleto",
-    status: "Vencida",
-    nfEmitida: true,
-    competencia: "Jan/2026",
-  },
-  {
-    id: "COB-2026-011",
-    cliente: "Franquia Fortaleza",
-    clienteId: "c8901234-5678-9012-1234-890123456789",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Janeiro 2026",
-    dataEmissao: "2026-01-01",
-    dataVencimento: "2026-01-15",
-    valorOriginal: 7600,
-    valorPago: 0,
-    valorAberto: 7600,
-    formaPagamento: "Boleto",
-    status: "Vencida",
-    nfEmitida: true,
-    competencia: "Jan/2026",
-  },
-  {
-    id: "COB-2026-012",
-    cliente: "Franquia Salvador",
-    clienteId: "c9012345-6789-0123-2345-901234567890",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 6800,
-    valorPago: 0,
-    valorAberto: 6800,
-    formaPagamento: "Pix",
-    status: "Aberta",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-013",
-    cliente: "Franquia Curitiba",
-    clienteId: "ca123456-7890-1234-3456-012345678901",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-14",
-    valorOriginal: 9350,
-    valorPago: 9350,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-014",
-    cliente: "Franquia Porto Alegre",
-    clienteId: "cb234567-8901-2345-4567-123456789012",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 6700,
-    valorPago: 0,
-    valorAberto: 6700,
-    formaPagamento: "Boleto",
-    status: "Aberta",
-    nfEmitida: false,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-015",
-    cliente: "Franquia Belo Horizonte",
-    clienteId: "cc345678-9012-3456-5678-234567890123",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-11",
-    valorOriginal: 10750,
-    valorPago: 10750,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-016",
-    cliente: "Franquia Brasília",
-    clienteId: "ce567890-1234-5678-7890-456789012345",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-07",
-    valorOriginal: 8900,
-    valorPago: 8900,
-    valorAberto: 0,
-    formaPagamento: "Pix",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-017",
-    cliente: "Franquia Florianópolis",
-    clienteId: "cf678901-2345-6789-8901-567890123456",
-    categoria: "Royalties",
-    descricao: "Cobrança de Royalties - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 4900,
-    valorPago: 0,
-    valorAberto: 4900,
-    formaPagamento: "Boleto",
-    status: "Aberta",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-018",
-    cliente: "Franquia Manaus",
-    clienteId: "cd456789-0123-4567-6789-345678901234",
+    clienteId: clienteIds["Franquia Morumbi"],
     categoria: "Taxa de Franquia",
     descricao: "Taxa de Franquia - Parcela 3/12",
     dataEmissao: "2026-02-01",
     dataVencimento: "2026-02-10",
-    valorOriginal: 5000,
+    valorOriginal: 500000,
     valorPago: 0,
-    valorAberto: 5000,
+    valorAberto: 500000,
     formaPagamento: "Boleto",
     status: "Vencida",
     nfEmitida: false,
     competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-019",
-    cliente: "Franquia Vila Mariana",
-    clienteId: "c2b3c4d5-e6f7-8901-bcde-f23456789012",
-    categoria: "FNP",
-    descricao: "Fundo Nacional de Propaganda - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    valorOriginal: 2940,
-    valorPago: 0,
-    valorAberto: 2940,
-    formaPagamento: "Boleto",
-    status: "Aberta",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-  {
-    id: "COB-2026-020",
-    cliente: "Franquia Itaim Bibi",
-    clienteId: "c5e6f789-0123-4567-ef01-567890123456",
-    categoria: "FNP",
-    descricao: "Fundo Nacional de Propaganda - Fevereiro 2026",
-    dataEmissao: "2026-02-01",
-    dataVencimento: "2026-02-15",
-    dataPagamento: "2026-02-10",
-    valorOriginal: 4680,
-    valorPago: 4680,
-    valorAberto: 0,
-    formaPagamento: "Cartão",
-    status: "Paga",
-    nfEmitida: true,
-    competencia: "Fev/2026",
-  },
-];
+  });
 
+  // Ordenar: mais recente primeiro
+  cobrancas.sort((a, b) => b.dataEmissao.localeCompare(a.dataEmissao));
+
+  return cobrancas;
+}
+
+export const cobrancasDummy: Cobranca[] = gerarCobrancasDosCliclos();
+
+// ---------------------------------------------------------------------------
 // Estatísticas agregadas
+// ---------------------------------------------------------------------------
+
 export function getCobrancasStats(cobrancas: Cobranca[]) {
   const total = cobrancas.length;
   const totalEmitido = cobrancas.reduce((acc, c) => acc + c.valorOriginal, 0);

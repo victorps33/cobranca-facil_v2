@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Upload, FileSpreadsheet, AlertTriangle, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   parseSpreadsheetFile,
@@ -21,16 +21,22 @@ import type { Franqueado } from "@/lib/data/clientes-dummy";
 
 type DialogState = "idle" | "parsing" | "preview";
 
-const ACCEPTED_EXTENSIONS = [".xlsx", ".csv"];
-const ACCEPTED_MIME =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv";
-
 interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingFranqueados: Franqueado[];
   onImport: (rows: Franqueado[]) => void;
 }
+
+function generateUUID(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+const SPREADSHEET_EXTENSIONS = [".xlsx", ".csv", ".xls"];
 
 export function ImportDialog({
   open,
@@ -46,6 +52,7 @@ export function ImportDialog({
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [completed, setCompleted] = useState<Franqueado[]>([]);
   const [duplicateCnpjs, setDuplicateCnpjs] = useState<string[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // Reset state when dialog closes
   const handleOpenChange = useCallback(
@@ -56,86 +63,213 @@ export function ImportDialog({
         setCompleted([]);
         setDuplicateCnpjs([]);
         setDragOver(false);
+        setAiSummary(null);
       }
       onOpenChange(val);
     },
     [onOpenChange]
   );
 
+  // ---------- Deduplication helper ----------
+
+  const deduplicateRows = useCallback(
+    (completedRows: Franqueado[]) => {
+      const existingCnpjs = new Set(
+        existingFranqueados
+          .map((f) => f.cnpj)
+          .filter((c) => c.length > 0)
+      );
+
+      const dupes: string[] = [];
+      const unique = completedRows.filter((row) => {
+        if (row.cnpj && existingCnpjs.has(row.cnpj)) {
+          dupes.push(row.cnpj);
+          return false;
+        }
+        return true;
+      });
+
+      return { unique, dupes };
+    },
+    [existingFranqueados]
+  );
+
+  // ---------- AI processing ----------
+
+  const processWithAI = useCallback(
+    async (file: File): Promise<boolean> => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // For text-based files, also read and send the content
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      const isSpreadsheet = SPREADSHEET_EXTENSIONS.includes(ext);
+
+      // If it's a spreadsheet, first try parsing client-side for the raw content
+      if (isSpreadsheet) {
+        try {
+          const result = await parseSpreadsheetFile(file);
+          if (result.rows.length > 0) {
+            // Convert parsed rows to CSV text for the AI
+            const headers = Object.keys(result.rows[0]);
+            const csvLines = [
+              headers.join(","),
+              ...result.rows.map((row) =>
+                headers.map((h) => String((row as Record<string, unknown>)[h] ?? "")).join(",")
+              ),
+            ];
+            const csvBlob = new Blob([csvLines.join("\n")], { type: "text/csv" });
+            const csvFile = new File([csvBlob], file.name.replace(/\.\w+$/, ".csv"), {
+              type: "text/csv",
+            });
+            formData.set("file", csvFile);
+          }
+        } catch {
+          // If parsing fails, send the original file
+        }
+      }
+
+      try {
+        const response = await fetch("/api/cadastro/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Erro ao processar arquivo");
+        }
+
+        const data = await response.json();
+
+        if (!data.franqueados || data.franqueados.length === 0) {
+          toast({
+            title: "Nenhum registro encontrado",
+            description:
+              data.warnings?.[0] ||
+              "A IA não conseguiu extrair dados de franqueados deste arquivo.",
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        // Convert AI response to Franqueado objects
+        const completedRows: Franqueado[] = data.franqueados
+          .filter((f: Record<string, string>) => f.nome)
+          .map((f: Record<string, string>) => ({
+            id: generateUUID(),
+            nome: f.nome || "",
+            razaoSocial: f.razaoSocial || "",
+            cnpj: f.cnpj || "",
+            email: f.email || "",
+            telefone: f.telefone || "",
+            cidade: f.cidade || "",
+            estado: f.estado || "",
+            bairro: f.bairro || "",
+            dataAbertura:
+              f.dataAbertura || new Date().toISOString().slice(0, 10),
+            responsavel: f.responsavel || "",
+            statusLoja:
+              (["Aberta", "Fechada", "Vendida"].includes(f.statusLoja)
+                ? f.statusLoja
+                : "Aberta") as Franqueado["statusLoja"],
+            valorEmitido: 0,
+            valorRecebido: 0,
+            valorAberto: 0,
+            inadimplencia: 0,
+            status: "Saudável" as const,
+            pmr: 0,
+          }));
+
+        const { unique, dupes } = deduplicateRows(completedRows);
+
+        setParseResult({
+          rows: data.franqueados.map((f: Record<string, string>) => ({
+            nome: f.nome,
+          })),
+          warnings: data.warnings || [],
+        });
+        setCompleted(unique);
+        setDuplicateCnpjs(dupes);
+        setAiSummary(data.summary || null);
+        return true;
+      } catch (err) {
+        throw err;
+      }
+    },
+    [toast, deduplicateRows]
+  );
+
+  // ---------- Fallback: local spreadsheet parsing ----------
+
+  const processLocally = useCallback(
+    async (file: File): Promise<boolean> => {
+      const result = await parseSpreadsheetFile(file);
+
+      if (result.rows.length === 0) {
+        toast({
+          title: "Nenhum registro encontrado",
+          description:
+            "A planilha não contém registros válidos. Verifique se os cabeçalhos estão corretos.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const completedRows = completeImportedRows(result.rows);
+      const { unique, dupes } = deduplicateRows(completedRows);
+
+      setParseResult(result);
+      setCompleted(unique);
+      setDuplicateCnpjs(dupes);
+      setAiSummary(null);
+      return true;
+    },
+    [toast, deduplicateRows]
+  );
+
   // ---------- File processing ----------
 
   const processFile = useCallback(
     async (file: File) => {
-      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-
-      if (ext === ".pdf") {
-        toast({
-          title: "Formato não suportado",
-          description:
-            "Arquivos PDF não podem ser importados automaticamente. Use .xlsx ou .csv.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-        toast({
-          title: "Formato não suportado",
-          description: `Formato "${ext}" não suportado. Use .xlsx ou .csv.`,
-          variant: "destructive",
-        });
-        return;
-      }
-
       setState("parsing");
 
       try {
-        const result = await parseSpreadsheetFile(file);
-
-        if (result.rows.length === 0) {
+        // Try AI processing first
+        const success = await processWithAI(file);
+        if (success) {
+          setState("preview");
+        } else {
+          setState("idle");
+        }
+      } catch {
+        // Fallback to local parsing for spreadsheets
+        const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+        if (SPREADSHEET_EXTENSIONS.includes(ext)) {
+          try {
+            const success = await processLocally(file);
+            setState(success ? "preview" : "idle");
+          } catch {
+            toast({
+              title: "Erro ao processar arquivo",
+              description:
+                "Não foi possível ler o arquivo. Verifique se está correto.",
+              variant: "destructive",
+            });
+            setState("idle");
+          }
+        } else {
           toast({
-            title: "Nenhum registro encontrado",
+            title: "Erro ao processar arquivo",
             description:
-              "A planilha não contém registros válidos. Verifique se os cabeçalhos estão corretos.",
+              "Não foi possível processar este arquivo. Verifique se a API de IA está configurada.",
             variant: "destructive",
           });
           setState("idle");
-          return;
         }
-
-        const completedRows = completeImportedRows(result.rows);
-
-        // Deduplication by CNPJ
-        const existingCnpjs = new Set(
-          existingFranqueados
-            .map((f) => f.cnpj)
-            .filter((c) => c.length > 0)
-        );
-
-        const dupes: string[] = [];
-        const unique = completedRows.filter((row) => {
-          if (row.cnpj && existingCnpjs.has(row.cnpj)) {
-            dupes.push(row.cnpj);
-            return false;
-          }
-          return true;
-        });
-
-        setParseResult(result);
-        setCompleted(unique);
-        setDuplicateCnpjs(dupes);
-        setState("preview");
-      } catch {
-        toast({
-          title: "Erro ao processar arquivo",
-          description:
-            "Não foi possível ler a planilha. Verifique se o arquivo está correto.",
-          variant: "destructive",
-        });
-        setState("idle");
       }
     },
-    [existingFranqueados, toast]
+    [processWithAI, processLocally, toast]
   );
 
   // ---------- Event handlers ----------
@@ -177,7 +311,7 @@ export function ImportDialog({
         <DialogHeader>
           <DialogTitle>Importar Franqueados</DialogTitle>
           <DialogDescription>
-            Faça upload de uma planilha .xlsx ou .csv para importar franqueados.
+            Envie qualquer arquivo com dados de franqueados. A IA vai interpretar e extrair os dados automaticamente.
           </DialogDescription>
         </DialogHeader>
 
@@ -217,13 +351,12 @@ export function ImportDialog({
                 <span className="text-[#F85B00]">clique para selecionar</span>
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                Formatos aceitos: .xlsx, .csv
+                Qualquer formato: .xlsx, .csv, .pdf, .txt, .doc e outros
               </p>
             </div>
             <input
               ref={inputRef}
               type="file"
-              accept={ACCEPTED_MIME}
               onChange={handleFileChange}
               className="hidden"
             />
@@ -234,13 +367,27 @@ export function ImportDialog({
         {state === "parsing" && (
           <div className="flex flex-col items-center justify-center gap-3 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-[#F85B00]" />
-            <p className="text-sm text-gray-500">Processando planilha...</p>
+            <p className="text-sm text-gray-500">Processando arquivo com IA...</p>
+            <p className="text-xs text-gray-400">Interpretando e extraindo dados</p>
           </div>
         )}
 
-        {/* PREVIEW — Table + warnings */}
+        {/* PREVIEW — Table + warnings + AI summary */}
         {state === "preview" && parseResult && (
           <div className="space-y-4">
+            {/* AI Summary */}
+            {aiSummary && (
+              <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#85ace6]" />
+                  Resumo da IA
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {aiSummary}
+                </p>
+              </div>
+            )}
+
             {/* Summary */}
             <div className="flex items-center gap-2 text-sm">
               <FileSpreadsheet className="h-4 w-4 text-gray-400" />

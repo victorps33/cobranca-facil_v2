@@ -1,16 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { toast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StripeKpiCard } from "@/components/ui/stripe-kpi-card";
-import { AIInsightsWidget } from "@/components/ui/ai-insights-widget";
-import { DunningTimelineCompact } from "@/components/ui/dunning-timeline";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { SkeletonDashboard } from "@/components/ui/skeleton-loader";
 import { KpiTile } from "@/components/ui/kpi-tile";
 import { HeatmapTile } from "@/components/ui/heatmap-tile";
 import {
@@ -18,154 +10,173 @@ import {
   StripeRevenueChart,
   StripePaymentMethodsChart,
   StripeChargesStatusChart,
-  StripeCollectionRateChart,
-  ChartLegend,
+  SafraCurveChart,
 } from "@/components/charts/stripe-charts";
+import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
+import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 import {
   DollarSign,
-  FileText,
-  Users,
   TrendingUp,
   AlertTriangle,
-  Play,
-  FastForward,
-  RotateCcw,
-  Loader2,
+  FileText,
   Sparkles,
 } from "lucide-react";
 
-function getCurrentPeriodLabel(): string {
-  const now = new Date();
-  const months = [
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-  ];
-  return `${months[now.getMonth()]}/${String(now.getFullYear()).slice(-2)}`;
+// ── Competências derivadas dos ciclos de apuração ──
+
+const competencias = ciclosHistorico.map((c) => ({
+  label: c.competenciaShort,
+  value: c.competencia,
+}));
+
+// ── Dados dos gráficos (derivados das cobranças reais) ──
+
+const ciclosChronological = [...ciclosHistorico].reverse();
+
+const safraColors = ["#9ca3af", "#8b5cf6", "#10b981", "#F85B00", "#85ace6"];
+
+function buildChartData() {
+  const revenueData = ciclosChronological.map((ciclo) => {
+    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
+    const totalEmitido = cobsDoMes.reduce((s, c) => s + c.valorOriginal, 0);
+    const totalRecebido = cobsDoMes.reduce((s, c) => s + c.valorPago, 0);
+    return {
+      month: ciclo.competenciaShort,
+      revenue: Math.round(totalRecebido / 100),
+      projected: Math.round(totalEmitido / 100),
+    };
+  });
+
+  const chargesStatusData = ciclosChronological.map((ciclo) => {
+    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
+    return {
+      month: ciclo.competenciaShort,
+      pagas: cobsDoMes.filter((c) => c.status === "Paga").length,
+      pendentes: cobsDoMes.filter((c) => c.status === "Aberta").length,
+      vencidas: cobsDoMes.filter((c) => c.status === "Vencida").length,
+    };
+  });
+
+  const paymentMethodsData = ciclosChronological.map((ciclo) => {
+    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
+    return {
+      month: ciclo.competenciaShort,
+      boleto: Math.round(
+        cobsDoMes.filter((c) => c.formaPagamento === "Boleto").reduce((s, c) => s + c.valorOriginal, 0) / 100
+      ),
+      pix: Math.round(
+        cobsDoMes.filter((c) => c.formaPagamento === "Pix").reduce((s, c) => s + c.valorOriginal, 0) / 100
+      ),
+      cartao: Math.round(
+        cobsDoMes.filter((c) => c.formaPagamento === "Cartão").reduce((s, c) => s + c.valorOriginal, 0) / 100
+      ),
+    };
+  });
+
+  return { revenueData, chargesStatusData, paymentMethodsData };
 }
 
+// ── Curva de Recebimento por Safra ──
+
+function buildSafraData() {
+  const hoje = new Date("2026-02-07");
+  const dayIntervals = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+  // Safras: cada competência é uma safra (mais antiga → mais nova)
+  const safras = ciclosChronological.map((ciclo, idx) => ({
+    key: ciclo.competenciaShort.replace("/", ""),
+    label: ciclo.competenciaShort,
+    color: safraColors[idx % safraColors.length],
+    emissionDate: new Date(ciclo.dataApuracao + "T12:00:00"),
+    competencia: ciclo.competencia,
+  }));
+
+  const data = dayIntervals.map((d) => {
+    const point: Record<string, number | string | undefined> = { day: `D+${d}` };
+
+    for (const safra of safras) {
+      const cutoff = new Date(safra.emissionDate);
+      cutoff.setDate(cutoff.getDate() + d);
+
+      // Se a data de corte é no futuro, esta safra ainda não tem dados para este ponto
+      if (cutoff > hoje) {
+        point[safra.key] = undefined;
+        continue;
+      }
+
+      const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === safra.competencia);
+      const totalEmitido = cobsDoMes.reduce((s, c) => s + c.valorOriginal, 0);
+
+      if (totalEmitido === 0) {
+        point[safra.key] = 0;
+        continue;
+      }
+
+      const cutoffISO = cutoff.toISOString().split("T")[0];
+      const totalColetado = cobsDoMes
+        .filter((c) => c.dataPagamento && c.dataPagamento <= cutoffISO)
+        .reduce((s, c) => s + c.valorPago, 0);
+
+      point[safra.key] = Math.round((totalColetado / totalEmitido) * 100);
+    }
+
+    return point;
+  });
+
+  return {
+    data,
+    safras: safras.map((s) => ({ key: s.key, label: s.label, color: s.color })),
+  };
+}
+
+const chartData = buildChartData();
+const safraData = buildSafraData();
+
+// ── Component ──
+
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
-  const [demoDate, setDemoDate] = useState<string | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
+  const [selectedCompetencia, setSelectedCompetencia] = useState(competencias[0].value);
 
-  const periodLabel = `Competência: ${getCurrentPeriodLabel()}`;
+  const selectedLabel = competencias.find((c) => c.value === selectedCompetencia)?.label || "";
+  const periodLabel = `Competência: ${selectedLabel}`;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // ── KPIs do mês selecionado ──
+  const cobrancasDoMes = cobrancasDummy.filter((c) => c.competencia === selectedCompetencia);
+  const stats = getCobrancasStats(cobrancasDoMes);
 
-  async function fetchData() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/app-state");
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-        setDemoDate(json.demoDate);
-      }
-    } catch {
-      // use dummy fallback
-      setData({
-        stats: { total: 25, pending: 8, paid: 14, overdue: 3, totalAmount: 157500, paidAmount: 98200 },
-        charges: [],
-        dunningRule: null,
-      });
-    }
-    setLoading(false);
-  }
-
-  async function runDunning() {
-    setIsRunning(true);
-    try {
-      const res = await fetch("/api/dunning/run", { method: "POST" });
-      if (res.ok) {
-        toast({ title: "Régua executada", description: "Notificações geradas com sucesso." });
-        fetchData();
-      }
-    } catch {
-      toast({ title: "Erro", description: "Falha ao executar a régua.", variant: "destructive" });
-    }
-    setIsRunning(false);
-  }
-
-  async function simulateDays(days: number) {
-    setIsRunning(true);
-    try {
-      const res = await fetch("/api/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days }),
-      });
-      if (res.ok) {
-        toast({ title: `+${days} dias simulados`, description: "Dados atualizados." });
-        fetchData();
-      }
-    } catch {
-      toast({ title: "Erro", description: "Falha na simulação.", variant: "destructive" });
-    }
-    setIsRunning(false);
-  }
-
-  async function resetDemo() {
-    try {
-      const res = await fetch("/api/simulate/reset", { method: "POST" });
-      if (res.ok) {
-        toast({ title: "Data resetada", description: "Voltou para a data real." });
-        fetchData();
-      }
-    } catch {
-      toast({ title: "Erro", variant: "destructive" });
-    }
-  }
-
-  if (loading) return <SkeletonDashboard />;
-
-  const stats = data?.stats || { total: 0, pending: 0, paid: 0, overdue: 0, totalAmount: 0, paidAmount: 0 };
-  const inadRate = stats.totalAmount > 0
-    ? ((stats.totalAmount - stats.paidAmount) / stats.totalAmount * 100).toFixed(1)
+  const inadRate = stats.totalEmitido > 0
+    ? ((stats.totalAberto / stats.totalEmitido) * 100).toFixed(1)
     : "0.0";
 
-  // ── Dados dummy dos gráficos (6 meses, valores coerentes com KPIs) ──
-  const revenueData = [
-    { month: "Set/24", revenue: 118000, projected: 115000 },
-    { month: "Out/24", revenue: 125000, projected: 120000 },
-    { month: "Nov/24", revenue: 131000, projected: 128000 },
-    { month: "Dez/24", revenue: 142000, projected: 135000 },
-    { month: "Jan/25", revenue: 138000, projected: 140000 },
-    { month: "Fev/25", revenue: 157500, projected: 145000 },
-  ];
+  // ── Trend vs. competência anterior ──
+  const currentIdx = competencias.findIndex((c) => c.value === selectedCompetencia);
+  const prevComp = currentIdx < competencias.length - 1 ? competencias[currentIdx + 1] : null;
+  let trendEmitido = 0;
+  let trendRecebido = 0;
+  let trendInad = 0;
+  let trendPendentes = 0;
 
-  const paymentMethodsData = [
-    { month: "Set/24", boleto: 68000, pix: 38000, cartao: 12000 },
-    { month: "Out/24", boleto: 72000, pix: 40000, cartao: 13000 },
-    { month: "Nov/24", boleto: 74000, pix: 43000, cartao: 14000 },
-    { month: "Dez/24", boleto: 80000, pix: 47000, cartao: 15000 },
-    { month: "Jan/25", boleto: 78000, pix: 45000, cartao: 15000 },
-    { month: "Fev/25", boleto: 88000, pix: 52000, cartao: 17500 },
-  ];
-
-  const chargesStatusData = [
-    { month: "Set/24", pagas: 18, pendentes: 4, vencidas: 2 },
-    { month: "Out/24", pagas: 19, pendentes: 5, vencidas: 1 },
-    { month: "Nov/24", pagas: 20, pendentes: 3, vencidas: 2 },
-    { month: "Dez/24", pagas: 21, pendentes: 4, vencidas: 1 },
-    { month: "Jan/25", pagas: 17, pendentes: 6, vencidas: 2 },
-    { month: "Fev/25", pagas: 14, pendentes: 8, vencidas: 3 },
-  ];
-
-  const collectionRateData = [
-    { month: "Set/24", rate: 88, target: 90 },
-    { month: "Out/24", rate: 91, target: 90 },
-    { month: "Nov/24", rate: 89, target: 90 },
-    { month: "Dez/24", rate: 93, target: 90 },
-    { month: "Jan/25", rate: 85, target: 90 },
-    { month: "Fev/25", rate: 87, target: 90 },
-  ];
+  if (prevComp) {
+    const prevCobs = cobrancasDummy.filter((c) => c.competencia === prevComp.value);
+    const prevStats = getCobrancasStats(prevCobs);
+    if (prevStats.totalEmitido > 0) {
+      trendEmitido = Math.round(((stats.totalEmitido - prevStats.totalEmitido) / prevStats.totalEmitido) * 100);
+      const prevInad = (prevStats.totalAberto / prevStats.totalEmitido) * 100;
+      trendInad = Math.round((Number(inadRate) - prevInad) * 10) / 10;
+    }
+    if (prevStats.totalPago > 0) {
+      trendRecebido = Math.round(((stats.totalPago - prevStats.totalPago) / prevStats.totalPago) * 100);
+    }
+    const prevPendentes = prevStats.byStatus.aberta + prevStats.byStatus.vencida;
+    const currPendentes = stats.byStatus.aberta + stats.byStatus.vencida;
+    if (prevPendentes > 0) {
+      trendPendentes = Math.round(((currPendentes - prevPendentes) / prevPendentes) * 100);
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* ── Page Header (single h1, action on right) ── */}
+      {/* ── Page Header ── */}
       <PageHeader
         title="Dashboard"
         subtitle="Visão consolidada de cobranças e recebimentos"
@@ -176,132 +187,75 @@ export default function DashboardPage() {
         ]}
       />
 
-      {/* ── Filters ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Competence pills */}
-        <div className="flex items-center gap-1.5">
-          {["Fev/26", "Jan/26", "Dez/25", "Nov/25"].map((comp) => (
-            <button
-              key={comp}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                comp === "Fev/26"
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {comp}
-            </button>
-          ))}
-        </div>
-        {/* Status pills */}
-        <div className="flex items-center gap-1.5">
-          {["Todos", "Pagos", "Em Aberto", "Vencidos"].map((s) => (
-            <button
-              key={s}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                s === "Todos"
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+      {/* ── Filtros de competência ── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {competencias.map((comp) => (
+          <button
+            key={comp.value}
+            onClick={() => setSelectedCompetencia(comp.value)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
+              comp.value === selectedCompetencia
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            {comp.label}
+          </button>
+        ))}
       </div>
 
-      {/* ── KPI Cards (2 cols) ── */}
+      {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <KpiTile
           title="Total Emitido"
-          value={`R$ ${(stats.totalAmount / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          subtitle={`${stats.total} cobranças · ${getCurrentPeriodLabel()} até hoje`}
-          trend={{ value: 12, direction: "up" }}
+          value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          subtitle={`${stats.total} cobranças · ${selectedLabel}`}
+          trend={{ value: Math.abs(trendEmitido), direction: trendEmitido >= 0 ? "up" : "down" }}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <KpiTile
           title="Total Recebido"
-          value={`R$ ${(stats.paidAmount / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          subtitle={`${stats.paid} pagas · ${getCurrentPeriodLabel()} até hoje`}
-          trend={{ value: 8, direction: "up" }}
+          value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          subtitle={`${stats.byStatus.paga} pagas · ${selectedLabel}`}
+          trend={{ value: Math.abs(trendRecebido), direction: trendRecebido >= 0 ? "up" : "down" }}
           icon={<TrendingUp className="h-5 w-5" />}
         />
         <KpiTile
           title="Taxa de Inadimplência"
           value={`${inadRate}%`}
-          subtitle={`${stats.overdue} vencidas · comparação: ${getCurrentPeriodLabel()} (D+30 vs D+30)`}
-          trend={{ value: 2.1, direction: "down" }}
+          subtitle={`${stats.byStatus.vencida} vencidas · ${selectedLabel}`}
+          trend={{ value: Math.abs(trendInad), direction: trendInad <= 0 ? "down" : "up" }}
           icon={<AlertTriangle className="h-5 w-5" />}
-          variant={Number(inadRate) > 10 ? "danger" : "default"}
+          variant={Number(inadRate) > 15 ? "danger" : "default"}
         />
         <KpiTile
           title="Cobranças Pendentes"
-          value={String(stats.pending)}
-          subtitle={`De ${stats.total} emitidas no período`}
-          trend={{ value: 5, direction: "down" }}
+          value={String(stats.byStatus.aberta + stats.byStatus.vencida)}
+          subtitle={`De ${stats.total} emitidas · ${selectedLabel}`}
+          trend={{ value: Math.abs(trendPendentes), direction: trendPendentes <= 0 ? "down" : "up" }}
           icon={<FileText className="h-5 w-5" />}
         />
       </div>
 
-      {/* ── Charts (2 cols) ── */}
+      {/* ── Charts ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Receita Mensal" subtitle="Últimos 6 meses">
-          <StripeRevenueChart data={revenueData} />
+        <ChartCard title="Recebido vs. Emitido" subtitle="Últimos 5 meses">
+          <StripeRevenueChart data={chartData.revenueData} />
         </ChartCard>
-        <ChartCard title="Formas de Pagamento" subtitle={periodLabel}>
-          <StripePaymentMethodsChart data={paymentMethodsData} />
+        <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
+          <StripePaymentMethodsChart data={chartData.paymentMethodsData} />
         </ChartCard>
-        <ChartCard title="Status das Cobranças" subtitle={periodLabel}>
-          <StripeChargesStatusChart data={chargesStatusData} />
+        <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
+          <StripeChargesStatusChart data={chartData.chargesStatusData} />
         </ChartCard>
-        <ChartCard title="Taxa de Recebimento" subtitle="Evolução mensal">
-          <StripeCollectionRateChart data={collectionRateData} />
+        <ChartCard title="Curva de Recebimento por Safra" subtitle="Evolução cumulativa por competência">
+          <SafraCurveChart data={safraData.data} safras={safraData.safras} />
         </ChartCard>
       </div>
 
       {/* ── Heatmap ── */}
       <HeatmapTile />
-
-      {/* ── Demo Controls (compact, muted) ── */}
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-            Ambiente de demonstração
-          </span>
-          {demoDate && (
-            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
-              Data simulada: {new Date(demoDate).toLocaleDateString("pt-BR")}
-            </span>
-          )}
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={runDunning}
-              disabled={isRunning}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              {isRunning ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <Play className="h-3 w-3" aria-hidden="true" />}
-              Rodar régua
-            </button>
-            <button
-              onClick={() => simulateDays(7)}
-              disabled={isRunning}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              <FastForward className="h-3 w-3" aria-hidden="true" />
-              +7 dias
-            </button>
-            <button
-              onClick={resetDemo}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              Resetar
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -17,8 +17,15 @@ export interface RegraApuracao {
   royaltyPercent: number;
   marketingPercent: number;
   baseCalculo: "bruto" | "liquido";
-  excecoes: { franqueadoId: string; descricao: string }[];
+  exceções: { franqueadoId: string; descricao: string }[];
   descontos: { franqueadoId: string; descricao: string; valor: number }[];
+}
+
+export interface NfConfig {
+  royalty: boolean;   // emitir NF para royalties?
+  marketing: boolean; // emitir NF para marketing/FNP?
+  exceçõesRoyalty: string[];   // IDs de franqueados com regra invertida para royalties
+  exceçõesMarketing: string[]; // IDs de franqueados com regra invertida para marketing
 }
 
 export interface ResultadoFranqueado {
@@ -30,6 +37,8 @@ export interface ResultadoFranqueado {
   totalCobrar: number;
   variacao: number;      // percentual de variação vs mês anterior
   flagRevisao: boolean;  // true se variação > 20%
+  nfRoyalty: boolean;
+  nfMarketing: boolean;
 }
 
 export interface FonteDados {
@@ -94,8 +103,15 @@ export const regrasDefault: RegraApuracao = {
   royaltyPercent: 5,
   marketingPercent: 2,
   baseCalculo: "bruto",
-  excecoes: [],
+  exceções: [],
   descontos: [],
+};
+
+export const nfConfigDefault: NfConfig = {
+  royalty: true,
+  marketing: false,
+  exceçõesRoyalty: [],
+  exceçõesMarketing: [],
 };
 
 // ============================================
@@ -104,7 +120,8 @@ export const regrasDefault: RegraApuracao = {
 
 export function calcularApuracao(
   franqueados: ApuracaoFranqueado[],
-  regras: RegraApuracao
+  regras: RegraApuracao,
+  nfConfig: NfConfig = nfConfigDefault
 ): ResultadoFranqueado[] {
   return franqueados.map((f) => {
     const faturamento = f.total;
@@ -118,6 +135,10 @@ export function calcularApuracao(
 
     const flagRevisao = Math.abs(variacao) > 20;
 
+    // Exceção inverte a regra geral para este franqueado
+    const isExceçãoRoyalty = nfConfig.exceçõesRoyalty.includes(f.id);
+    const isExceçãoMarketing = nfConfig.exceçõesMarketing.includes(f.id);
+
     return {
       id: f.id,
       nome: f.nome,
@@ -127,6 +148,8 @@ export function calcularApuracao(
       totalCobrar,
       variacao: Math.round(variacao),
       flagRevisao,
+      nfRoyalty: isExceçãoRoyalty ? !nfConfig.royalty : nfConfig.royalty,
+      nfMarketing: isExceçãoMarketing ? !nfConfig.marketing : nfConfig.marketing,
     };
   });
 }
@@ -145,4 +168,27 @@ export function getDiasParaEmissao(): number {
   const now = new Date();
   const fimMes = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return Math.max(0, fimMes.getDate() - now.getDate());
+}
+
+export function getCompetenciasDisponiveis(): { label: string; value: string }[] {
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const now = new Date();
+  const result: { label: string; value: string; _ts: number }[] = [];
+
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mes = meses[d.getMonth()];
+    const ano = d.getFullYear();
+    const anoShort = String(ano).slice(2);
+    result.push({
+      label: `${mes}/${anoShort}`,
+      value: `${mes}/${ano}`,
+      _ts: d.getTime(),
+    });
+  }
+
+  // mais recente primeiro
+  result.sort((a, b) => b._ts - a._ts);
+
+  return result.map(({ label, value }) => ({ label, value }));
 }

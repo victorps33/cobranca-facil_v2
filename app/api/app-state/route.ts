@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
+import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 
 // GET /api/app-state — Retorna estado atual da aplicação (data simulada, stats)
 export async function GET() {
-  // Tenta buscar do banco, fallback para dados dummy
+  // Tenta buscar do banco, fallback para dados dummy derivados das cobranças
   try {
     const { PrismaClient } = await import("@prisma/client");
     const prisma = new PrismaClient();
@@ -40,18 +42,22 @@ export async function GET() {
       },
     });
   } catch {
-    // Fallback: retorna dados dummy se o banco não estiver disponível
+    // Fallback: dados derivados do ciclo mais recente (Jan/2026)
+    const latestCiclo = ciclosHistorico[0];
+    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === latestCiclo.competencia);
+    const stats = getCobrancasStats(cobsDoMes);
+
     return NextResponse.json({
       date: new Date().toISOString(),
       isSimulated: false,
       demoDate: null,
       stats: {
-        total: 25,
-        pending: 8,
-        paid: 14,
-        overdue: 3,
-        totalAmount: 15750000,
-        paidAmount: 9820000,
+        total: stats.total,
+        pending: stats.byStatus.aberta,
+        paid: stats.byStatus.paga,
+        overdue: stats.byStatus.vencida,
+        totalAmount: stats.totalEmitido,
+        paidAmount: stats.totalPago,
       },
     });
   }

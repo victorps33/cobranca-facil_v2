@@ -201,7 +201,7 @@ export function StripeChargesStatusChart({ data }: ChargesStatusChartProps) {
   );
 }
 
-// Collection Rate Chart
+// Collection Rate Chart (legacy)
 interface CollectionRateChartProps {
   data: Array<{
     month: string;
@@ -250,6 +250,94 @@ export function StripeCollectionRateChart({ data }: CollectionRateChartProps) {
         />
       </LineChart>
     </ResponsiveContainer>
+  );
+}
+
+// Curva de Recebimento por Safra
+interface SafraCurveChartProps {
+  data: Array<Record<string, number | string | undefined>>;
+  safras: Array<{ key: string; label: string; color: string }>;
+}
+
+const SafraCurveTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const entries = payload.filter((e: any) => e.value != null);
+    if (entries.length === 0) return null;
+    return (
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+        <p className="text-gray-400 text-xs mb-1">{label}</p>
+        {entries.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="font-medium">
+              {entry.name}: {entry.value}%
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+export function SafraCurveChart({ data, safras }: SafraCurveChartProps) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
+          <XAxis
+            dataKey="day"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11, fill: "#9ca3af" }}
+            dy={10}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: "#9ca3af" }}
+            width={40}
+            domain={[0, 100]}
+            tickFormatter={(v) => `${v}%`}
+          />
+          <Tooltip content={<SafraCurveTooltip />} />
+          <ReferenceLine
+            y={90}
+            stroke="#d1d5db"
+            strokeDasharray="5 5"
+            label={{ value: "Meta 90%", position: "right", fill: "#9ca3af", fontSize: 10 }}
+          />
+          {safras.map((safra) => (
+            <Line
+              key={safra.key}
+              type="monotone"
+              dataKey={safra.key}
+              name={safra.label}
+              stroke={safra.color}
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              activeDot={{ r: 5, fill: safra.color, stroke: "#fff", strokeWidth: 2 }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 px-1">
+        {safras.map((safra) => (
+          <div key={safra.key} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: safra.color }}
+            />
+            <span className="text-[11px] text-gray-500">{safra.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

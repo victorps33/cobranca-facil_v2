@@ -9,24 +9,41 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 
-const heatmapData = [
-  { name: "Morumbi", value: 180000, percentage: 100 },
-  { name: "Vila Mariana", value: 120000, percentage: 67 },
-  { name: "Santo Amaro", value: 90000, percentage: 50 },
-  { name: "Campo Belo", value: 60000, percentage: 33 },
-  { name: "Itaim Bibi", value: 40000, percentage: 22 },
-  { name: "Moema", value: 20000, percentage: 11 },
-];
+// ── Dados derivados do ciclo mais recente de apuração ──
 
-// Color scale from light to dark based on value intensity
+const latestCiclo = ciclosHistorico[0];
+
+const heatmapData = latestCiclo.detalhes
+  .map((d) => ({
+    name: d.franqueado.replace("Franquia ", ""),
+    value: Math.round(d.faturamento / 100), // centavos → reais
+  }))
+  .sort((a, b) => b.value - a.value);
+
+const maxValue = heatmapData[0]?.value || 1;
+const dataWithPercentage = heatmapData.map((d) => ({
+  ...d,
+  percentage: Math.round((d.value / maxValue) * 100),
+}));
+
+// ── Cores por intensidade ──
+
 const getBarColor = (percentage: number) => {
-  if (percentage >= 80) return "#F85B00"; // Laranja intenso
-  if (percentage >= 60) return "#fb8c47"; // Laranja médio
-  if (percentage >= 40) return "#fdb98b"; // Laranja claro
-  if (percentage >= 20) return "#85ace6"; // Azul médio
-  return "#b8d4f0"; // Azul claro
+  if (percentage >= 80) return "#F85B00";
+  if (percentage >= 60) return "#fb8c47";
+  if (percentage >= 40) return "#fdb98b";
+  if (percentage >= 20) return "#85ace6";
+  return "#b8d4f0";
 };
+
+const fmtBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+  }).format(value);
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -35,14 +52,10 @@ const CustomTooltip = ({ active, payload }: any) => {
       <div className="bg-white px-4 py-3 shadow-lg rounded-xl border border-gray-100">
         <p className="text-sm font-semibold text-gray-900">{data.name}</p>
         <p className="text-lg font-bold text-gray-900 mt-1">
-          {new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-            minimumFractionDigits: 0,
-          }).format(data.value)}
+          {fmtBRL(data.value)}
         </p>
         <p className="text-xs text-gray-500 mt-1">
-          {data.percentage}% do maior valor
+          {data.percentage}% do maior faturamento
         </p>
       </div>
     );
@@ -50,8 +63,10 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+// ── Componente ──
+
 export function HeatmapTile() {
-  const total = heatmapData.reduce((acc, item) => acc + item.value, 0);
+  const total = dataWithPercentage.reduce((acc, item) => acc + item.value, 0);
 
   return (
     <div className="w-full bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -63,28 +78,24 @@ export function HeatmapTile() {
               Concentração de Faturamento
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
-              Distribuição por bairro — Zona Sul de São Paulo
+              Distribuição por franqueado — {latestCiclo.competenciaShort}
             </p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-gray-900">
-              {new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                minimumFractionDigits: 0,
-              }).format(total)}
+              {fmtBRL(total)}
             </p>
-            <p className="text-xs text-gray-500">Total da região</p>
+            <p className="text-xs text-gray-500">Faturamento total da rede</p>
           </div>
         </div>
       </div>
 
       {/* Chart */}
       <div className="p-6">
-        <div className="h-[320px]">
+        <div style={{ height: Math.max(280, dataWithPercentage.length * 40) }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={heatmapData}
+              data={dataWithPercentage}
               layout="vertical"
               margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
             >
@@ -107,15 +118,15 @@ export function HeatmapTile() {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "#374151", fontSize: 13, fontWeight: 500 }}
-                width={100}
+                width={110}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.02)" }} />
               <Bar
                 dataKey="value"
                 radius={[0, 8, 8, 0]}
-                barSize={32}
+                barSize={28}
               >
-                {heatmapData.map((entry, index) => (
+                {dataWithPercentage.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={getBarColor(entry.percentage)}
