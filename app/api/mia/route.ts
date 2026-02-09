@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireTenant } from "@/lib/auth-helpers";
 
 const SYSTEM_PROMPT = `Você é Mia, a agente de IA da Menlo para franqueadoras. Seu trabalho é transformar dados de cobrança em decisões claras.
 Tom: curto, positivo, resolutivo. Linguagem simples. Sem jargão. Sem textos longos.
@@ -146,6 +147,9 @@ async function getContextData() {
 }
 
 export async function POST(request: Request) {
+  const { error } = await requireTenant();
+  if (error) return error;
+
   try {
     const { message, timeframe, page } = await request.json();
 

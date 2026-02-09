@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export async function POST(request: Request) {
+  const { error } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "FINANCEIRO"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth-helpers";
 import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
 import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 
 // GET /api/app-state — Retorna estado atual da aplicação (data simulada, stats)
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
+
   // Tenta buscar do banco, fallback para dados dummy derivados das cobranças
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-
     const appState = await prisma.appState.findFirst({ where: { id: 1 } });
     const now = appState?.simulatedNow || new Date();
     const isSimulated = !!appState?.simulatedNow;
@@ -25,8 +27,6 @@ export async function GET() {
       where: { status: "PAID" },
       _sum: { amountCents: true },
     });
-
-    await prisma.$disconnect();
 
     return NextResponse.json({
       date: now.toISOString(),

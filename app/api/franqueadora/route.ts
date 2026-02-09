@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth, requireRole } from "@/lib/auth-helpers";
 
 // GET /api/franqueadora — Retorna o cadastro da franqueadora (ou null)
 export async function GET() {
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    const franqueadora = await prisma.franqueadora.findFirst();
-    await prisma.$disconnect();
+    const franqueadoraId = session!.user.franqueadoraId;
+    if (!franqueadoraId) return NextResponse.json(null);
+
+    const franqueadora = await prisma.franqueadora.findUnique({
+      where: { id: franqueadoraId },
+    });
     return NextResponse.json(franqueadora);
   } catch {
     return NextResponse.json(null);
@@ -15,6 +22,12 @@ export async function GET() {
 
 // PUT /api/franqueadora — Upsert (cria ou atualiza)
 export async function PUT(req: NextRequest) {
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
     const body = await req.json();
 
@@ -36,9 +49,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ errors }, { status: 400 });
     }
 
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-
     const data = {
       nome: body.nome.trim(),
       razaoSocial: body.razaoSocial.trim(),
@@ -53,22 +63,20 @@ export async function PUT(req: NextRequest) {
       responsavel: body.responsavel?.trim() || null,
     };
 
-    // Single-tenant: busca primeiro registro existente
-    const existing = await prisma.franqueadora.findFirst();
+    const franqueadoraId = session!.user.franqueadoraId;
 
     let franqueadora;
-    if (existing) {
+    if (franqueadoraId) {
       franqueadora = await prisma.franqueadora.update({
-        where: { id: existing.id },
+        where: { id: franqueadoraId },
         data,
       });
     } else {
       franqueadora = await prisma.franqueadora.create({ data });
     }
 
-    await prisma.$disconnect();
     return NextResponse.json(franqueadora);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Falha ao salvar dados da franqueadora" },
       { status: 500 }

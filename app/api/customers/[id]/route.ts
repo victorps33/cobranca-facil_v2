@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 // GET /api/customers/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, franqueadoraId: tenantId! },
       include: { charges: { orderBy: { dueDate: "desc" } } },
     });
-    await prisma.$disconnect();
     if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     return NextResponse.json(customer);
   } catch {
@@ -19,15 +21,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // PATCH /api/customers/[id]
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
+    const existing = await prisma.customer.findFirst({
+      where: { id: params.id, franqueadoraId: tenantId! },
+    });
+    if (!existing) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+
     const body = await req.json();
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
     const customer = await prisma.customer.update({
       where: { id: params.id },
       data: body,
     });
-    await prisma.$disconnect();
     return NextResponse.json(customer);
   } catch {
     return NextResponse.json({ error: "Erro ao atualizar cliente" }, { status: 500 });
@@ -36,11 +46,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE /api/customers/[id]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const existing = await prisma.customer.findFirst({
+      where: { id: params.id, franqueadoraId: tenantId! },
+    });
+    if (!existing) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+
     await prisma.customer.delete({ where: { id: params.id } });
-    await prisma.$disconnect();
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Erro ao excluir cliente" }, { status: 500 });

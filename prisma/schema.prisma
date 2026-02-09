@@ -11,14 +11,79 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ── Auth models (NextAuth Prisma Adapter) ──
+
+enum UserRole {
+  ADMINISTRADOR
+  FINANCEIRO
+  OPERACIONAL
+  VISUALIZADOR
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  role            UserRole  @default(VISUALIZADOR)
+  franqueadoraId  String?
+  franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
+  accounts        Account[]
+  sessions        Session[]
+
+  @@index([franqueadoraId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Business models ──
+
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  doc       String
-  email     String
-  phone     String
-  createdAt DateTime @default(now())
-  charges   Charge[]
+  id              String    @id @default(cuid())
+  name            String
+  doc             String
+  email           String
+  phone           String
+  franqueadoraId  String?
+  franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
+  createdAt       DateTime  @default(now())
+  charges         Charge[]
+
+  @@index([franqueadoraId])
 }
 
 model Charge {
@@ -57,12 +122,16 @@ model Boleto {
 }
 
 model DunningRule {
-  id        String        @id @default(cuid())
-  name      String
-  active    Boolean       @default(true)
-  timezone  String        @default("America/Sao_Paulo")
-  createdAt DateTime      @default(now())
-  steps     DunningStep[]
+  id              String        @id @default(cuid())
+  name            String
+  active          Boolean       @default(true)
+  timezone        String        @default("America/Sao_Paulo")
+  franqueadoraId  String?
+  franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
+  createdAt       DateTime      @default(now())
+  steps           DunningStep[]
+
+  @@index([franqueadoraId])
 }
 
 model DunningStep {
@@ -125,11 +194,11 @@ model AppState {
 }
 
 model Franqueadora {
-  id                 String   @id @default(cuid())
+  id                 String        @id @default(cuid())
   nome               String
   razaoSocial        String
   cnpj               String?
-  email              String   @unique
+  email              String        @unique
   emailSecundario    String?
   endereco           String?
   celular            String?
@@ -137,6 +206,9 @@ model Franqueadora {
   telefone           String?
   telefoneSecundario String?
   responsavel        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  users              User[]
+  customers          Customer[]
+  dunningRules       DunningRule[]
 }

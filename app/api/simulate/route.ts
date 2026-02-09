@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 // POST /api/simulate — Avançar N dias na simulação
 export async function POST(req: NextRequest) {
+  const { error } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
     const body = await req.json();
     const days = body.days || 7;
-
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
 
     // Busca estado atual
     const appState = await prisma.appState.findFirst({ where: { id: 1 } });
@@ -21,15 +26,13 @@ export async function POST(req: NextRequest) {
       create: { id: 1, simulatedNow: newDate },
     });
 
-    await prisma.$disconnect();
-
     return NextResponse.json({
       success: true,
       previousDate: currentDate.toISOString(),
       newDate: newDate.toISOString(),
       daysAdvanced: days,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Falha na simulação" }, { status: 500 });
   }
 }

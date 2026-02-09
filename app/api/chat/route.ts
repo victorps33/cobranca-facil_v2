@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { franqueadosDummy } from "@/lib/data/clientes-dummy";
 import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
 import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
+import { requireTenant } from "@/lib/auth-helpers";
 
 // ── Anthropic client ──
 
@@ -284,6 +285,9 @@ function sseEvent(data: string): Uint8Array {
 // ── POST handler ──
 
 export async function POST(request: Request) {
+  const { error } = await requireTenant();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const {

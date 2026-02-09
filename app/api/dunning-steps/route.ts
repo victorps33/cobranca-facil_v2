@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 // GET /api/dunning-steps
 export async function GET() {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
     const steps = await prisma.dunningStep.findMany({
+      where: { rule: { franqueadoraId: tenantId! } },
       include: { rule: true },
       orderBy: { offsetDays: "asc" },
     });
-    await prisma.$disconnect();
     return NextResponse.json(steps);
   } catch {
     return NextResponse.json([]);
@@ -18,10 +21,23 @@ export async function GET() {
 
 // POST /api/dunning-steps — Criar step
 export async function POST(req: NextRequest) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
     const body = await req.json();
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+
+    // Verify rule belongs to tenant
+    const rule = await prisma.dunningRule.findFirst({
+      where: { id: body.ruleId, franqueadoraId: tenantId! },
+    });
+    if (!rule) {
+      return NextResponse.json({ error: "Régua não encontrada" }, { status: 404 });
+    }
+
     const step = await prisma.dunningStep.create({
       data: {
         ruleId: body.ruleId,
@@ -32,9 +48,8 @@ export async function POST(req: NextRequest) {
         enabled: body.enabled ?? true,
       },
     });
-    await prisma.$disconnect();
     return NextResponse.json(step, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Falha ao criar step" }, { status: 500 });
   }
 }

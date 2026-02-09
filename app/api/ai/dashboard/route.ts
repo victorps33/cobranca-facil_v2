@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireTenant } from "@/lib/auth-helpers";
 
 const JULIA_PERSONA = `Você é Júlia, a Agente Menlo IA — especialista em análise de redes de franquias.
 
@@ -67,6 +68,9 @@ function generateDashboardInsights(context: any) {
 }
 
 export async function POST(request: Request) {
+  const { error } = await requireTenant();
+  if (error) return error;
+
   try {
     const { type, filters } = await request.json();
 
@@ -116,6 +120,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  const { error: authError } = await requireTenant();
+  if (authError) return authError;
+
   try {
     const context = await getDashboardContext();
     

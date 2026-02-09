@@ -1,8 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { addDays, subDays } from "date-fns";
 import { createHash } from "crypto";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
 
 // Helper to generate deterministic boleto data
 function generateBoletoData(
@@ -57,7 +62,7 @@ const TEMPLATE_WHATSAPP_D7 = `Oi, {{nome}}. A cobrança **{{descricao}}** ({{val
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Clear existing data
+  // Clear existing data (order matters for FK constraints)
   await prisma.notificationLog.deleteMany();
   await prisma.dunningStep.deleteMany();
   await prisma.dunningRule.deleteMany();
@@ -65,18 +70,82 @@ async function main() {
   await prisma.charge.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.appState.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.franqueadora.deleteMany();
 
   console.log("🧹 Cleared existing data");
+
+  // Create Franqueadora
+  const franqueadora = await prisma.franqueadora.create({
+    data: {
+      nome: "Menlo Franqueadora",
+      razaoSocial: "Menlo Tecnologia LTDA",
+      cnpj: "12.345.678/0001-00",
+      email: "contato@menlo.com.br",
+      responsavel: "Victor Sundfeld",
+    },
+  });
+
+  console.log(`✅ Created Franqueadora: ${franqueadora.nome}`);
+
+  // Create Users
+  const adminPassword = await hashPassword("admin123");
+  const userPassword = await hashPassword("user123");
+
+  const users = await Promise.all([
+    prisma.user.create({
+      data: {
+        name: "Admin Menlo",
+        email: "admin@menlo.com.br",
+        password: adminPassword,
+        role: "ADMINISTRADOR",
+        franqueadoraId: franqueadora.id,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Maria Financeiro",
+        email: "financeiro@menlo.com.br",
+        password: userPassword,
+        role: "FINANCEIRO",
+        franqueadoraId: franqueadora.id,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "João Operacional",
+        email: "operacional@menlo.com.br",
+        password: userPassword,
+        role: "OPERACIONAL",
+        franqueadoraId: franqueadora.id,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: "Ana Visualizador",
+        email: "visualizador@menlo.com.br",
+        password: userPassword,
+        role: "VISUALIZADOR",
+        franqueadoraId: franqueadora.id,
+      },
+    }),
+  ]);
+
+  console.log(`✅ Created ${users.length} users`);
 
   // Create AppState
   await prisma.appState.create({
     data: { id: 1, simulatedNow: null },
   });
 
-  // Create customers
+  // Create customers (linked to franqueadora)
   const customers = await Promise.all(
     customersData.map((data) =>
-      prisma.customer.create({ data })
+      prisma.customer.create({
+        data: { ...data, franqueadoraId: franqueadora.id },
+      })
     )
   );
 
@@ -214,12 +283,13 @@ async function main() {
 
   console.log(`✅ Created ${boletos.length} boletos`);
 
-  // Create dunning rule
+  // Create dunning rule (linked to franqueadora)
   const dunningRule = await prisma.dunningRule.create({
     data: {
       name: "Régua Padrão",
       active: true,
       timezone: "America/Sao_Paulo",
+      franqueadoraId: franqueadora.id,
     },
   });
 
@@ -265,7 +335,13 @@ async function main() {
 
   console.log(`✅ Created dunning rule with ${steps.length} steps`);
 
-  console.log("🎉 Seed completed successfully!");
+  console.log("\n📋 Test users:");
+  console.log("  admin@menlo.com.br / admin123 (ADMINISTRADOR)");
+  console.log("  financeiro@menlo.com.br / user123 (FINANCEIRO)");
+  console.log("  operacional@menlo.com.br / user123 (OPERACIONAL)");
+  console.log("  visualizador@menlo.com.br / user123 (VISUALIZADOR)");
+
+  console.log("\n🎉 Seed completed successfully!");
 }
 
 main()

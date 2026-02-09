@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 // GET /api/dunning-steps/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    const step = await prisma.dunningStep.findUnique({
-      where: { id: params.id },
+    const step = await prisma.dunningStep.findFirst({
+      where: { id: params.id, rule: { franqueadoraId: tenantId! } },
       include: { rule: true },
     });
-    await prisma.$disconnect();
     if (!step) return NextResponse.json({ error: "Step não encontrado" }, { status: 404 });
     return NextResponse.json(step);
   } catch {
@@ -19,15 +21,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // PATCH /api/dunning-steps/[id]
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
+    const existing = await prisma.dunningStep.findFirst({
+      where: { id: params.id, rule: { franqueadoraId: tenantId! } },
+    });
+    if (!existing) return NextResponse.json({ error: "Step não encontrado" }, { status: 404 });
+
     const body = await req.json();
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
     const step = await prisma.dunningStep.update({
       where: { id: params.id },
       data: body,
     });
-    await prisma.$disconnect();
     return NextResponse.json(step);
   } catch {
     return NextResponse.json({ error: "Erro ao atualizar step" }, { status: 500 });
@@ -36,11 +46,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE /api/dunning-steps/[id]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
+  const roleCheck = await requireRole(["ADMINISTRADOR", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const existing = await prisma.dunningStep.findFirst({
+      where: { id: params.id, rule: { franqueadoraId: tenantId! } },
+    });
+    if (!existing) return NextResponse.json({ error: "Step não encontrado" }, { status: 404 });
+
     await prisma.dunningStep.delete({ where: { id: params.id } });
-    await prisma.$disconnect();
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Erro ao excluir step" }, { status: 500 });

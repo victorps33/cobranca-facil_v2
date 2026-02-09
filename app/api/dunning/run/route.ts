@@ -1,26 +1,32 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
 // POST /api/dunning/run — Executar régua de cobrança
 export async function POST() {
-  try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
 
+  const roleCheck = await requireRole(["ADMINISTRADOR", "OPERACIONAL"]);
+  if (roleCheck.error) return roleCheck.error;
+
+  try {
     // Busca a data atual (simulada ou real)
     const appState = await prisma.appState.findFirst({ where: { id: 1 } });
     const now = appState?.simulatedNow || new Date();
 
-    // Busca steps habilitados
+    // Busca steps habilitados da franqueadora
     const steps = await prisma.dunningStep.findMany({
-      where: { enabled: true },
+      where: { enabled: true, rule: { active: true, franqueadoraId: tenantId! } },
       include: { rule: { select: { active: true } } },
     });
 
-    const activeSteps = steps.filter((s) => s.rule.active);
-
-    // Busca cobranças pendentes ou vencidas
+    // Busca cobranças pendentes ou vencidas da franqueadora
     const charges = await prisma.charge.findMany({
-      where: { status: { in: ["PENDING", "OVERDUE"] } },
+      where: {
+        status: { in: ["PENDING", "OVERDUE"] },
+        customer: { franqueadoraId: tenantId! },
+      },
       include: { customer: true },
     });
 
@@ -38,7 +44,7 @@ export async function POST() {
         });
       }
 
-      for (const step of activeSteps) {
+      for (const step of steps) {
         let shouldTrigger = false;
         if (step.trigger === "BEFORE_DUE" && diffDays === -step.offsetDays) shouldTrigger = true;
         if (step.trigger === "ON_DUE" && diffDays === 0) shouldTrigger = true;
@@ -75,14 +81,12 @@ export async function POST() {
       }
     }
 
-    await prisma.$disconnect();
-
     return NextResponse.json({
       success: true,
       notificationsCreated,
       processedCharges: charges.length,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Falha ao executar régua" }, { status: 500 });
   }
 }

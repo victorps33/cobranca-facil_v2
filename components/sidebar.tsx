@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/cn";
 import { MenloLogo } from "@/components/brand/MenloLogo";
 import {
@@ -16,23 +17,46 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
+import type { UserRole } from "@prisma/client";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Insights", href: "/insights", icon: Sparkles },
-  { name: "Franqueados", href: "/clientes", icon: Users },
-  { name: "Apuração", href: "/apuracao", icon: Calculator },
-  { name: "Cobranças", href: "/cobrancas", icon: Receipt },
-  { name: "Réguas", href: "/reguas", icon: Bell },
+type NavItem = {
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  roles: UserRole[];
+};
+
+const allRoles: UserRole[] = ["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL", "VISUALIZADOR"];
+
+const navigation: NavItem[] = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: allRoles },
+  { name: "Insights", href: "/insights", icon: Sparkles, roles: allRoles },
+  { name: "Franqueados", href: "/clientes", icon: Users, roles: allRoles },
+  { name: "Apuração", href: "/apuracao", icon: Calculator, roles: ["ADMINISTRADOR", "FINANCEIRO"] },
+  { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
+  { name: "Réguas", href: "/reguas", icon: Bell, roles: ["ADMINISTRADOR", "OPERACIONAL"] },
 ];
 
-const secondaryNav = [
-  { name: "Configurações", href: "/configuracoes", icon: Settings },
+const secondaryNav: NavItem[] = [
+  { name: "Configurações", href: "/configuracoes", icon: Settings, roles: ["ADMINISTRADOR"] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+
+  const userRole = session?.user?.role as UserRole | undefined;
+
+  const visibleNav = navigation.filter(
+    (item) => !userRole || item.roles.includes(userRole)
+  );
+
+  const visibleSecondaryNav = secondaryNav.filter(
+    (item) => !userRole || item.roles.includes(userRole)
+  );
+
+  const showQuickAction = userRole !== "VISUALIZADOR";
 
   return (
     <aside
@@ -50,7 +74,7 @@ export function Sidebar() {
       </div>
 
       {/* Quick Action */}
-      {!collapsed && (
+      {!collapsed && showQuickAction && (
         <div className="px-4 py-4">
           <Link
             href="/cobrancas/nova"
@@ -64,7 +88,7 @@ export function Sidebar() {
 
       {/* Main Navigation */}
       <nav aria-label="Navegação principal" className="flex-1 px-3 py-2 space-y-1">
-        {navigation.map((item) => {
+        {visibleNav.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
@@ -97,36 +121,38 @@ export function Sidebar() {
       </nav>
 
       {/* Secondary Navigation */}
-      <div className="px-3 py-2 border-t border-gray-100">
-        {secondaryNav.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-secondary/20 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                collapsed && "justify-center px-2"
-              )}
-              title={collapsed ? item.name : undefined}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <item.icon
+      {visibleSecondaryNav.length > 0 && (
+        <div className="px-3 py-2 border-t border-gray-100">
+          {visibleSecondaryNav.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
                 className={cn(
-                  "h-5 w-5 flex-shrink-0",
-                  isActive ? "text-primary" : "text-gray-500"
+                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-secondary/20 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                  collapsed && "justify-center px-2"
                 )}
-                strokeWidth={1.5}
-                aria-hidden="true"
-              />
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          );
-        })}
-      </div>
+                title={collapsed ? item.name : undefined}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <item.icon
+                  className={cn(
+                    "h-5 w-5 flex-shrink-0",
+                    isActive ? "text-primary" : "text-gray-500"
+                  )}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+                {!collapsed && <span>{item.name}</span>}
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* Collapse Toggle */}
       <div className="border-t border-gray-100 p-3">

@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireTenant } from "@/lib/auth-helpers";
 
 // GET /api/logs — Lista logs de notificação com filtros opcionais
 export async function GET(req: NextRequest) {
+  const { error, tenantId } = await requireTenant();
+  if (error) return error;
+
   try {
     const { searchParams } = new URL(req.url);
     const channel = searchParams.get("channel");
     const status = searchParams.get("status");
 
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      charge: { customer: { franqueadoraId: tenantId! } },
+    };
     if (channel && channel !== "all") where.channel = channel;
     if (status && status !== "all") where.status = status;
 
@@ -24,7 +28,6 @@ export async function GET(req: NextRequest) {
       take: 100,
     });
 
-    await prisma.$disconnect();
     return NextResponse.json(logs);
   } catch {
     return NextResponse.json([]);
