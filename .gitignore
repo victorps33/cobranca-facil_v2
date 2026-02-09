@@ -5,3 +5,9 @@ node_modules
 *.log
 .DS_Store
 .vercel
+
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+backend/.python-version

@@ -18,9 +18,7 @@ import {
   Zap,
   BarChart3,
   MessageSquare,
-  ArrowRight,
   Lightbulb,
-  Brain,
   CheckCircle2,
   PanelRightClose,
   PanelRightOpen,
@@ -934,34 +932,14 @@ export default function InsightsPage() {
                     </div>
                   )}
 
-                  {/* Prompt Presets (when no artifacts) */}
+                  {/* Empty state (when no artifacts) */}
                   {!hasArtifacts && (
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Brain className="h-3 w-3" />
-                        Temas para explorar
+                    <div className="text-center py-12">
+                      <Sparkles className="h-8 w-8 text-gray-200 mx-auto mb-3" />
+                      <p className="text-sm text-gray-400">Gráficos e planos de ação aparecerão aqui</p>
+                      <p className="text-[11px] text-gray-300 mt-1">
+                        Faça uma pergunta à Julia para começar
                       </p>
-                      {promptPresets.map((preset) => {
-                        const Icon = preset.icon;
-                        return (
-                          <button
-                            key={preset.id}
-                            onClick={() => sendMessage(preset.question)}
-                            disabled={loading}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 transition-all text-left group disabled:opacity-50"
-                          >
-                            <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0", preset.bgColor)}>
-                              <Icon className={cn("h-4 w-4", preset.color)} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-gray-900 group-hover:text-violet-700 transition-colors">
-                                {preset.label}
-                              </p>
-                            </div>
-                            <ArrowRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-violet-500 flex-shrink-0 transition-colors" />
-                          </button>
-                        );
-                      })}
                     </div>
                   )}
 
