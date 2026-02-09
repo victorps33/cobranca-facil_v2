@@ -155,24 +155,20 @@ export function Sidebar() {
       )}
 
       {/* Collapse Toggle */}
-      <div className="border-t border-gray-100 p-3">
+      <div className="border-t border-gray-100 p-3 flex justify-end">
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 w-full transition-colors",
-            collapsed && "justify-center px-2"
-          )}
+          className="flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
         >
           <ChevronLeft
             className={cn(
-              "h-5 w-5 transition-transform",
+              "h-4 w-4 transition-transform",
               collapsed && "rotate-180"
             )}
-            strokeWidth={1.5}
+            strokeWidth={2}
             aria-hidden="true"
           />
-          {!collapsed && <span>Recolher menu</span>}
         </button>
       </div>
     </aside>
