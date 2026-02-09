@@ -5,7 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 
-const ALLOWED_GOOGLE_DOMAIN = "menlopagamentos.com.br";
+const ALLOWED_GOOGLE_DOMAINS = ["menlopagamentos.com.br", "gmail.com"];
 
 const providers: Provider[] = [];
 
@@ -58,10 +58,11 @@ export const authOptions: NextAuthOptions = {
   providers,
   callbacks: {
     async signIn({ user, account }) {
-      // Google OAuth: only allow @menlopagamentos.com.br emails
+      // Google OAuth: only allow specific domains
       if (account?.provider === "google") {
         const email = user.email;
-        if (!email?.endsWith(`@${ALLOWED_GOOGLE_DOMAIN}`)) {
+        const domain = email?.split("@")[1];
+        if (!domain || !ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
           return false;
         }
 
