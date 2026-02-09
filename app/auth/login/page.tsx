@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
@@ -5,5 +6,9 @@ export default function LoginPage() {
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
   );
 
-  return <LoginForm googleEnabled={googleEnabled} />;
+  return (
+    <Suspense>
+      <LoginForm googleEnabled={googleEnabled} />
+    </Suspense>
+  );
 }
