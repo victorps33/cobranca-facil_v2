@@ -12,9 +12,9 @@ export const config = {
      * Match all paths except:
      * - api/auth (NextAuth routes)
      * - _next/static, _next/image (Next.js internals)
-     * - favicon.ico
+     * - favicon.ico, static assets (images, fonts, etc.)
      * - auth/* (login page)
      */
-    "/((?!api/auth|_next/static|_next/image|favicon\\.ico|auth).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon\\.ico|auth|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.svg$|.*\\.gif$|.*\\.ico$|.*\\.webp$|.*\\.woff2?$).*)",
   ],
 };
