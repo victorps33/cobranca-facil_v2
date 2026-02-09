@@ -416,7 +416,17 @@ function ChartArtifact({ chartKey }: { chartKey: string }) {
             ))}
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </AreaChart>
-        ) : null}
+        ) : (
+          <BarChart data={config.data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            {(config.keys || []).map((key, i) => (
+              <Bar key={key} dataKey={key} fill={config.colors?.[i] || "#8b5cf6"} radius={[6, 6, 0, 0]} />
+            ))}
+          </BarChart>
+        )}
       </ResponsiveContainer>
     </div>
   );

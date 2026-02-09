@@ -456,6 +456,7 @@ function gerarComprovantesPix(): ComprovantePix[] {
         banco: bancoRecebedor.nome,
         agencia: bancoRecebedor.agencia,
         conta: bancoRecebedor.conta,
+        chavePix: FRANQUEADORA.cnpj,
       },
       descricao: cob.descricao,
       autenticacao,
