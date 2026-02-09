@@ -32,13 +32,13 @@ const navigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: allRoles },
   { name: "Insights", href: "/insights", icon: Sparkles, roles: allRoles },
   { name: "Franqueados", href: "/clientes", icon: Users, roles: allRoles },
-  { name: "Apuração", href: "/apuracao", icon: Calculator, roles: ["ADMINISTRADOR", "FINANCEIRO"] },
+  { name: "Apuração", href: "/apuracao", icon: Calculator, roles: allRoles },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
-  { name: "Réguas", href: "/reguas", icon: Bell, roles: ["ADMINISTRADOR", "OPERACIONAL"] },
+  { name: "Réguas", href: "/reguas", icon: Bell, roles: allRoles },
 ];
 
 const secondaryNav: NavItem[] = [
-  { name: "Configurações", href: "/configuracoes", icon: Settings, roles: ["ADMINISTRADOR"] },
+  { name: "Configurações", href: "/configuracoes", icon: Settings, roles: allRoles },
 ];
 
 export function Sidebar() {
@@ -56,7 +56,7 @@ export function Sidebar() {
     (item) => !userRole || item.roles.includes(userRole)
   );
 
-  const showQuickAction = userRole !== "VISUALIZADOR";
+  const showQuickAction = true;
 
   return (
     <aside
