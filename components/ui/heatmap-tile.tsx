@@ -74,7 +74,7 @@ export function HeatmapTile() {
       <div className="px-6 py-5 border-b border-gray-50">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="font-semibold text-gray-900">
               Concentração de Faturamento
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
@@ -82,7 +82,7 @@ export function HeatmapTile() {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-lg font-bold text-gray-900 tabular-nums">
               {fmtBRL(total)}
             </p>
             <p className="text-xs text-gray-500">Faturamento total da rede</p>

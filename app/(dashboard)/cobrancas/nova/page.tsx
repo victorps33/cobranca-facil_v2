@@ -232,7 +232,7 @@ export default function NovaCobrancaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -272,7 +272,7 @@ export default function NovaCobrancaPage() {
                   value={formData.description}
                   onChange={(e) => updateFormData({ description: e.target.value })}
                   placeholder="Ex: Mensalidade Janeiro, Consultoria, Produto XYZ…"
-                  className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl resize-none focus-visible:border-[#85ace6] focus-visible:ring-2 focus-visible:ring-[#85ace6]/20 outline-none transition-colors"
+                  className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl resize-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20 outline-none transition-colors"
                 />
               </div>
 
@@ -290,7 +290,7 @@ export default function NovaCobrancaPage() {
                       className={cn(
                         "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                         formData.chargeType === type.id
-                          ? "bg-[#85ace6] text-white"
+                          ? "bg-secondary text-white"
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       )}
                     >
@@ -441,7 +441,7 @@ export default function NovaCobrancaPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                       formData.fineType === "percent"
-                        ? "bg-[#85ace6] text-white"
+                        ? "bg-secondary text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     )}
                   >
@@ -452,7 +452,7 @@ export default function NovaCobrancaPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                       formData.fineType === "fixed"
-                        ? "bg-[#85ace6] text-white"
+                        ? "bg-secondary text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     )}
                   >
@@ -488,7 +488,7 @@ export default function NovaCobrancaPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                       formData.discountType === "percent"
-                        ? "bg-[#85ace6] text-white"
+                        ? "bg-secondary text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     )}
                   >
@@ -499,7 +499,7 @@ export default function NovaCobrancaPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                       formData.discountType === "fixed"
-                        ? "bg-[#85ace6] text-white"
+                        ? "bg-secondary text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     )}
                   >
@@ -556,11 +556,11 @@ export default function NovaCobrancaPage() {
                         className={cn(
                           "w-full flex items-center gap-3 p-4 rounded-xl border transition-[border-color,box-shadow] text-left",
                           formData.customerId === customer.id
-                            ? "border-[#F85B00] bg-[#F85B00]/5"
+                            ? "border-primary bg-primary/5"
                             : "border-gray-200 hover:border-gray-300"
                         )}
                       >
-                        <div className="h-10 w-10 rounded-full bg-[#F5F5F0] flex items-center justify-center text-sm font-semibold text-gray-600">
+                        <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center text-sm font-semibold text-gray-600">
                           {customer.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                         </div>
                         <div className="flex-1">
@@ -568,7 +568,7 @@ export default function NovaCobrancaPage() {
                           <p className="text-sm text-gray-500">{customer.email}</p>
                         </div>
                         {formData.customerId === customer.id && (
-                          <Check className="h-5 w-5 text-[#F85B00]" />
+                          <Check className="h-5 w-5 text-primary" />
                         )}
                       </button>
                     ))}
@@ -580,7 +580,7 @@ export default function NovaCobrancaPage() {
                   className={cn(
                     "w-full p-4 rounded-xl border-2 border-dashed transition-colors text-center",
                     formData.isNewCustomer
-                      ? "border-[#F85B00] bg-[#F85B00]/5"
+                      ? "border-primary bg-primary/5"
                       : "border-gray-200 hover:border-gray-300"
                   )}
                 >
@@ -661,7 +661,7 @@ export default function NovaCobrancaPage() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Resumo da cobrança</h2>
                 
-                <div className="bg-[#F5F5F0] rounded-xl p-6 space-y-4">
+                <div className="bg-background rounded-xl p-6 space-y-4">
                   <div className="flex justify-between items-start">
                     <span className="text-sm text-gray-600">Descrição</span>
                     <span className="text-sm font-medium text-gray-900 text-right max-w-xs">{formData.description}</span>
@@ -740,7 +740,7 @@ export default function NovaCobrancaPage() {
             <button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Avançar
               <ArrowRight className="h-4 w-4" />
@@ -749,7 +749,7 @@ export default function NovaCobrancaPage() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover disabled:opacity-50 transition-colors"
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

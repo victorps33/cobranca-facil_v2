@@ -69,7 +69,7 @@ export function RegionTable({ data = defaultData }: RegionTableProps) {
                   <div className="flex items-center justify-end gap-2">
                     <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-[#85ace6] rounded-full"
+                        className="h-full bg-secondary rounded-full"
                         style={{ width: `${item.percentage}%` }}
                       />
                     </div>

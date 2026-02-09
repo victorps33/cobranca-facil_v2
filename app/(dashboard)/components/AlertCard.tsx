@@ -71,7 +71,7 @@ export function AlertCard({
           <div className="flex items-center gap-3 mt-4">
             <Link
               href={ctaHref}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#F85B00] text-white text-sm font-medium rounded-full hover:bg-[#e05200] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-full hover:bg-primary-hover transition-colors"
             >
               {ctaLabel}
               <ArrowRight className="h-4 w-4" />

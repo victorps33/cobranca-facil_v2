@@ -53,6 +53,28 @@ Sugestão curta 1
 Sugestão curta 2
 Sugestão curta 3`;
 
+const ACTIONS_INSTRUCTION = `
+
+Após as sugestões, inclua um plano de ação executável com 2-4 ações concretas:
+<<AÇÕES>>
+tipo|parametro|rotulo|descricao
+
+Tipos disponíveis:
+- navigate|/rota-do-app|Rótulo da ação|Descrição curta
+- export|tipo-de-export|Rótulo da ação|Descrição curta
+- notify|id-notificacao|Rótulo da ação|Descrição curta
+
+Rotas disponíveis para navigate:
+- /clientes/ID → página do franqueado (IDs: c1a2b3c4-d5e6-7890-abcd-ef1234567890 para Morumbi, c9012345-6789-0123-2345-901234567890 para Recife, ca123456-7890-1234-3456-012345678901 para Fortaleza, cb234567-8901-2345-4567-123456789012 para Salvador, cc345678-9012-3456-5678-234567890123 para Curitiba, c4d5e6f7-8901-2345-def0-456789012345 para Campo Belo)
+- /reguas → configuração de réguas de cobrança
+- /cobrancas → lista de cobranças
+- /cobrancas/nova → criar nova cobrança
+
+Tipos de export disponíveis:
+- cobrancas-vencidas → exporta cobranças vencidas
+
+Use ações que façam sentido para os insights apresentados. Sempre inclua pelo menos 2 ações.`;
+
 // ── Build data context for the AI ──
 
 function buildDataContext(): string {
@@ -144,110 +166,103 @@ ${apuracaoSummary}
 interface MockResponse {
   reply: string;
   suggestions: string[];
+  actions: string[];
 }
 
 const mocks: Record<string, MockResponse> = {
-  inadimplencia: {
-    reply: `**Resumo**
-A inadimplência está concentrada principalmente na região Nordeste e em franqueados com menos de 2 anos de operação.
+  prioridade: {
+    reply: `**Ranking de cobrança por urgência:**
 
-**Insights**
-- **R$ 47.500** em valores vencidos há mais de 60 dias
-- 3 franqueados representam **68%** do total inadimplente
-- Perfil de risco alto concentra 5 unidades na região Nordeste
-- Taxa de recuperação caiu 12% no último trimestre
+1. **Franquia Recife** — R$ 18.400 vencidos, **45 dias** de atraso, status Crítico. Maior valor absoluto e maior tempo sem pagamento — risco de virar inadimplência irrecuperável.
+2. **Franquia Salvador** — R$ 22.000 em aberto, **67 dias** sem pagamento. Embora o valor seja maior, parte ainda está dentro do prazo; o vencido efetivo é R$ 14.200.
+3. **Franquia Fortaleza** — R$ 8.900 vencidos, **3 cobranças consecutivas** atrasadas. Valor menor, mas o padrão de atrasos seguidos indica deterioração acelerada.
 
-**Ações recomendadas**
-1. Priorize contato com os 3 maiores inadimplentes esta semana
-2. Ative régua de cobrança intensiva para perfil de risco alto
-3. Considere renegociação com parcelamento para valores acima de R$ 10.000
-
-**Próximo passo**
-Quer que eu detalhe o perfil de cada franqueado inadimplente ou prefere ver as opções de régua de cobrança?`,
+**Critério:** valor vencido × dias em atraso × tendência de piora. Recife pontua mais alto porque combina valor alto com atraso longo e sem sinal de regularização.`,
     suggestions: [
-      "Detalhar os 3 maiores inadimplentes",
-      "Simular cenário de recuperação",
-      "Sugerir régua de cobrança",
+      "Gerar script de cobrança para Recife",
+      "Histórico de pagamentos Salvador",
+      "Quais franquias estão regularizando?",
+    ],
+    actions: [
+      "navigate|/clientes/c9012345-6789-0123-2345-901234567890|Abrir ficha da Franquia Recife|Prioridade #1 — R$ 18.400 vencidos há 45 dias",
+      "navigate|/cobrancas/nova|Criar cobrança para Recife|Iniciar cobrança formal do valor vencido",
     ],
   },
-  piorando: {
-    reply: `**Resumo**
-Identificamos 5 franqueados com tendência de piora nos últimos 3 meses, com aumento médio de 34% nos dias de atraso.
+  mudancas: {
+    reply: `**O que mudou na rede este mês:**
 
-**Insights**
-- **Franquia Recife** passou de 15 para 45 dias médios de atraso
-- **Franquia Fortaleza** teve 3 cobranças consecutivas atrasadas
-- Padrão comum: problemas começam após 2ª cobrança do mês
-- 80% dos casos têm correlação com queda no faturamento local
+**Pioraram:**
+- **Campo Belo** — PMR subiu **+87%** (de 8 para 15 dias), duas cobranças de Royalties em aberto totalizando R$ 24.000. Passou de Saudável para Exige Atenção.
+- **Fortaleza** — 3 atrasos consecutivos, faturamento caiu **18%**. Padrão de deterioração acelerada.
 
-**Ações recomendadas**
-1. Agende reunião com os 2 franqueados mais críticos
-2. Ofereça consultoria financeira como suporte
-3. Revise condições de pagamento caso a caso
+**Melhoraram:**
+- **Curitiba** — regularizou 2 cobranças vencidas (R$ 9.200), voltou para status Controlado.
+- **Morumbi** — PMR caiu **20%** (de 25 para 20 dias), pagou adiantado 1 cobrança.
 
-**Próximo passo**
-Posso gerar um relatório detalhado de cada franqueado ou prefere que eu sugira um script de abordagem para a reunião?`,
+**Saldo líquido:** a rede piorou marginalmente — os R$ 24.000 de novas pendências de Campo Belo superam os R$ 9.200 regularizados por Curitiba. O alerta principal é Campo Belo, que saiu do radar saudável.`,
     suggestions: [
-      "Gerar relatório da Franquia Recife",
-      "Script de abordagem para reunião",
-      "Comparar com trimestre anterior",
+      "Detalhar histórico Campo Belo",
+      "O que causou a melhora de Curitiba?",
+      "Tendência dos últimos 3 meses",
+    ],
+    actions: [
+      "navigate|/clientes/c4d5e6f7-8901-2345-def0-456789012345|Abrir ficha Campo Belo|PMR subiu 87% — requer acompanhamento",
+      "notify|alerta-campo-belo|Criar alerta de acompanhamento|Monitorar Campo Belo nas próximas 2 semanas",
     ],
   },
-  efetividade: {
-    reply: `**Resumo**
-Sua taxa de recebimento está em **78%**, abaixo da meta de 85%. O PMR médio é de 28 dias.
+  comparar: {
+    reply: `**Comparativo regional — inadimplência e recuperação:**
 
-**Insights**
-- Cobranças via **Pix** têm PMR de 3 dias (melhor performance)
-- Boleto tem PMR de 18 dias e taxa de conversão de 72%
-- Clientes com score alto pagam em média 5 dias antes
-- Régua de WhatsApp D-1 aumenta conversão em 23%
+| Região | Inadimplência média | PMR médio | Taxa recuperação |
+|--------|-------------------|-----------|-----------------|
+| **Nordeste (PE, CE, BA)** | **18,5%** | **42 dias** | **58%** |
+| **Sudeste (SP)** | 6,2% | 18 dias | 89% |
+| **Sul (PR)** | 8,1% | 22 dias | 82% |
 
-**Ações recomendadas**
-1. Incentive migração para Pix com desconto de 2%
-2. Ative lembrete WhatsApp D-1 para todos os perfis
-3. Crie régua específica para boletos não pagos em D+3
+**Destaque:** O Nordeste tem inadimplência **3x maior** que o Sudeste e taxa de recuperação **31 pontos** abaixo. O gap é puxado principalmente por Recife (45 dias de PMR) e Salvador (67 dias sem pagamento). Sudeste e Sul têm performance similar, com SP liderando em recuperação.
 
-**Próximo passo**
-Quer que eu simule o impacto financeiro dessas mudanças ou prefere ver a distribuição por forma de pagamento?`,
+**Recomendação:** Criar régua de cobrança específica para o Nordeste, com gatilhos mais agressivos (D+5 ao invés de D+15) e canal preferencial WhatsApp.`,
     suggestions: [
-      "Simular impacto da migração para Pix",
-      "Ver distribuição por forma de pagamento",
-      "Otimizar régua de WhatsApp",
+      "Detalhar franqueados do Nordeste",
+      "Sugerir régua para Nordeste",
+      "Evolução regional mês a mês",
+    ],
+    actions: [
+      "navigate|/clientes/c9012345-6789-0123-2345-901234567890|Abrir ficha Recife|Maior inadimplente do NE — PMR 45 dias",
+      "navigate|/reguas|Configurar régua Nordeste|Criar régua específica com gatilhos D+5",
     ],
   },
-  risco: {
-    reply: `**Resumo**
-O risco financeiro total da rede é de **R$ 127.000**, com potencial de perda de R$ 55.000 baseado no score de risco.
+  previsao: {
+    reply: `**Previsão de recebimento — próximos 30 dias:**
 
-**Insights**
-- **3 franqueados** concentram 65% do risco total
-- Cenário otimista: recuperação de 70% em 90 dias
-- Cenário pessimista: perda de 43% se não houver ação
-- Provisão recomendada: R$ 38.000 (30% do total em risco)
+- **Cenário base:** R$ 89.000 — considera taxa histórica de recebimento de 78% sobre cobranças em aberto e a vencer.
+- **Cenário pessimista:** R$ 54.000 — se Salvador (R$ 22.000) e Fortaleza (R$ 8.900) não pagarem e Campo Belo atrasar novamente.
 
-**Ações recomendadas**
-1. Inicie processo de protesto para valores acima de R$ 20.000 e +90 dias
-2. Negocie acordo com garantia para os 3 maiores devedores
-3. Atualize provisão de perdas no próximo fechamento
+**Franquias-chave no horizonte:**
+- **Morumbi** — R$ 32.000 a vencer, historicamente pontual (probabilidade alta)
+- **Curitiba** — R$ 15.000 a vencer, acabou de regularizar (probabilidade média-alta)
+- **Salvador** — R$ 22.000 em aberto, sem pagamento há 67 dias (probabilidade baixa)
 
-**Próximo passo**
-Posso detalhar os cenários de recuperação ou gerar o relatório para o financeiro?`,
+**Risco principal:** Salvador sozinha responde pela diferença de R$ 35.000 entre os cenários. Uma renegociação parcial (50%) já elevaria o cenário pessimista para R$ 65.000.`,
     suggestions: [
-      "Detalhar cenários de recuperação",
-      "Gerar relatório para o financeiro",
-      "Listar os 3 maiores devedores",
+      "Simular renegociação com Salvador",
+      "Projeção para 60 dias",
+      "Quais cobranças vencem esta semana?",
+    ],
+    actions: [
+      "export|cobrancas-vencidas|Exportar cobranças vencidas|Planilha com vencidas para ação do financeiro",
+      "navigate|/clientes/cb234567-8901-2345-4567-123456789012|Abrir ficha Salvador|R$ 22.000 em aberto — maior risco da projeção",
     ],
   },
 };
 
 function getMockResponse(message: string): MockResponse {
   const lower = message.toLowerCase();
-  if (lower.includes("inadimpl") || lower.includes("concentra")) return mocks.inadimplencia;
-  if (lower.includes("piora") || lower.includes("tendência")) return mocks.piorando;
-  if (lower.includes("efetiv") || lower.includes("cobrança") || lower.includes("pmr")) return mocks.efetividade;
-  if (lower.includes("risco") || lower.includes("exposição") || lower.includes("recuperação")) return mocks.risco;
-  return mocks.inadimplencia;
+  if (lower.includes("cobrar primeiro") || lower.includes("priorid")) return mocks.prioridade;
+  if (lower.includes("mudou") || lower.includes("mudança") || lower.includes("este mês")) return mocks.mudancas;
+  if (lower.includes("compar") || lower.includes("região") || lower.includes("regiões")) return mocks.comparar;
+  if (lower.includes("previsão") || lower.includes("previs") || lower.includes("próximos")) return mocks.previsao;
+  return mocks.prioridade;
 }
 
 // ── SSE helpers ──
@@ -275,6 +290,7 @@ export async function POST(request: Request) {
       messages: conversationMessages,
       message,
       stream: isStreaming = false,
+      detailLevel = "resumido",
     } = body;
 
     // Build Claude messages from history or single message
@@ -300,11 +316,17 @@ export async function POST(request: Request) {
     const anthropic = getAnthropicClient();
     const dataContext = buildDataContext();
     const includeSuggestions = isStreaming;
+
+    const detailInstruction = detailLevel === "detalhado"
+      ? "\n\n**NÍVEL DE DETALHE: DETALHADO** — Seja completo e aprofundado. Até 500 palavras. Inclua análise detalhada, contexto histórico, comparações e recomendações estratégicas com justificativa."
+      : "\n\n**NÍVEL DE DETALHE: RESUMIDO** — Seja extremamente conciso e direto. Máximo 150 palavras. Apenas os pontos essenciais e números-chave.";
+
     const systemPrompt =
       JULIA_SYSTEM_PROMPT +
+      detailInstruction +
       "\n\n" +
       dataContext +
-      (includeSuggestions ? SUGGESTIONS_INSTRUCTION : "");
+      (includeSuggestions ? SUGGESTIONS_INSTRUCTION + ACTIONS_INSTRUCTION : "");
 
     // ── Streaming mode ──
     if (isStreaming) {
@@ -337,7 +359,9 @@ export async function POST(request: Request) {
                 const fullText =
                   mock.reply +
                   "\n\n<<SUGESTÕES>>\n" +
-                  mock.suggestions.join("\n");
+                  mock.suggestions.join("\n") +
+                  "\n<<AÇÕES>>\n" +
+                  mock.actions.join("\n");
                 const words = fullText.split(" ");
                 for (let i = 0; i < words.length; i++) {
                   const text = (i === 0 ? "" : " ") + words[i];
@@ -359,7 +383,8 @@ export async function POST(request: Request) {
       // Mock streaming (no API key)
       const mock = getMockResponse(lastUserMessage);
       const fullText =
-        mock.reply + "\n\n<<SUGESTÕES>>\n" + mock.suggestions.join("\n");
+        mock.reply + "\n\n<<SUGESTÕES>>\n" + mock.suggestions.join("\n") +
+        "\n<<AÇÕES>>\n" + mock.actions.join("\n");
       const words = fullText.split(" ");
 
       const readableStream = new ReadableStream({
@@ -395,8 +420,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Mock fallback
-    return NextResponse.json({ reply: getMockResponse(lastUserMessage).reply });
+    // Mock fallback — include actions so frontend can parse them
+    const mockFallback = getMockResponse(lastUserMessage);
+    const fallbackReply =
+      mockFallback.reply +
+      "\n\n<<AÇÕES>>\n" +
+      mockFallback.actions.join("\n");
+    return NextResponse.json({ reply: fallbackReply });
   } catch (error) {
     console.error("Error in chat API:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

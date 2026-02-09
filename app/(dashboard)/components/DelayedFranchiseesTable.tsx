@@ -44,7 +44,7 @@ export function DelayedFranchiseesTable({ data = defaultData }: DelayedFranchise
         </div>
         <Link
           href="/dividas"
-          className="text-sm font-medium text-[#F85B00] hover:underline"
+          className="text-sm font-medium text-primary hover:underline"
         >
           Ver todos
         </Link>

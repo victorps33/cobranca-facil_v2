@@ -31,7 +31,7 @@ export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
                 <div
                   className={cn(
                     "absolute top-5 left-[calc(50%+24px)] right-[calc(-50%+24px)] h-0.5",
-                    isCompleted ? "bg-[#F85B00]" : "bg-gray-200"
+                    isCompleted ? "bg-primary" : "bg-gray-200"
                   )}
                 />
               )}
@@ -44,9 +44,9 @@ export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
                   className={cn(
                     "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors",
                     isCompleted
-                      ? "border-[#F85B00] bg-[#F85B00] text-white"
+                      ? "border-primary bg-primary text-white"
                       : isCurrent
-                      ? "border-[#85ace6] bg-[#85ace6]/10 text-[#85ace6]"
+                      ? "border-secondary bg-secondary/10 text-secondary"
                       : "border-gray-300 bg-white text-gray-400",
                     isClickable && "cursor-pointer hover:shadow-md"
                   )}

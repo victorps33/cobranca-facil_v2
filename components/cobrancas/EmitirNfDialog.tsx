@@ -78,7 +78,7 @@ export function EmitirNfDialog({
               type="checkbox"
               checked={comBoleto}
               onChange={(e) => setComBoleto(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#F85B00] focus:ring-[#F85B00]"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
             <div>
               <span className="text-sm font-medium text-gray-900">Gerar boleto junto com a NF</span>
@@ -96,7 +96,7 @@ export function EmitirNfDialog({
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#F85B00] rounded-full hover:bg-[#e05200] transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors"
           >
             Emitir NF
           </button>

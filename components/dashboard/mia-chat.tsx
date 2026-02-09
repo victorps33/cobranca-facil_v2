@@ -141,7 +141,7 @@ export function MiaChat() {
                 className={cn(
                   "max-w-[85%] rounded-2xl px-4 py-3",
                   message.role === "user"
-                    ? "bg-[#F85B00] text-white"
+                    ? "bg-primary text-white"
                     : "bg-gray-50 text-gray-900"
                 )}
               >
@@ -150,7 +150,7 @@ export function MiaChat() {
                     className="prose prose-sm prose-gray max-w-none
                       [&_p]:my-1 [&_ul]:my-2 [&_li]:my-0.5
                       [&_strong]:text-gray-900 [&_strong]:font-semibold
-                      [&_a]:text-[#F85B00] [&_a]:no-underline [&_a:hover]:underline"
+                      [&_a]:text-primary [&_a]:no-underline [&_a:hover]:underline"
                     dangerouslySetInnerHTML={{
                       __html: message.content
                         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -210,7 +210,7 @@ export function MiaChat() {
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="p-1.5 rounded-lg bg-[#F85B00] text-white disabled:opacity-50 transition-colors hover:bg-[#e05200]"
+            className="p-1.5 rounded-lg bg-primary text-white disabled:opacity-50 transition-colors hover:bg-primary-hover"
           >
             <Send className="h-4 w-4" />
           </button>

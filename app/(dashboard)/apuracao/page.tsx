@@ -143,7 +143,7 @@ export default function ApuracaoPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                       c.value === competenciaSelecionada
-                        ? "bg-[#F85B00] text-white"
+                        ? "bg-primary text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     )}
                   >
@@ -259,7 +259,7 @@ export default function ApuracaoPage() {
                           <td className="px-5 py-3 text-center">
                             <button
                               onClick={(e) => { e.stopPropagation(); exportCiclo(ciclo); }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-[#F85B00] hover:bg-orange-50 rounded-full transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-primary hover:bg-orange-50 rounded-full transition-colors"
                               title={`Exportar ${ciclo.competencia}`}
                             >
                               <Download className="h-3.5 w-3.5" />

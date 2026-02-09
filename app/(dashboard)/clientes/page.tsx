@@ -97,7 +97,7 @@ export default function ClientesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cadastro"
+        title="Franqueados"
         subtitle={`${counts.Todos} franqueados cadastrados`}
         primaryAction={{ label: "Novo Franqueado", href: "/clientes/novo" }}
         secondaryActions={[
@@ -216,7 +216,7 @@ export default function ClientesPage() {
                     return (
                       <tr
                         key={c.id}
-                        className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors"
+                        className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
                       >
                         <td className="px-5 py-3.5">
                           <Link
@@ -233,7 +233,7 @@ export default function ClientesPage() {
                               {getInitials(c.nome)}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-gray-900 text-sm truncate group-hover:text-[#F85B00] transition-colors">
+                              <p className="font-medium text-gray-900 text-sm truncate group-hover:text-primary transition-colors">
                                 {c.nome}
                               </p>
                               <p className="text-xs text-gray-400 truncate">

@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Loader2,
   Upload,
+  Download,
   Wifi,
   WifiOff,
   Users,
@@ -33,6 +34,7 @@ import {
   Trash2,
   Sparkles,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   parseApuracaoFile,
   type ApuracaoRow,
@@ -424,27 +426,53 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
             </div>
           </div>
 
-          {/* Import manual */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Faça upload do faturamento</h3>
+          {/* Modelo + Upload */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Baixe o modelo */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center gap-5">
+              <div className="h-14 w-14 rounded-2xl bg-[#FFF0E6] flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">Baixe o modelo de dados Menlo</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Planilha .xlsx com as colunas esperadas para importação
+                </p>
+                <button
+                  onClick={() => {
+                    const headers = ["Franqueado", "PDV", "iFood", "Rappi"];
+                    const exemplo = [
+                      ["Franquia Exemplo", 50000, 12000, 3000],
+                    ];
+                    const ws = XLSX.utils.aoa_to_sheet([headers, ...exemplo]);
+                    ws["!cols"] = [{ wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Faturamento");
+                    XLSX.writeFile(wb, "modelo_menlo_faturamento.xlsx");
+                  }}
+                  className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-semibold text-primary border border-primary/25 rounded-full hover:bg-primary/5 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar modelo .xlsx
+                </button>
+              </div>
+            </div>
 
-            {/* State: uploading spinner */}
+            {/* Upload do faturamento */}
             {uploading && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-                <Loader2 className="h-8 w-8 text-[#85ace6] animate-spin mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-600">
-                  Processando planilha...
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Analisando dados com IA
-                </p>
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center gap-5">
+                <div className="h-14 w-14 rounded-2xl bg-secondary/10 flex items-center justify-center shrink-0">
+                  <Loader2 className="h-7 w-7 text-secondary animate-spin" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Processando planilha...</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Analisando dados com IA</p>
+                </div>
               </div>
             )}
 
-            {/* State: upload result with AI summary */}
             {!uploading && uploadResult && uploadedFile && (
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {/* File info header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
@@ -465,11 +493,9 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                     Remover
                   </button>
                 </div>
-
-                {/* AI Summary */}
                 <div className="px-5 py-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-4 w-4 text-[#85ace6]" />
+                    <Sparkles className="h-4 w-4 text-secondary" />
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Resumo da IA
                     </p>
@@ -478,8 +504,6 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                     {uploadResult.summary}
                   </div>
                 </div>
-
-                {/* Warnings */}
                 {uploadResult.warnings.length > 0 && (
                   <div className="px-5 py-3 border-t border-gray-100 bg-amber-50/50">
                     <p className="text-xs font-medium text-amber-700 mb-1">Avisos:</p>
@@ -495,24 +519,23 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
               </div>
             )}
 
-            {/* State: drop zone (default) */}
             {!uploading && !uploadResult && (
               <div
-                className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center hover:border-gray-300 transition-colors cursor-pointer relative"
+                className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-6 flex items-center gap-5 hover:border-secondary hover:bg-blue-50/20 transition-colors cursor-pointer"
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.add("border-[#85ace6]", "bg-blue-50/30");
+                  e.currentTarget.classList.add("border-secondary", "bg-blue-50/30");
                 }}
                 onDragLeave={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.remove("border-[#85ace6]", "bg-blue-50/30");
+                  e.currentTarget.classList.remove("border-secondary", "bg-blue-50/30");
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.remove("border-[#85ace6]", "bg-blue-50/30");
+                  e.currentTarget.classList.remove("border-secondary", "bg-blue-50/30");
                   const file = e.dataTransfer.files[0];
                   if (file) handleFileUpload(file);
                 }}
@@ -527,13 +550,15 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                   input.click();
                 }}
               >
-                <Upload className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-600">
-                  Arraste um arquivo CSV ou Excel aqui
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  ou clique para selecionar
-                </p>
+                <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
+                  <Upload className="h-7 w-7 text-gray-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Faça upload do faturamento</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Arraste um CSV ou Excel aqui, ou clique para selecionar
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -620,7 +645,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                       className={cn(
                         "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                         regras.baseCalculo === base
-                          ? "bg-[#85ace6] text-white"
+                          ? "bg-secondary text-white"
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       )}
                     >
@@ -735,7 +760,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
       {currentStep === 3 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-8">
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-10 w-10 text-[#85ace6] animate-spin mb-6" />
+            <Loader2 className="h-10 w-10 text-secondary animate-spin mb-6" />
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Processando apuração</h2>
 
             <div className="space-y-4 w-full max-w-md">
@@ -750,13 +775,13 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                   {checkpoints > i ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
                   ) : checkpoints === i ? (
-                    <Loader2 className="h-5 w-5 text-[#85ace6] animate-spin flex-shrink-0" />
+                    <Loader2 className="h-5 w-5 text-secondary animate-spin flex-shrink-0" />
                   ) : (
                     <Circle className="h-5 w-5 text-gray-200 flex-shrink-0" />
                   )}
                   <span className={cn(
                     "text-sm",
-                    checkpoints > i ? "text-gray-900" : checkpoints === i ? "text-[#85ace6]" : "text-gray-400"
+                    checkpoints > i ? "text-gray-900" : checkpoints === i ? "text-secondary" : "text-gray-400"
                   )}>
                     {label}
                   </span>
@@ -906,7 +931,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.revisou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, revisou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#F85B00] focus:ring-[#F85B00]"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               <span className="text-sm text-gray-700">Revisei os valores por franqueado</span>
             </label>
@@ -916,7 +941,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.verificou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, verificou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#F85B00] focus:ring-[#F85B00]"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               <span className="text-sm text-gray-700">Verifiquei as divergencias sinalizadas</span>
             </label>
@@ -926,7 +951,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.confirmou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, confirmou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#F85B00] focus:ring-[#F85B00]"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               <span className="text-sm text-gray-700">Confirmo que os dados estao corretos</span>
             </label>
@@ -1097,7 +1122,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
               </button>
               <button
                 onClick={resetWizard}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#F85B00] rounded-full hover:bg-[#e05200] transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors"
               >
                 Iniciar proximo ciclo
               </button>
@@ -1129,7 +1154,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
           {currentStep === 1 && (
             <button
               onClick={handleNext}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover transition-colors"
             >
               Continuar para Regras
               <ArrowRight className="h-4 w-4" />
@@ -1139,7 +1164,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
           {currentStep === 2 && (
             <button
               onClick={handleNext}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover transition-colors"
             >
               Calcular apuração
               <ArrowRight className="h-4 w-4" />
@@ -1149,7 +1174,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
           {currentStep === 4 && (
             <button
               onClick={handleNext}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover transition-colors"
             >
               Tudo certo, aprovar
               <ArrowRight className="h-4 w-4" />
@@ -1160,7 +1185,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
             <button
               onClick={handleNext}
               disabled={!canAprovar}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Check className="h-4 w-4" />
               Aprovar
@@ -1171,7 +1196,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
             <button
               onClick={handleEmitir}
               disabled={emitindo}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#F85B00] text-white rounded-full font-medium hover:bg-[#e05200] disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover disabled:opacity-50 transition-colors"
             >
               {emitindo ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1244,7 +1269,7 @@ function TogglePill({
       className={cn(
         "px-4 py-2 rounded-full text-sm font-medium transition-colors",
         active
-          ? "bg-[#85ace6] text-white"
+          ? "bg-secondary text-white"
           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
       )}
     >
@@ -1312,7 +1337,7 @@ function NfExceçãoSelector({
       {!aberto ? (
         <button
           onClick={() => setAberto(true)}
-          className="text-xs font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+          className="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
         >
           + Adicionar exceção
         </button>
@@ -1326,7 +1351,7 @@ function NfExceçãoSelector({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar franqueado..."
-              className="w-full pl-9 pr-8 py-2 text-sm border-b border-gray-200 focus:outline-none focus:border-[#85ace6]"
+              className="w-full pl-9 pr-8 py-2 text-sm border-b border-gray-200 focus:outline-none focus:border-secondary"
               autoFocus
             />
             <button

@@ -7,6 +7,7 @@ import {
   Area,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -338,6 +339,219 @@ export function SafraCurveChart({ data, safras }: SafraCurveChartProps) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Aging List Chart ──
+
+const AGING_COLORS: Record<string, string> = {
+  "0-30d": "#85ace6",
+  "31-60d": "#F85B00",
+  "61-90d": "#8b5cf6",
+  "91+d": "#374151",
+};
+
+interface AgingListChartProps {
+  data: Array<{ bucket: string; valor: number; count: number }>;
+}
+
+const AgingTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+        <p className="text-gray-400 text-xs mb-1">{label}</p>
+        <p className="font-medium">{formatCurrency(payload[0].value)}</p>
+        <p className="text-gray-400 text-xs">{payload[0].payload.count} cobranças</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export function AgingListChart({ data }: AgingListChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
+        <XAxis
+          dataKey="bucket"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          dy={10}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          tickFormatter={formatCurrency}
+          width={70}
+        />
+        <Tooltip content={<AgingTooltip />} />
+        <Bar dataKey="valor" name="Valor" radius={[4, 4, 0, 0]}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={AGING_COLORS[entry.bucket] || "#6b7280"} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Forecast vs Actual Chart ──
+
+interface ForecastVsActualChartProps {
+  data: Array<{ month: string; recebido: number; previsto: number }>;
+}
+
+export function ForecastVsActualChart({ data }: ForecastVsActualChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="recebidoGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
+        <XAxis
+          dataKey="month"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          dy={10}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          tickFormatter={formatCurrency}
+          width={70}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <Area
+          type="monotone"
+          dataKey="previsto"
+          name="Previsto"
+          stroke="#d1d5db"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          fill="transparent"
+          dot={false}
+        />
+        <Area
+          type="monotone"
+          dataKey="recebido"
+          name="Recebido"
+          stroke="#10b981"
+          strokeWidth={2.5}
+          fill="url(#recebidoGradient)"
+          dot={false}
+          activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── PMR Trend Chart ──
+
+interface PmrTrendChartProps {
+  data: Array<{ month: string; pmr: number }>;
+}
+
+export function PmrTrendChart({ data }: PmrTrendChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
+        <XAxis
+          dataKey="month"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          dy={10}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          width={40}
+          tickFormatter={(v) => `${v}d`}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <ReferenceLine
+          y={15}
+          stroke="#d1d5db"
+          strokeDasharray="5 5"
+          label={{ value: "Meta 15d", position: "right", fill: "#9ca3af", fontSize: 11 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="pmr"
+          name="PMR"
+          stroke="#F85B00"
+          strokeWidth={2.5}
+          dot={false}
+          activeDot={{ r: 6, fill: "#F85B00", stroke: "#fff", strokeWidth: 2 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Receipt Rate Chart ──
+
+interface ReceiptRateChartProps {
+  data: Array<{ month: string; rate: number }>;
+}
+
+export function ReceiptRateChart({ data }: ReceiptRateChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="rateGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
+        <XAxis
+          dataKey="month"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          dy={10}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: "#9ca3af" }}
+          width={40}
+          domain={[0, 100]}
+          tickFormatter={(v) => `${v}%`}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <ReferenceLine
+          y={85}
+          stroke="#d1d5db"
+          strokeDasharray="5 5"
+          label={{ value: "Meta 85%", position: "right", fill: "#9ca3af", fontSize: 11 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="rate"
+          name="Taxa de Recebimento"
+          stroke="#8b5cf6"
+          strokeWidth={2.5}
+          fill="url(#rateGradient)"
+          dot={false}
+          activeDot={{ r: 6, fill: "#8b5cf6", stroke: "#fff", strokeWidth: 2 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 

@@ -64,7 +64,7 @@ export function TopBar() {
           {/* Notifications */}
           <button aria-label="Notificações" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <Bell className="h-5 w-5 text-gray-500" strokeWidth={1.5} />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#F85B00] rounded-full" />
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
           </button>
 
           {/* User */}

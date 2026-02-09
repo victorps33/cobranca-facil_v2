@@ -1,12 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { TooltipHint } from "@/components/ui/tooltip-hint";
 import { ReactNode } from "react";
 
 interface StatCardProps {
   label: string;
   value: string;
   caption?: string;
+  tooltip?: string;
   icon?: ReactNode;
   danger?: boolean;
   className?: string;
@@ -16,6 +18,7 @@ export function StatCard({
   label,
   value,
   caption,
+  tooltip,
   icon,
   danger,
   className,
@@ -39,8 +42,9 @@ export function StatCard({
             {icon}
           </div>
         )}
-        <span className="text-xs font-medium text-gray-500 tracking-wide">
+        <span className="text-xs font-medium text-gray-500 tracking-wide flex items-center gap-1.5">
           {label}
+          {tooltip && <TooltipHint text={tooltip} />}
         </span>
       </div>
       <p

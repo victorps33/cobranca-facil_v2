@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/kpi-tile";
@@ -188,45 +189,35 @@ export default function DashboardPage() {
       />
 
       {/* ── Filtros de competência ── */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {competencias.map((comp) => (
-          <button
-            key={comp.value}
-            onClick={() => setSelectedCompetencia(comp.value)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-              comp.value === selectedCompetencia
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {comp.label}
-          </button>
-        ))}
-      </div>
+      <FilterPillGroup
+        options={competencias.map((c) => ({ key: c.value, label: c.label }))}
+        value={selectedCompetencia}
+        onChange={setSelectedCompetencia}
+      />
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile
           title="Total Emitido"
           value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
           subtitle={`${stats.total} cobranças · ${selectedLabel}`}
           trend={{ value: Math.abs(trendEmitido), direction: trendEmitido >= 0 ? "up" : "down" }}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<DollarSign className="h-4 w-4" />}
         />
         <KpiTile
           title="Total Recebido"
           value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
           subtitle={`${stats.byStatus.paga} pagas · ${selectedLabel}`}
           trend={{ value: Math.abs(trendRecebido), direction: trendRecebido >= 0 ? "up" : "down" }}
-          icon={<TrendingUp className="h-5 w-5" />}
+          icon={<TrendingUp className="h-4 w-4" />}
         />
         <KpiTile
           title="Taxa de Inadimplência"
           value={`${inadRate}%`}
           subtitle={`${stats.byStatus.vencida} vencidas · ${selectedLabel}`}
+          tooltip="Percentual do valor emitido que está vencido e não foi pago"
           trend={{ value: Math.abs(trendInad), direction: trendInad <= 0 ? "down" : "up" }}
-          icon={<AlertTriangle className="h-5 w-5" />}
+          icon={<AlertTriangle className="h-4 w-4" />}
           variant={Number(inadRate) > 15 ? "danger" : "default"}
         />
         <KpiTile
@@ -234,7 +225,7 @@ export default function DashboardPage() {
           value={String(stats.byStatus.aberta + stats.byStatus.vencida)}
           subtitle={`De ${stats.total} emitidas · ${selectedLabel}`}
           trend={{ value: Math.abs(trendPendentes), direction: trendPendentes <= 0 ? "down" : "up" }}
-          icon={<FileText className="h-5 w-5" />}
+          icon={<FileText className="h-4 w-4" />}
         />
       </div>
 
@@ -243,14 +234,14 @@ export default function DashboardPage() {
         <ChartCard title="Recebido vs. Emitido" subtitle="Últimos 5 meses">
           <StripeRevenueChart data={chartData.revenueData} />
         </ChartCard>
-        <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
-          <StripePaymentMethodsChart data={chartData.paymentMethodsData} />
+        <ChartCard title="Curva de Recebimento por Safra" subtitle="Evolução cumulativa por competência">
+          <SafraCurveChart data={safraData.data} safras={safraData.safras} />
         </ChartCard>
         <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
           <StripeChargesStatusChart data={chartData.chargesStatusData} />
         </ChartCard>
-        <ChartCard title="Curva de Recebimento por Safra" subtitle="Evolução cumulativa por competência">
-          <SafraCurveChart data={safraData.data} safras={safraData.safras} />
+        <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
+          <StripePaymentMethodsChart data={chartData.paymentMethodsData} />
         </ChartCard>
       </div>
 

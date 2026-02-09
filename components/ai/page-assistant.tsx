@@ -189,7 +189,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
                 className={cn(
                   "max-w-[85%] rounded-2xl px-3 py-2",
                   message.role === "user"
-                    ? "bg-[#F85B00] text-white"
+                    ? "bg-primary text-white"
                     : "bg-gray-50 text-gray-900"
                 )}
               >
@@ -232,7 +232,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="h-10 w-10 flex items-center justify-center bg-[#F85B00] text-white rounded-xl hover:bg-[#e05200] disabled:opacity-50 transition-colors"
+            className="h-10 w-10 flex items-center justify-center bg-primary text-white rounded-xl hover:bg-primary-hover disabled:opacity-50 transition-colors"
           >
             <Send className="h-4 w-4" />
           </button>

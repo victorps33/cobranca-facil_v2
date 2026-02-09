@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
+import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
 import {
   Dialog,
@@ -11,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import {
   formatDateTime,
   CHANNEL_LABELS,
@@ -92,8 +94,17 @@ export default function LogsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#85ace6]" />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-24 rounded-full" />
+          <Skeleton className="h-8 w-20 rounded-full" />
+          <Skeleton className="h-8 w-20 rounded-full" />
+        </div>
+        <TableSkeleton rows={8} cols={7} />
       </div>
     );
   }
@@ -107,48 +118,26 @@ export default function LogsPage() {
 
       {/* ── Filters ── */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          {[
+        <FilterPillGroup
+          options={[
             { key: "all", label: "Todos canais" },
             { key: "EMAIL", label: "E-mail" },
             { key: "SMS", label: "SMS" },
             { key: "WHATSAPP", label: "WhatsApp" },
-          ].map((c) => (
-            <button
-              key={c.key}
-              onClick={() => setChannelFilter(c.key)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                channelFilter === c.key
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {[
+          ]}
+          value={channelFilter}
+          onChange={setChannelFilter}
+        />
+        <FilterPillGroup
+          options={[
             { key: "all", label: "Todos status" },
             { key: "SENT", label: "Enviado" },
             { key: "FAILED", label: "Falhou" },
             { key: "SKIPPED", label: "Ignorado" },
-          ].map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setStatusFilter(s.key)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                statusFilter === s.key
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+          ]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       {/* ── Table or Empty State ── */}
@@ -180,7 +169,7 @@ export default function LogsPage() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
                     <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">
                       {formatDateTime(new Date(log.sentAt || log.scheduledFor))}
                     </td>
@@ -196,7 +185,7 @@ export default function LogsPage() {
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">{log.charge.customer.name}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/cobrancas/${log.charge.id}`} className="text-sm text-[#85ace6] hover:underline">
+                      <Link href={`/cobrancas/${log.charge.id}`} className="text-sm text-secondary hover:underline">
                         {log.charge.description}
                       </Link>
                     </td>
@@ -259,7 +248,7 @@ export default function LogsPage() {
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs mb-1">Cobrança</p>
-                  <Link href={`/cobrancas/${selectedLog.charge.id}`} className="text-sm text-[#85ace6] hover:underline font-medium">
+                  <Link href={`/cobrancas/${selectedLog.charge.id}`} className="text-sm text-secondary hover:underline font-medium">
                     {selectedLog.charge.description}
                   </Link>
                 </div>

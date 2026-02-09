@@ -84,7 +84,7 @@ export function PageHeader({
             </>
           );
           const cls =
-            "inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-[#F85B00] rounded-full hover:bg-[#e05200] transition-colors";
+            "inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors";
 
           return primaryAction.href ? (
             <Link href={primaryAction.href} className={cls}>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
 import { StatCard } from "@/components/layout/StatCard";
+import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
 import { cobrancasDummy, getCobrancasStats, type Cobranca } from "@/lib/data/cobrancas-dummy";
 import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
@@ -50,6 +52,7 @@ type SortKey = "dataVencimento" | "valorOriginal" | "cliente";
 type SortDir = "asc" | "desc";
 
 export default function CobrancasPage() {
+  const router = useRouter();
   const [selectedCompetencia, setSelectedCompetencia] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -184,33 +187,14 @@ export default function CobrancasPage() {
       />
 
       {/* ── Filtros de competência ── */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          onClick={() => setSelectedCompetencia("all")}
-          className={cn(
-            "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-            selectedCompetencia === "all"
-              ? "bg-gray-900 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
-          Todas
-        </button>
-        {competencias.map((comp) => (
-          <button
-            key={comp.value}
-            onClick={() => setSelectedCompetencia(comp.value)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-              comp.value === selectedCompetencia
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {comp.label}
-          </button>
-        ))}
-      </div>
+      <FilterPillGroup
+        options={[
+          { key: "all", label: "Todas" },
+          ...competencias.map((c) => ({ key: c.value, label: c.label })),
+        ]}
+        value={selectedCompetencia}
+        onChange={setSelectedCompetencia}
+      />
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -252,43 +236,32 @@ export default function CobrancasPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por cliente, descrição ou ID…"
             aria-label="Buscar cobranças"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-[#85ace6]/30 focus-visible:border-[#85ace6] transition-colors"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
           />
         </div>
         {/* Status pills */}
-        <div className="flex items-center gap-1.5">
-          {["all", "Aberta", "Vencida", "Paga", "Cancelada"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                statusFilter === s
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {s === "all" ? "Todos" : s}
-            </button>
-          ))}
-        </div>
+        <FilterPillGroup
+          options={[
+            { key: "all", label: "Todos" },
+            { key: "Aberta", label: "Aberta" },
+            { key: "Vencida", label: "Vencida" },
+            { key: "Paga", label: "Paga" },
+            { key: "Cancelada", label: "Cancelada" },
+          ]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
         {/* Category pills */}
-        <div className="flex items-center gap-1.5">
-          {["all", "Royalties", "FNP", "Taxa de Franquia"].map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategoriaFilter(c)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                categoriaFilter === c
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {c === "all" ? "Todas" : c}
-            </button>
-          ))}
-        </div>
+        <FilterPillGroup
+          options={[
+            { key: "all", label: "Todas" },
+            { key: "Royalties", label: "Royalties" },
+            { key: "FNP", label: "FNP" },
+            { key: "Taxa de Franquia", label: "Taxa de Franquia" },
+          ]}
+          value={categoriaFilter}
+          onChange={setCategoriaFilter}
+        />
       </div>
 
       {/* ── Table or Empty State ── */}
@@ -299,7 +272,14 @@ export default function CobrancasPage() {
               ? "Nenhuma cobrança encontrada para os filtros selecionados."
               : "Nenhuma cobrança emitida neste período."
           }
+          suggestion={
+            hasActiveFilters
+              ? "Tente ajustar os filtros ou selecionar outro período."
+              : "Crie sua primeira cobrança para começar."
+          }
           onClear={hasActiveFilters ? clearFilters : undefined}
+          actionLabel={!hasActiveFilters ? "Nova Cobrança" : undefined}
+          actionHref={!hasActiveFilters ? "/cobrancas/nova" : undefined}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -332,7 +312,7 @@ export default function CobrancasPage() {
               </thead>
               <tbody>
                 {filtered.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900 text-sm">{c.id}</p>
                       <p className="text-xs text-gray-400">{c.categoria}</p>
@@ -375,7 +355,7 @@ export default function CobrancasPage() {
                       ) : canEmitNf(c) ? (
                         <button
                           onClick={() => openNfDialog(c)}
-                          className="text-xs font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+                          className="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
                         >
                           Emitir NF
                         </button>

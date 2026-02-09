@@ -328,7 +328,7 @@ export function ImportDialog({
             className={cn(
               "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors",
               dragOver
-                ? "border-[#F85B00] bg-orange-50/50"
+                ? "border-primary bg-orange-50/50"
                 : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
             )}
           >
@@ -341,14 +341,14 @@ export function ImportDialog({
               <Upload
                 className={cn(
                   "h-5 w-5",
-                  dragOver ? "text-[#F85B00]" : "text-gray-400"
+                  dragOver ? "text-primary" : "text-gray-400"
                 )}
               />
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-gray-700">
                 Arraste um arquivo aqui ou{" "}
-                <span className="text-[#F85B00]">clique para selecionar</span>
+                <span className="text-primary">clique para selecionar</span>
               </p>
               <p className="mt-1 text-xs text-gray-400">
                 Qualquer formato: .xlsx, .csv, .pdf, .txt, .doc e outros
@@ -366,7 +366,7 @@ export function ImportDialog({
         {/* PARSING — Spinner */}
         {state === "parsing" && (
           <div className="flex flex-col items-center justify-center gap-3 py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#F85B00]" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-gray-500">Processando arquivo com IA...</p>
             <p className="text-xs text-gray-400">Interpretando e extraindo dados</p>
           </div>
@@ -379,7 +379,7 @@ export function ImportDialog({
             {aiSummary && (
               <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-3">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-[#85ace6]" />
+                  <Sparkles className="h-3.5 w-3.5 text-secondary" />
                   Resumo da IA
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed">
@@ -483,7 +483,7 @@ export function ImportDialog({
               <button
                 onClick={handleConfirmImport}
                 disabled={completed.length === 0}
-                className="px-5 py-2 text-sm font-medium text-white bg-[#F85B00] rounded-full hover:bg-[#e05200] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Importar {completed.length} registro
                 {completed.length !== 1 ? "s" : ""}

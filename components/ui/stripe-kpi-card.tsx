@@ -43,7 +43,7 @@ export function StripeKpiCard({
     <div
       onClick={onClick}
       className={cn(
-        "group relative bg-white rounded-2xl p-6 transition-[box-shadow] duration-200",
+        "group relative bg-white rounded-2xl p-5 transition-[box-shadow] duration-200",
         "border border-gray-100 hover:border-gray-200",
         "hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]",
         onClick && "cursor-pointer",
@@ -51,18 +51,18 @@ export function StripeKpiCard({
       )}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <span className="text-sm font-medium text-gray-500">{title}</span>
+      <div className="flex items-center gap-2 mb-2">
         {Icon && (
-          <div className="h-9 w-9 rounded-xl bg-gray-50 group-hover:bg-gray-100 flex items-center justify-center transition-colors">
+          <div className="h-8 w-8 rounded-xl bg-gray-50 group-hover:bg-gray-100 flex items-center justify-center transition-colors flex-shrink-0">
             <Icon className="h-4 w-4 text-gray-400" strokeWidth={1.5} />
           </div>
         )}
+        <span className="text-xs font-medium text-gray-500 tracking-wide">{title}</span>
       </div>
 
       {/* Value */}
-      <div className="mb-2">
-        <span className="text-3xl font-semibold text-gray-900 tracking-tight">
+      <div className="mb-1">
+        <span className="text-2xl font-bold text-gray-900 tracking-tight tabular-nums">
           {value}
         </span>
       </div>
@@ -87,12 +87,12 @@ export function StripeKpiCard({
 
       {/* Subtitle */}
       {subtitle && !change && (
-        <span className="text-sm text-gray-400">{subtitle}</span>
+        <span className="text-xs text-gray-400">{subtitle}</span>
       )}
 
       {/* Hover indicator */}
       {onClick && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-[#85ace6] to-[#F85B00] rounded-b-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-primary rounded-b-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
     </div>
   );
