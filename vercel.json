@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/dunning-run",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/message-dispatch",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/retry-failed",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

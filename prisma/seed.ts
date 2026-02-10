@@ -287,6 +287,12 @@ async function main() {
   console.log("🌱 Starting seed...");
 
   // Clear existing data (order matters for FK constraints)
+  await prisma.conversationRead.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.agentDecisionLog.deleteMany();
+  await prisma.messageQueue.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.agentConfig.deleteMany();
   await prisma.collectionTask.deleteMany();
   await prisma.interactionLog.deleteMany();
   await prisma.notificationLog.deleteMany();
@@ -673,13 +679,328 @@ async function main() {
 
   console.log(`✅ Created ${allTasks.length} CRM tasks`);
 
+  // ── Agent Config ──
+  await prisma.agentConfig.create({
+    data: {
+      franqueadoraId: franqueadora.id,
+      enabled: true,
+      maxDailyMessages: 100,
+      escalationThreshold: 0.3,
+      highValueThreshold: 1000000,
+      workingHoursStart: 8,
+      workingHoursEnd: 20,
+      timezone: "America/Sao_Paulo",
+    },
+  });
+
+  console.log("✅ Created AgentConfig");
+
+  // ── Conversations, Messages & Agent Decisions ──
+  // Create conversations for ~10 customers with varying states
+
+  const conversationScenarios: Array<{
+    customerIdx: number;
+    channel: "WHATSAPP" | "EMAIL" | "SMS";
+    status: "ABERTA" | "PENDENTE_IA" | "PENDENTE_HUMANO" | "RESOLVIDA";
+    assignedToIdx?: number;
+    messages: Array<{
+      sender: "CUSTOMER" | "AI" | "AGENT" | "SYSTEM";
+      content: string;
+      isInternal?: boolean;
+      minutesAgo: number;
+    }>;
+    aiDecision?: {
+      action: "SEND_COLLECTION" | "RESPOND_CUSTOMER" | "ESCALATE_HUMAN" | "NEGOTIATE" | "MARK_PROMISE";
+      reasoning: string;
+      confidence: number;
+      escalationReason?: "LEGAL_THREAT" | "EXPLICIT_REQUEST" | "AI_UNCERTAINTY" | "HIGH_VALUE" | "DISPUTE";
+    };
+  }> = [
+    // 1. WhatsApp - Cliente prometeu pagar (ABERTA)
+    {
+      customerIdx: 2, // Ana Oliveira - healthy
+      channel: "WHATSAPP",
+      status: "ABERTA",
+      messages: [
+        { sender: "AI", content: "Olá Ana! Lembrete: sua mensalidade de R$ 1.500,00 vence amanhã. Precisa de algo?", minutesAgo: 120 },
+        { sender: "CUSTOMER", content: "Oi! Vou pagar amanhã de manhã, obrigada pelo lembrete!", minutesAgo: 95 },
+        { sender: "AI", content: "Ótimo, Ana! Fico no aguardo. Qualquer dúvida estou por aqui. Bom dia!", minutesAgo: 93 },
+      ],
+      aiDecision: {
+        action: "MARK_PROMISE",
+        reasoning: "Cliente prometeu pagamento para amanhã. Registrando promessa.",
+        confidence: 0.92,
+      },
+    },
+    // 2. WhatsApp - Cliente pedindo parcelamento (PENDENTE_IA)
+    {
+      customerIdx: 15, // Lucia Ferreira - attention
+      channel: "WHATSAPP",
+      status: "PENDENTE_IA",
+      messages: [
+        { sender: "AI", content: "Oi Lucia! Notamos que a cobrança de Consultoria (R$ 3.200,00) está em atraso há 15 dias. Podemos ajudar a regularizar?", minutesAgo: 60 },
+        { sender: "CUSTOMER", content: "Estou com dificuldades financeiras esse mês. Tem como parcelar?", minutesAgo: 45 },
+        { sender: "AI", content: "Entendo, Lucia. Posso verificar opções de parcelamento para você. O valor total é R$ 3.200,00 — conseguiríamos em até 3x sem juros. Gostaria de seguir assim?", minutesAgo: 43 },
+        { sender: "CUSTOMER", content: "3x fica bom! Pode fazer?", minutesAgo: 30 },
+      ],
+      aiDecision: {
+        action: "NEGOTIATE",
+        reasoning: "Cliente aceitou parcelamento em 3x. Aguardando confirmação do sistema.",
+        confidence: 0.85,
+      },
+    },
+    // 3. Email - Cobrança formal (ABERTA)
+    {
+      customerIdx: 3, // Pedro Costa - controlled
+      channel: "EMAIL",
+      status: "ABERTA",
+      messages: [
+        { sender: "AI", content: "Prezado Pedro,\n\nInformamos que a cobrança referente a Licença Software no valor de R$ 2.800,00, com vencimento em 15/01/2026, encontra-se pendente.\n\nCaso já tenha efetuado o pagamento, desconsidere esta mensagem.\n\nAtenciosamente,\nEquipe Menlo", minutesAgo: 1440 },
+        { sender: "CUSTOMER", content: "Recebi a notificação. Vou providenciar o pagamento até sexta-feira.", minutesAgo: 720 },
+        { sender: "AI", content: "Obrigado pelo retorno, Pedro. Ficamos no aguardo e qualquer necessidade estamos à disposição.\n\nAtenciosamente,\nEquipe Menlo", minutesAgo: 718 },
+      ],
+      aiDecision: {
+        action: "RESPOND_CUSTOMER",
+        reasoning: "Cliente confirmou pagamento para sexta. Resposta de agradecimento enviada.",
+        confidence: 0.88,
+      },
+    },
+    // 4. WhatsApp - Escalação por ameaça legal (PENDENTE_HUMANO)
+    {
+      customerIdx: 22, // Marcos Vieira - critical
+      channel: "WHATSAPP",
+      status: "PENDENTE_HUMANO",
+      assignedToIdx: 0, // admin
+      messages: [
+        { sender: "AI", content: "Olá Marcos. Gostaríamos de conversar sobre as cobranças pendentes totalizando R$ 8.500,00. Podemos encontrar uma solução juntos?", minutesAgo: 180 },
+        { sender: "CUSTOMER", content: "Já falei que não devo isso! Vou procurar meu advogado se continuarem me cobrando!", minutesAgo: 150 },
+        { sender: "SYSTEM", content: "⚠️ Escalação automática: LEGAL_THREAT\nPalavra-chave detectada: \"advogado\"", isInternal: true, minutesAgo: 149 },
+        { sender: "AI", content: "Obrigada pelo contato. Vou transferir você para um especialista da nossa equipe que poderá ajudá-lo melhor. Em breve alguém entrará em contato.", minutesAgo: 148 },
+      ],
+      aiDecision: {
+        action: "ESCALATE_HUMAN",
+        reasoning: "Safety net: Palavra-chave detectada: \"advogado\"",
+        confidence: 0.15,
+        escalationReason: "LEGAL_THREAT",
+      },
+    },
+    // 5. SMS - Lembrete simples (ABERTA)
+    {
+      customerIdx: 0, // Maria Silva - healthy
+      channel: "SMS",
+      status: "ABERTA",
+      messages: [
+        { sender: "AI", content: "Maria, sua cobrança Mensalidade (R$ 1.200,00) vence em 3 dias. Boleto disponível.", minutesAgo: 240 },
+      ],
+      aiDecision: {
+        action: "SEND_COLLECTION",
+        reasoning: "Lembrete D-3 para cliente saudável via SMS.",
+        confidence: 0.95,
+      },
+    },
+    // 6. WhatsApp - Cliente pediu humano (PENDENTE_HUMANO)
+    {
+      customerIdx: 16, // Roberto Nascimento - attention
+      channel: "WHATSAPP",
+      status: "PENDENTE_HUMANO",
+      assignedToIdx: 1, // financeiro
+      messages: [
+        { sender: "AI", content: "Oi Roberto! Sua cobrança de Manutenção (R$ 4.100,00) está em atraso. Posso ajudar?", minutesAgo: 300 },
+        { sender: "CUSTOMER", content: "Quero falar com um atendente humano, por favor", minutesAgo: 280 },
+        { sender: "SYSTEM", content: "⚠️ Escalação automática: EXPLICIT_REQUEST\nPedido explícito detectado: \"atendente\"", isInternal: true, minutesAgo: 279 },
+        { sender: "AI", content: "Obrigada pelo contato. Vou transferir você para um especialista da nossa equipe que poderá ajudá-lo melhor. Em breve alguém entrará em contato.", minutesAgo: 278 },
+        { sender: "AGENT", content: "Olá Roberto, sou a Maria do financeiro. Vi que precisa de ajuda. Como posso te ajudar?", minutesAgo: 200 },
+        { sender: "CUSTOMER", content: "Oi Maria! Quero entender melhor essas cobranças, acho que tem erro no valor.", minutesAgo: 180 },
+      ],
+      aiDecision: {
+        action: "ESCALATE_HUMAN",
+        reasoning: "Safety net: Pedido explícito detectado: \"atendente\"",
+        confidence: 0.2,
+        escalationReason: "EXPLICIT_REQUEST",
+      },
+    },
+    // 7. Email - Conversa resolvida (RESOLVIDA)
+    {
+      customerIdx: 1, // João Santos - healthy
+      channel: "EMAIL",
+      status: "RESOLVIDA",
+      messages: [
+        { sender: "AI", content: "Prezado João,\n\nSua cobrança de Hospedagem (R$ 890,00) está em atraso. Pedimos a gentileza de regularizar.\n\nAtenciosamente,\nEquipe Menlo", minutesAgo: 4320 },
+        { sender: "CUSTOMER", content: "Pago! Segue comprovante em anexo.", minutesAgo: 2880 },
+        { sender: "AI", content: "Recebemos seu comprovante. Agradecemos o pagamento, João!\n\nAtenciosamente,\nEquipe Menlo", minutesAgo: 2878 },
+      ],
+      aiDecision: {
+        action: "RESPOND_CUSTOMER",
+        reasoning: "Cliente confirmou pagamento com comprovante. Conversa resolvida.",
+        confidence: 0.94,
+      },
+    },
+    // 8. WhatsApp - Disputa de valor (PENDENTE_HUMANO)
+    {
+      customerIdx: 19, // Tech Solutions LTDA - attention
+      channel: "WHATSAPP",
+      status: "PENDENTE_HUMANO",
+      messages: [
+        { sender: "AI", content: "Olá! Gostaríamos de tratar sobre a cobrança de Marketing Digital (R$ 5.600,00) em atraso há 20 dias.", minutesAgo: 500 },
+        { sender: "CUSTOMER", content: "Esse valor está errado. O contrato diz R$ 3.500. Vou registrar reclamação no Reclame Aqui se não corrigirem.", minutesAgo: 480 },
+        { sender: "SYSTEM", content: "⚠️ Escalação automática: LEGAL_THREAT\nPalavra-chave detectada: \"reclame aqui\"", isInternal: true, minutesAgo: 479 },
+        { sender: "AI", content: "Obrigada pelo contato. Vou transferir você para um especialista da nossa equipe que poderá ajudá-lo melhor. Em breve alguém entrará em contato.", minutesAgo: 478 },
+      ],
+      aiDecision: {
+        action: "ESCALATE_HUMAN",
+        reasoning: "Safety net: Palavra-chave detectada: \"reclame aqui\"",
+        confidence: 0.1,
+        escalationReason: "LEGAL_THREAT",
+      },
+    },
+    // 9. WhatsApp - Cobrança D+7 (ABERTA)
+    {
+      customerIdx: 7, // Camila Rocha - healthy
+      channel: "WHATSAPP",
+      status: "ABERTA",
+      messages: [
+        { sender: "AI", content: "Oi Camila! A cobrança de Suporte Técnico (R$ 1.800,00) segue em aberto desde 03/02. Segunda via disponível. Se precisar negociar, me avise.", minutesAgo: 60 },
+        { sender: "CUSTOMER", content: "Desculpa o atraso! Vou pagar hoje à tarde.", minutesAgo: 35 },
+        { sender: "AI", content: "Sem problemas, Camila! Obrigada pela resposta. Qualquer dúvida, estou aqui.", minutesAgo: 33 },
+      ],
+      aiDecision: {
+        action: "RESPOND_CUSTOMER",
+        reasoning: "Cliente se desculpou e prometeu pagamento para hoje. Tom positivo.",
+        confidence: 0.91,
+      },
+    },
+    // 10. Email - Alto valor (PENDENTE_HUMANO)
+    {
+      customerIdx: 25, // Beta Serviços EIRELI - critical
+      channel: "EMAIL",
+      status: "PENDENTE_HUMANO",
+      messages: [
+        { sender: "AI", content: "Prezados,\n\nAs cobranças pendentes da Beta Serviços EIRELI totalizam R$ 12.500,00 com atraso de 45 dias. Solicitamos regularização urgente.\n\nAtenciosamente,\nEquipe Menlo", minutesAgo: 2000 },
+        { sender: "CUSTOMER", content: "Estamos passando por reestruturação financeira. Gostaríamos de negociar um desconto para quitação à vista.", minutesAgo: 1500 },
+      ],
+      aiDecision: {
+        action: "ESCALATE_HUMAN",
+        reasoning: "Valor acima do limiar de alto valor (R$ 12.500). Escalando para negociação humana.",
+        confidence: 0.7,
+        escalationReason: "HIGH_VALUE",
+      },
+    },
+  ];
+
+  let convCount = 0;
+  let msgCount = 0;
+  let decCount = 0;
+
+  for (const scenario of conversationScenarios) {
+    const customer = customers[scenario.customerIdx];
+
+    const conversation = await prisma.conversation.create({
+      data: {
+        customerId: customer.id,
+        franqueadoraId: franqueadora.id,
+        channel: scenario.channel,
+        status: scenario.status,
+        assignedToId: scenario.assignedToIdx !== undefined ? users[scenario.assignedToIdx].id : null,
+        lastMessageAt: subDays(now, 0), // Will be updated
+        resolvedAt: scenario.status === "RESOLVIDA" ? subDays(now, 1) : null,
+      },
+    });
+    convCount++;
+
+    let lastMsgTime = now;
+    for (const msg of scenario.messages) {
+      const msgTime = new Date(now.getTime() - msg.minutesAgo * 60 * 1000);
+      lastMsgTime = msgTime;
+
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          sender: msg.sender,
+          senderUserId: msg.sender === "AGENT" && scenario.assignedToIdx !== undefined
+            ? users[scenario.assignedToIdx].id
+            : null,
+          content: msg.content,
+          contentType: "text",
+          channel: scenario.channel,
+          isInternal: msg.isInternal || false,
+          createdAt: msgTime,
+        },
+      });
+      msgCount++;
+    }
+
+    // Update lastMessageAt
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: lastMsgTime },
+    });
+
+    // Create AI decision log
+    if (scenario.aiDecision) {
+      await prisma.agentDecisionLog.create({
+        data: {
+          conversationId: conversation.id,
+          customerId: customer.id,
+          franqueadoraId: franqueadora.id,
+          action: scenario.aiDecision.action,
+          reasoning: scenario.aiDecision.reasoning,
+          confidence: scenario.aiDecision.confidence,
+          inputContext: JSON.stringify({ conversationId: conversation.id, channel: scenario.channel }),
+          outputMessage: scenario.messages.find((m) => m.sender === "AI")?.content || null,
+          escalationReason: scenario.aiDecision.escalationReason || null,
+          executedAt: new Date(now.getTime() - (scenario.messages[0]?.minutesAgo || 0) * 60 * 1000),
+        },
+      });
+      decCount++;
+    }
+  }
+
+  console.log(`✅ Created ${convCount} conversations, ${msgCount} messages, ${decCount} agent decisions`);
+
+  // ── MessageQueue seed (some pending, some sent) ──
+  const queueCustomerIdxs = [2, 0, 7];
+  let queueCount = 0;
+  for (const idx of queueCustomerIdxs) {
+    const cust = customers[idx];
+    await prisma.messageQueue.create({
+      data: {
+        customerId: cust.id,
+        channel: "WHATSAPP",
+        content: `Lembrete: sua cobrança está pendente. Entre em contato.`,
+        status: "SENT",
+        priority: 0,
+        scheduledFor: subDays(now, 1),
+        sentAt: subDays(now, 1),
+        franqueadoraId: franqueadora.id,
+        providerMsgId: `mock-wa-seed-${idx}`,
+      },
+    });
+    queueCount++;
+  }
+
+  // A few pending in queue
+  await prisma.messageQueue.create({
+    data: {
+      customerId: customers[15].id,
+      channel: "WHATSAPP",
+      content: "Lucia, gostaríamos de confirmar o parcelamento. Podemos seguir?",
+      status: "PENDING",
+      priority: 1,
+      scheduledFor: addDays(now, 0),
+      franqueadoraId: franqueadora.id,
+    },
+  });
+  queueCount++;
+
+  console.log(`✅ Created ${queueCount} message queue items`);
+
   console.log("\n📋 Test users:");
   console.log("  admin@menlo.com.br / admin123 (ADMINISTRADOR)");
   console.log("  financeiro@menlo.com.br / user123 (FINANCEIRO)");
   console.log("  operacional@menlo.com.br / user123 (OPERACIONAL)");
   console.log("  visualizador@menlo.com.br / user123 (VISUALIZADOR)");
 
-  console.log(`\n📊 Summary: ${customers.length} customers, ${createdCharges.length} charges, ${allInteractions.length} interactions, ${allTasks.length} tasks`);
+  console.log(`\n📊 Summary: ${customers.length} customers, ${createdCharges.length} charges, ${allInteractions.length} interactions, ${allTasks.length} tasks, ${convCount} conversations, ${msgCount} messages, ${decCount} agent decisions`);
   console.log("\n🎉 Seed completed successfully!");
 }
 

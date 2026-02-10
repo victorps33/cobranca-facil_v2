@@ -17,6 +17,8 @@ import {
   Sparkles,
   Contact,
   ListTodo,
+  Inbox,
+  Bot,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import type { UserRole } from "@prisma/client";
@@ -39,7 +41,9 @@ const baseNavigation: Omit<NavItem, "badge">[] = [
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
   { name: "Réguas", href: "/reguas", icon: Bell, roles: allRoles },
   { name: "CRM", href: "/crm", icon: Contact, roles: allRoles },
+  { name: "Inbox", href: "/inbox", icon: Inbox, roles: allRoles },
   { name: "Tarefas", href: "/crm/tarefas", icon: ListTodo, roles: allRoles },
+  { name: "Agente AI", href: "/agent", icon: Bot, roles: allRoles },
 ];
 
 const secondaryNav: NavItem[] = [
@@ -55,6 +59,7 @@ export function Sidebar() {
 
   // Fetch overdue tasks count from API
   const [atrasadas, setAtrasadas] = useState(0);
+  const [inboxUnread, setInboxUnread] = useState(0);
 
   useEffect(() => {
     fetch("/api/crm/tasks")
@@ -72,15 +77,30 @@ export function Sidebar() {
         }
       })
       .catch(() => {});
+
+    const fetchInboxUnread = () => {
+      fetch("/api/inbox/unread-count")
+        .then((res) => res.json())
+        .then((data) => setInboxUnread(data.unreadCount || 0))
+        .catch(() => {});
+    };
+    fetchInboxUnread();
+    const inboxInterval = setInterval(fetchInboxUnread, 10000);
+    return () => clearInterval(inboxInterval);
   }, []);
 
   const navigation: NavItem[] = useMemo(
     () =>
       baseNavigation.map((item) => ({
         ...item,
-        badge: item.name === "Tarefas" && atrasadas > 0 ? atrasadas : undefined,
+        badge:
+          item.name === "Tarefas" && atrasadas > 0
+            ? atrasadas
+            : item.name === "Inbox" && inboxUnread > 0
+              ? inboxUnread
+              : undefined,
       })),
-    [atrasadas]
+    [atrasadas, inboxUnread]
   );
 
   const visibleNav = navigation.filter(

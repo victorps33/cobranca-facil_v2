@@ -35,6 +35,9 @@ model User {
   interactionsCreated InteractionLog[]
   tasksAssigned       CollectionTask[] @relation("TaskAssignee")
   tasksCreated        CollectionTask[] @relation("TaskCreator")
+  conversationsAssigned Conversation[] @relation("ConversationAssignee")
+  messagesSent        Message[]
+  conversationReads   ConversationRead[]
 
   @@index([franqueadoraId])
 }
@@ -87,6 +90,9 @@ model Customer {
   charges         Charge[]
   interactions    InteractionLog[]
   collectionTasks CollectionTask[]
+  conversations   Conversation[]
+  agentDecisions  AgentDecisionLog[]
+  messageQueue    MessageQueue[]
 
   @@index([franqueadoraId])
 }
@@ -105,6 +111,8 @@ model Charge {
   notificationLogs NotificationLog[]
   interactions     InteractionLog[]
   collectionTasks  CollectionTask[]
+  agentDecisions   AgentDecisionLog[]
+  messageQueue     MessageQueue[]
 
   @@index([customerId])
   @@index([status])
@@ -218,6 +226,54 @@ model Franqueadora {
   users              User[]
   customers          Customer[]
   dunningRules       DunningRule[]
+  conversations      Conversation[]
+  agentConfig        AgentConfig?
+}
+
+// ── Inbox / Agent enums ──
+
+enum ConversationStatus {
+  ABERTA
+  PENDENTE_IA
+  PENDENTE_HUMANO
+  RESOLVIDA
+}
+
+enum MessageSender {
+  CUSTOMER
+  AGENT
+  AI
+  SYSTEM
+}
+
+enum MessageQueueStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+enum AgentAction {
+  SEND_COLLECTION
+  RESPOND_CUSTOMER
+  ESCALATE_HUMAN
+  NEGOTIATE
+  SKIP
+  MARK_PROMISE
+  UPDATE_STATUS
+}
+
+enum EscalationReason {
+  LEGAL_THREAT
+  COMPLAINT_AUTHORITY
+  REPEATED_FAILURE
+  HIGH_VALUE
+  EXPLICIT_REQUEST
+  EMOTIONAL_DISTRESS
+  DISPUTE
+  AI_UNCERTAINTY
 }
 
 // ── CRM Core models ──
@@ -291,4 +347,129 @@ model CollectionTask {
   @@index([assignedToId])
   @@index([status])
   @@index([dueDate])
+}
+
+// ── Inbox / Agent models ──
+
+model Conversation {
+  id              String             @id @default(cuid())
+  customerId      String
+  customer        Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  franqueadoraId  String
+  franqueadora    Franqueadora       @relation(fields: [franqueadoraId], references: [id])
+  channel         Channel
+  status          ConversationStatus @default(ABERTA)
+  subject         String?
+  assignedToId    String?
+  assignedTo      User?              @relation("ConversationAssignee", fields: [assignedToId], references: [id])
+  lastMessageAt   DateTime           @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  messages        Message[]
+  readReceipts    ConversationRead[]
+  agentDecisions  AgentDecisionLog[]
+  messageQueue    MessageQueue[]
+
+  @@index([franqueadoraId, status, lastMessageAt])
+  @@index([customerId])
+  @@index([assignedToId])
+}
+
+model Message {
+  id               String        @id @default(cuid())
+  conversationId   String
+  conversation     Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender           MessageSender
+  senderUserId     String?
+  senderUser       User?         @relation(fields: [senderUserId], references: [id])
+  content          String        @db.Text
+  contentType      String        @default("text")
+  channel          Channel
+  externalId       String?
+  metadata         String?       @db.Text
+  isInternal       Boolean       @default(false)
+  interactionLogId String?
+  createdAt        DateTime      @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([externalId])
+}
+
+model ConversationRead {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model AgentDecisionLog {
+  id               String            @id @default(cuid())
+  conversationId   String?
+  conversation     Conversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  chargeId         String?
+  charge           Charge?           @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  customerId       String
+  customer         Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  franqueadoraId   String
+  action           AgentAction
+  reasoning        String            @db.Text
+  confidence       Float
+  inputContext     String            @db.Text
+  outputMessage    String?           @db.Text
+  escalationReason EscalationReason?
+  executedAt       DateTime?
+  createdAt        DateTime          @default(now())
+
+  @@index([franqueadoraId, createdAt])
+  @@index([customerId])
+  @@index([action])
+}
+
+model MessageQueue {
+  id              String             @id @default(cuid())
+  chargeId        String?
+  charge          Charge?            @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  customerId      String
+  customer        Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversationId  String?
+  conversation    Conversation?      @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  channel         Channel
+  content         String             @db.Text
+  status          MessageQueueStatus @default(PENDING)
+  priority        Int                @default(0)
+  scheduledFor    DateTime
+  attemptCount    Int                @default(0)
+  maxAttempts     Int                @default(3)
+  lastAttemptAt   DateTime?
+  lastError       String?            @db.Text
+  providerMsgId   String?
+  franqueadoraId  String
+  sentAt          DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([franqueadoraId])
+  @@index([customerId])
+}
+
+model AgentConfig {
+  id                   String       @id @default(cuid())
+  franqueadoraId       String       @unique
+  franqueadora         Franqueadora @relation(fields: [franqueadoraId], references: [id])
+  enabled              Boolean      @default(true)
+  maxDailyMessages     Int          @default(100)
+  escalationThreshold  Float        @default(0.3)
+  highValueThreshold   Int          @default(1000000)
+  workingHoursStart    Int          @default(8)
+  workingHoursEnd      Int          @default(20)
+  timezone             String       @default("America/Sao_Paulo")
+  systemPromptOverride String?      @db.Text
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 }
