@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className={`${poppins.variable} font-sans antialiased`}>
+    <html lang="pt-BR" className="h-full overflow-hidden">
+      <body className={`${poppins.variable} font-sans antialiased h-full overflow-hidden`}>
         <AuthSessionProvider>
           <a
             href="#main-content"
