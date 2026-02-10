@@ -6,11 +6,11 @@
     },
     {
       "path": "/api/cron/message-dispatch",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 */2 * * *"
     },
     {
       "path": "/api/cron/retry-failed",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 */4 * * *"
     }
   ]
 }
