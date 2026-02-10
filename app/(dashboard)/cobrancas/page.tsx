@@ -177,242 +177,247 @@ export default function CobrancasPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ── */}
-      <PageHeader
-        title="Cobranças"
-        subtitle={`${cobrancasFiltradas.length} cobranças no período`}
-        period={periodLabel}
-        primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
-      />
+    <div className="flex flex-col h-[calc(100vh-7rem)]">
+      {/* ── Fixed top section ── */}
+      <div className="flex-shrink-0 space-y-4">
+        {/* ── Page Header ── */}
+        <PageHeader
+          title="Cobranças"
+          subtitle={`${cobrancasFiltradas.length} cobranças no período`}
+          period={periodLabel}
+          primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
+        />
 
-      {/* ── Filtros de competência ── */}
-      <FilterPillGroup
-        options={[
-          { key: "all", label: "Todas" },
-          ...competencias.map((c) => ({ key: c.value, label: c.label })),
-        ]}
-        value={selectedCompetencia}
-        onChange={setSelectedCompetencia}
-      />
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<DollarSign className="h-4 w-4 text-gray-400" />}
-          label="Total Emitido"
-          value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          caption={`${selectedLabel} · ${stats.total} cobranças`}
-        />
-        <StatCard
-          icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
-          label="Total Recebido"
-          value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          caption={`${selectedLabel} · ${stats.byStatus.paga} pagas`}
-        />
-        <StatCard
-          icon={<Clock className="h-4 w-4 text-gray-400" />}
-          label="Em Aberto"
-          value={`R$ ${(cobrancasFiltradas.filter((c) => c.status === "Aberta").reduce((s, c) => s + c.valorAberto, 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          caption={`${selectedLabel} · ${stats.byStatus.aberta} a vencer`}
-        />
-        <StatCard
-          icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
-          label="Vencido"
-          value={`R$ ${(stats.valorVencido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          caption={`${selectedLabel} · ${stats.byStatus.vencida} vencidas`}
-          danger={stats.valorVencido > 0}
-        />
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
-          <input
-            type="search"
-            name="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por cliente, descrição ou ID…"
-            aria-label="Buscar cobranças"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
-          />
-        </div>
-        {/* Status pills */}
-        <FilterPillGroup
-          options={[
-            { key: "all", label: "Todos" },
-            { key: "Aberta", label: "Aberta" },
-            { key: "Vencida", label: "Vencida" },
-            { key: "Paga", label: "Paga" },
-            { key: "Cancelada", label: "Cancelada" },
-          ]}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
-        {/* Category pills */}
+        {/* ── Filtros de competência ── */}
         <FilterPillGroup
           options={[
             { key: "all", label: "Todas" },
-            { key: "Royalties", label: "Royalties" },
-            { key: "FNP", label: "FNP" },
-            { key: "Taxa de Franquia", label: "Taxa de Franquia" },
+            ...competencias.map((c) => ({ key: c.value, label: c.label })),
           ]}
-          value={categoriaFilter}
-          onChange={setCategoriaFilter}
+          value={selectedCompetencia}
+          onChange={setSelectedCompetencia}
         />
+
+        {/* ── Stats ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={<DollarSign className="h-4 w-4 text-gray-400" />}
+            label="Total Emitido"
+            value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            caption={`${selectedLabel} · ${stats.total} cobranças`}
+          />
+          <StatCard
+            icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
+            label="Total Recebido"
+            value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            caption={`${selectedLabel} · ${stats.byStatus.paga} pagas`}
+          />
+          <StatCard
+            icon={<Clock className="h-4 w-4 text-gray-400" />}
+            label="Em Aberto"
+            value={`R$ ${(cobrancasFiltradas.filter((c) => c.status === "Aberta").reduce((s, c) => s + c.valorAberto, 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            caption={`${selectedLabel} · ${stats.byStatus.aberta} a vencer`}
+          />
+          <StatCard
+            icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
+            label="Vencido"
+            value={`R$ ${(stats.valorVencido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            caption={`${selectedLabel} · ${stats.byStatus.vencida} vencidas`}
+            danger={stats.valorVencido > 0}
+          />
+        </div>
+
+        {/* ── Filters ── */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
+            <input
+              type="search"
+              name="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por cliente, descrição ou ID…"
+              aria-label="Buscar cobranças"
+              className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
+            />
+          </div>
+          {/* Status pills */}
+          <FilterPillGroup
+            options={[
+              { key: "all", label: "Todos" },
+              { key: "Aberta", label: "Aberta" },
+              { key: "Vencida", label: "Vencida" },
+              { key: "Paga", label: "Paga" },
+              { key: "Cancelada", label: "Cancelada" },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          {/* Category pills */}
+          <FilterPillGroup
+            options={[
+              { key: "all", label: "Todas" },
+              { key: "Royalties", label: "Royalties" },
+              { key: "FNP", label: "FNP" },
+              { key: "Taxa de Franquia", label: "Taxa de Franquia" },
+            ]}
+            value={categoriaFilter}
+            onChange={setCategoriaFilter}
+          />
+        </div>
       </div>
 
-      {/* ── Table or Empty State ── */}
-      {filtered.length === 0 ? (
-        <FilterEmptyState
-          message={
-            hasActiveFilters
-              ? "Nenhuma cobrança encontrada para os filtros selecionados."
-              : "Nenhuma cobrança emitida neste período."
-          }
-          suggestion={
-            hasActiveFilters
-              ? "Tente ajustar os filtros ou selecionar outro período."
-              : "Crie sua primeira cobrança para começar."
-          }
-          onClear={hasActiveFilters ? clearFilters : undefined}
-          actionLabel={!hasActiveFilters ? "Nova Cobrança" : undefined}
-          actionHref={!hasActiveFilters ? "/cobrancas/nova" : undefined}
-        />
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" aria-label="Lista de cobranças">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="px-4 py-3 font-medium text-gray-500">Cobrança</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">
-                    <button onClick={() => toggleSort("cliente")} className="inline-flex items-center gap-1">
-                      Cliente <SortIcon k="cliente" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-medium text-gray-500">
-                    <button onClick={() => toggleSort("dataVencimento")} className="inline-flex items-center gap-1">
-                      Vencimento <SortIcon k="dataVencimento" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Pagamento</th>
-                  <th className="px-4 py-3 font-medium text-gray-500 text-right">
-                    <button onClick={() => toggleSort("valorOriginal")} className="inline-flex items-center gap-1">
-                      Valor <SortIcon k="valorOriginal" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Forma</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-3 font-medium text-gray-500 text-center">NF</th>
-                  <th className="px-4 py-3 font-medium text-gray-500 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900 text-sm">{c.id}</p>
-                      <p className="text-xs text-gray-400">{c.categoria}</p>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{c.cliente}</td>
-                    <td className={cn(
-                      "px-4 py-3 text-sm",
-                      isOverdue(c.dataVencimento, c.status) ? "text-red-600 font-medium" : "text-gray-600"
-                    )}>
-                      {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {c.dataPagamento ? (
-                        <span className="text-emerald-600">
-                          {new Date(c.dataPagamento + "T12:00:00").toLocaleDateString("pt-BR")}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium tabular-nums">
-                      R$ {(c.valorOriginal / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
-                        {PAYMENT_ICONS[c.formaPagamento]}
-                        {c.formaPagamento}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full", STATUS_COLORS[c.status])}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {c.nfEmitida ? (
-                        <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">
-                          Emitida
-                        </span>
-                      ) : canEmitNf(c) ? (
-                        <button
-                          onClick={() => openNfDialog(c)}
-                          className="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
-                        >
-                          Emitir NF
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1 relative" ref={openMenuId === c.id ? menuRef : undefined}>
-                        <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Download">
-                          <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                        <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Reenviar">
-                          <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                          aria-label="Mais opções"
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-
-                        {/* Dropdown menu */}
-                        {openMenuId === c.id && (
-                          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
-                            {canEmitNf(c) && (
-                              <button
-                                onClick={() => openNfDialog(c)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                Emitir NF
-                              </button>
-                            )}
-                            <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                              <Download className="h-3.5 w-3.5" />
-                              Download
-                            </button>
-                            <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                              <Send className="h-3.5 w-3.5" />
-                              Reenviar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+      {/* ── Table or Empty State (fills remaining space) ── */}
+      <div className="flex-1 min-h-0 mt-4">
+        {filtered.length === 0 ? (
+          <FilterEmptyState
+            message={
+              hasActiveFilters
+                ? "Nenhuma cobrança encontrada para os filtros selecionados."
+                : "Nenhuma cobrança emitida neste período."
+            }
+            suggestion={
+              hasActiveFilters
+                ? "Tente ajustar os filtros ou selecionar outro período."
+                : "Crie sua primeira cobrança para começar."
+            }
+            onClear={hasActiveFilters ? clearFilters : undefined}
+            actionLabel={!hasActiveFilters ? "Nova Cobrança" : undefined}
+            actionHref={!hasActiveFilters ? "/cobrancas/nova" : undefined}
+          />
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col h-full">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+              <table className="w-full text-sm" aria-label="Lista de cobranças">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="border-b border-gray-100 text-left">
+                    <th className="px-4 py-3 font-medium text-gray-500">Cobrança</th>
+                    <th className="px-4 py-3 font-medium text-gray-500">
+                      <button onClick={() => toggleSort("cliente")} className="inline-flex items-center gap-1">
+                        Cliente <SortIcon k="cliente" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-500">
+                      <button onClick={() => toggleSort("dataVencimento")} className="inline-flex items-center gap-1">
+                        Vencimento <SortIcon k="dataVencimento" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-500">Pagamento</th>
+                    <th className="px-4 py-3 font-medium text-gray-500 text-right">
+                      <button onClick={() => toggleSort("valorOriginal")} className="inline-flex items-center gap-1">
+                        Valor <SortIcon k="valorOriginal" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-500">Forma</th>
+                    <th className="px-4 py-3 font-medium text-gray-500">Status</th>
+                    <th className="px-4 py-3 font-medium text-gray-500 text-center">NF</th>
+                    <th className="px-4 py-3 font-medium text-gray-500 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filtered.map((c) => (
+                    <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900 text-sm">{c.id}</p>
+                        <p className="text-xs text-gray-400">{c.categoria}</p>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{c.cliente}</td>
+                      <td className={cn(
+                        "px-4 py-3 text-sm",
+                        isOverdue(c.dataVencimento, c.status) ? "text-red-600 font-medium" : "text-gray-600"
+                      )}>
+                        {new Date(c.dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {c.dataPagamento ? (
+                          <span className="text-emerald-600">
+                            {new Date(c.dataPagamento + "T12:00:00").toLocaleDateString("pt-BR")}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium tabular-nums">
+                        R$ {(c.valorOriginal / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                          {PAYMENT_ICONS[c.formaPagamento]}
+                          {c.formaPagamento}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full", STATUS_COLORS[c.status])}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {c.nfEmitida ? (
+                          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">
+                            Emitida
+                          </span>
+                        ) : canEmitNf(c) ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openNfDialog(c); }}
+                            className="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+                          >
+                            Emitir NF
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1 relative" ref={openMenuId === c.id ? menuRef : undefined}>
+                          <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Download">
+                            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Reenviar">
+                            <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                            aria-label="Mais opções"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+
+                          {/* Dropdown menu */}
+                          {openMenuId === c.id && (
+                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+                              {canEmitNf(c) && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openNfDialog(c); }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  Emitir NF
+                                </button>
+                              )}
+                              <button onClick={(e) => e.stopPropagation()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                <Download className="h-3.5 w-3.5" />
+                                Download
+                              </button>
+                              <button onClick={(e) => e.stopPropagation()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                <Send className="h-3.5 w-3.5" />
+                                Reenviar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex-shrink-0 px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
+              {filtered.length} de {cobrancasFiltradas.length} cobranças · {periodLabel}
+            </div>
           </div>
-          <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-            {filtered.length} de {cobrancasFiltradas.length} cobranças · {periodLabel}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* NF Dialog */}
       <EmitirNfDialog
