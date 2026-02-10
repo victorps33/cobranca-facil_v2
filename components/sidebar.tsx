@@ -15,8 +15,10 @@ import {
   Plus,
   Calculator,
   Sparkles,
+  Contact,
+  ListTodo,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { UserRole } from "@prisma/client";
 
 type NavItem = {
@@ -24,17 +26,20 @@ type NavItem = {
   href: string;
   icon: typeof LayoutDashboard;
   roles: UserRole[];
+  badge?: number;
 };
 
 const allRoles: UserRole[] = ["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL", "VISUALIZADOR"];
 
-const navigation: NavItem[] = [
+const baseNavigation: Omit<NavItem, "badge">[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: allRoles },
   { name: "Insights", href: "/insights", icon: Sparkles, roles: allRoles },
-  { name: "Franqueados", href: "/clientes", icon: Users, roles: allRoles },
+  { name: "Cadastro", href: "/clientes", icon: Users, roles: allRoles },
   { name: "Apuração", href: "/apuracao", icon: Calculator, roles: allRoles },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
   { name: "Réguas", href: "/reguas", icon: Bell, roles: allRoles },
+  { name: "CRM", href: "/crm", icon: Contact, roles: allRoles },
+  { name: "Tarefas", href: "/crm/tarefas", icon: ListTodo, roles: allRoles },
 ];
 
 const secondaryNav: NavItem[] = [
@@ -47,6 +52,36 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const userRole = session?.user?.role as UserRole | undefined;
+
+  // Fetch overdue tasks count from API
+  const [atrasadas, setAtrasadas] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/crm/tasks")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const hoje = new Date();
+          const count = data.filter(
+            (t: { dueDate?: string | null; status: string }) =>
+              t.dueDate &&
+              new Date(t.dueDate) < hoje &&
+              (t.status === "PENDENTE" || t.status === "EM_ANDAMENTO")
+          ).length;
+          setAtrasadas(count);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const navigation: NavItem[] = useMemo(
+    () =>
+      baseNavigation.map((item) => ({
+        ...item,
+        badge: item.name === "Tarefas" && atrasadas > 0 ? atrasadas : undefined,
+      })),
+    [atrasadas]
+  );
 
   const visibleNav = navigation.filter(
     (item) => !userRole || item.roles.includes(userRole)
@@ -101,7 +136,7 @@ export function Sidebar() {
                 isActive
                   ? "bg-secondary/20 text-gray-900"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                collapsed && "justify-center px-2"
+                collapsed && "justify-center px-2 relative"
               )}
               title={collapsed ? item.name : undefined}
               aria-current={isActive ? "page" : undefined}
@@ -114,7 +149,21 @@ export function Sidebar() {
                 strokeWidth={1.5}
                 aria-hidden="true"
               />
-              {!collapsed && <span>{item.name}</span>}
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  {item.name}
+                  {item.badge != null && item.badge > 0 && (
+                    <span className="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5">
+                      {item.badge}
+                    </span>
+                  )}
+                </span>
+              )}
+              {collapsed && item.badge != null && item.badge > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-red-500 text-white text-[9px] font-bold px-1">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           );
         })}

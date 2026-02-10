@@ -271,3 +271,56 @@ export const NOTIFICATION_STATUS_COLORS: Record<string, string> = {
   FAILED: "bg-red-100 text-red-800",
   SKIPPED: "bg-gray-100 text-gray-800",
 };
+
+// ============================================
+// CRM HELPERS
+// ============================================
+
+export const INTERACTION_TYPE_LABELS: Record<string, string> = {
+  EMAIL: "E-mail",
+  WHATSAPP: "WhatsApp",
+  SMS: "SMS",
+  TELEFONE: "Telefone",
+  NOTA_INTERNA: "Nota Interna",
+};
+
+export const INTERACTION_TYPE_COLORS: Record<string, string> = {
+  EMAIL: "bg-blue-50 text-blue-700",
+  WHATSAPP: "bg-green-50 text-green-700",
+  SMS: "bg-purple-50 text-purple-700",
+  TELEFONE: "bg-amber-50 text-amber-700",
+  NOTA_INTERNA: "bg-gray-100 text-gray-700",
+};
+
+export const DIRECTION_LABELS: Record<string, string> = {
+  INBOUND: "Recebido",
+  OUTBOUND: "Enviado",
+};
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  PENDENTE: "Pendente",
+  EM_ANDAMENTO: "Em Andamento",
+  CONCLUIDA: "Concluída",
+  CANCELADA: "Cancelada",
+};
+
+export const TASK_STATUS_COLORS: Record<string, string> = {
+  PENDENTE: "bg-yellow-50 text-yellow-700",
+  EM_ANDAMENTO: "bg-blue-50 text-blue-700",
+  CONCLUIDA: "bg-emerald-50 text-emerald-700",
+  CANCELADA: "bg-gray-100 text-gray-500",
+};
+
+export const TASK_PRIORITY_LABELS: Record<string, string> = {
+  BAIXA: "Baixa",
+  MEDIA: "Média",
+  ALTA: "Alta",
+  CRITICA: "Crítica",
+};
+
+export const TASK_PRIORITY_COLORS: Record<string, string> = {
+  BAIXA: "bg-gray-100 text-gray-600",
+  MEDIA: "bg-blue-50 text-blue-700",
+  ALTA: "bg-amber-50 text-amber-700",
+  CRITICA: "bg-red-50 text-red-700",
+};

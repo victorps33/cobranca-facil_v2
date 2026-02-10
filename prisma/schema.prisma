@@ -32,6 +32,9 @@ model User {
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
   accounts        Account[]
   sessions        Session[]
+  interactionsCreated InteractionLog[]
+  tasksAssigned       CollectionTask[] @relation("TaskAssignee")
+  tasksCreated        CollectionTask[] @relation("TaskCreator")
 
   @@index([franqueadoraId])
 }
@@ -82,6 +85,8 @@ model Customer {
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
   createdAt       DateTime  @default(now())
   charges         Charge[]
+  interactions    InteractionLog[]
+  collectionTasks CollectionTask[]
 
   @@index([franqueadoraId])
 }
@@ -98,6 +103,8 @@ model Charge {
   updatedAt        DateTime          @updatedAt
   boleto           Boleto?
   notificationLogs NotificationLog[]
+  interactions     InteractionLog[]
+  collectionTasks  CollectionTask[]
 
   @@index([customerId])
   @@index([status])
@@ -211,4 +218,77 @@ model Franqueadora {
   users              User[]
   customers          Customer[]
   dunningRules       DunningRule[]
+}
+
+// ── CRM Core models ──
+
+enum InteractionType {
+  EMAIL
+  WHATSAPP
+  SMS
+  TELEFONE
+  NOTA_INTERNA
+}
+
+enum InteractionDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum TaskStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum TaskPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+model InteractionLog {
+  id          String               @id @default(cuid())
+  customerId  String
+  customer    Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  chargeId    String?
+  charge      Charge?              @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  type        InteractionType
+  direction   InteractionDirection
+  content     String               @db.Text
+  createdById String
+  createdBy   User                 @relation(fields: [createdById], references: [id])
+  createdAt   DateTime             @default(now())
+
+  @@index([customerId])
+  @@index([chargeId])
+  @@index([createdAt])
+}
+
+model CollectionTask {
+  id           String       @id @default(cuid())
+  customerId   String
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  chargeId     String?
+  charge       Charge?      @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  title        String
+  description  String?      @db.Text
+  status       TaskStatus   @default(PENDENTE)
+  priority     TaskPriority @default(MEDIA)
+  dueDate      DateTime?
+  assignedToId String?
+  assignedTo   User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  completedAt  DateTime?
+  createdById  String
+  createdBy    User         @relation("TaskCreator", fields: [createdById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([customerId])
+  @@index([chargeId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueDate])
 }

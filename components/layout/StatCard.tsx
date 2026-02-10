@@ -12,6 +12,7 @@ interface StatCardProps {
   icon?: ReactNode;
   danger?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 export function StatCard({
@@ -22,12 +23,15 @@ export function StatCard({
   icon,
   danger,
   className,
+  onClick,
 }: StatCardProps) {
   return (
     <div
+      onClick={onClick}
       className={cn(
         "bg-white rounded-2xl border p-5 hover:shadow-md transition-shadow",
         danger ? "border-red-100" : "border-gray-100",
+        onClick && "cursor-pointer",
         className
       )}
     >

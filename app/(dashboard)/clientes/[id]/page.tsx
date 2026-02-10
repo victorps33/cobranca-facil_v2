@@ -16,6 +16,7 @@ import {
   Calendar,
   User,
   AlertTriangle,
+  Contact,
 } from "lucide-react";
 
 // ── Helpers ──
@@ -115,16 +116,25 @@ export default function ClienteDetalhePage() {
             {franqueado.razaoSocial} · {franqueado.cnpj}
           </p>
         </div>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-            sc.bg,
-            sc.text
-          )}
-        >
-          <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />
-          {franqueado.status}
-        </span>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/crm/${franqueado.id}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+          >
+            <Contact className="h-4 w-4" />
+            Ver no CRM
+          </Link>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+              sc.bg,
+              sc.text
+            )}
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />
+            {franqueado.status}
+          </span>
+        </div>
       </div>
 
       {/* KPI row */}
