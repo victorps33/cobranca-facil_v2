@@ -20,11 +20,6 @@
     text-wrap: balance;
   }
 
-  html, body {
-    height: 100%;
-    overflow: hidden;
-  }
-
   :root {
     /* ===== MENLO DESIGN TOKENS ===== */
     
