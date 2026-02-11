@@ -99,6 +99,18 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.franqueadoraId = user.franqueadoraId;
       }
+
+      // Se franqueadoraId ainda é null, verificar no banco (pode ter sido associada após login)
+      if (!token.franqueadoraId && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { franqueadoraId: true },
+        });
+        if (dbUser?.franqueadoraId) {
+          token.franqueadoraId = dbUser.franqueadoraId;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

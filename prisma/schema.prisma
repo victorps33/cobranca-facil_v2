@@ -229,6 +229,19 @@ model Franqueadora {
   dunningRules       DunningRule[]
   conversations      Conversation[]
   agentConfig        AgentConfig?
+  contatos           ContatoFranqueadora[]
+}
+
+model ContatoFranqueadora {
+  id              String       @id @default(cuid())
+  franqueadoraId  String
+  franqueadora    Franqueadora @relation(fields: [franqueadoraId], references: [id], onDelete: Cascade)
+  nome            String
+  telefone        String
+  isPrimario      Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+
+  @@index([franqueadoraId])
 }
 
 // ── Inbox / Agent enums ──
@@ -471,6 +484,8 @@ model AgentConfig {
   workingHoursEnd      Int          @default(20)
   timezone             String       @default("America/Sao_Paulo")
   systemPromptOverride String?      @db.Text
+  whatsappFrom         String?      @unique
+  smsFrom              String?      @unique
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 }

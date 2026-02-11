@@ -33,6 +33,10 @@ import {
   FileSpreadsheet,
   Trash2,
   Sparkles,
+  Info,
+  Percent,
+  Tag,
+  Plus,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
@@ -45,12 +49,21 @@ import {
   type ResultadoFranqueado,
   type FonteDados,
   type NfConfig,
+  type ExcecaoApuracao,
+  type DescontoApuracao,
   fontesDummy,
   franqueadosDummy,
   regrasDefault,
   nfConfigDefault,
   calcularApuracao,
 } from "@/lib/data/apuracao-dummy";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // ============================================
 // LOCAL HELPERS (avoid importing server-side lib/utils)
@@ -380,6 +393,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
           steps={STEPS}
           currentStep={currentStep}
           onStepClick={handleStepClick}
+          allCompleted={emitido}
         />
       </div>
 
@@ -685,8 +699,13 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
             title="Exceções"
             open={openSections.exceções}
             onToggle={() => toggleSection("exceções")}
+            subtitle={regras.exceções.length > 0 ? `${regras.exceções.length} exceç${regras.exceções.length === 1 ? "ão" : "ões"}` : undefined}
           >
-            <p className="text-sm text-gray-400">Nenhuma exceção configurada</p>
+            <ExcecoesEditor
+              excecoes={regras.exceções}
+              franqueados={franqueados}
+              onChange={(excecoes) => setRegras((prev) => ({ ...prev, exceções: excecoes }))}
+            />
           </CollapsibleSection>
 
           {/* Descontos */}
@@ -694,8 +713,13 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
             title="Descontos"
             open={openSections.descontos}
             onToggle={() => toggleSection("descontos")}
+            subtitle={regras.descontos.length > 0 ? `${regras.descontos.length} desconto${regras.descontos.length === 1 ? "" : "s"}` : undefined}
           >
-            <p className="text-sm text-gray-400">Nenhum desconto neste ciclo</p>
+            <DescontosEditor
+              descontos={regras.descontos}
+              franqueados={franqueados}
+              onChange={(descontos) => setRegras((prev) => ({ ...prev, descontos }))}
+            />
           </CollapsibleSection>
 
           {/* Nota Fiscal */}
@@ -839,6 +863,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Faturamento</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Royalties</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Marketing</th>
+                    <th className="px-5 py-3 font-medium text-gray-500 text-right">Desconto</th>
                     <th className="px-5 py-3 font-medium text-gray-500 text-right">Total</th>
                     <th className="px-5 py-3 font-medium text-gray-500">NF</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Status</th>
@@ -858,10 +883,33 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                           r.flagRevisao ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-gray-50/50"
                         )}
                       >
-                        <td className="px-5 py-3 font-medium text-gray-900">{r.nome}</td>
+                        <td className="px-5 py-3">
+                          <div>
+                            <span className="font-medium text-gray-900">{r.nome}</span>
+                            <div className="flex gap-1 mt-1">
+                              {r.temExcecao && (
+                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-purple-50 text-purple-700" title={r.excecaoDescricao}>
+                                  Exceção
+                                </span>
+                              )}
+                              {r.temDesconto && (
+                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700" title={r.descontoDescricao}>
+                                  Desconto
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.faturamento)}</td>
                         <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.royalty)}</td>
                         <td className="px-5 py-3 text-right text-gray-600 tabular-nums">{formatCurrency(r.marketing)}</td>
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">
+                          {r.desconto > 0 ? (
+                            <span className="text-blue-600">-{formatCurrency(r.desconto)}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                         <td className="px-5 py-3 text-right font-medium text-gray-900 tabular-nums">{formatCurrency(r.totalCobrar)}</td>
                         <td className="px-5 py-3">
                           {nfLabels.length > 0 ? (
@@ -1013,9 +1061,13 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
               </div>
             </div>
 
-            {/* Notificacao */}
+            {/* Notificação de emissão */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Notificacao</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">Notificação de emissão</p>
+              <p className="text-xs text-gray-400 mb-3">
+                Avisa o franqueado que a cobrança foi emitida. Lembretes automáticos de vencimento são configurados nas{" "}
+                <a href="/reguas" className="text-primary hover:underline">Réguas de Cobrança</a>.
+              </p>
               <div className="flex gap-2">
                 <TogglePill
                   label="Email"
@@ -1383,6 +1435,285 @@ function NfExceçãoSelector({
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// EXCEÇÕES EDITOR
+// ============================================
+
+function ExcecoesEditor({
+  excecoes,
+  franqueados,
+  onChange,
+}: {
+  excecoes: ExcecaoApuracao[];
+  franqueados: ApuracaoFranqueado[];
+  onChange: (excecoes: ExcecaoApuracao[]) => void;
+}) {
+  const [novaExcecao, setNovaExcecao] = useState({ franqueadoId: "", descricao: "" });
+
+  const addExcecao = () => {
+    if (!novaExcecao.franqueadoId || !novaExcecao.descricao.trim()) return;
+    onChange([...excecoes, { franqueadoId: novaExcecao.franqueadoId, descricao: novaExcecao.descricao.trim() }]);
+    setNovaExcecao({ franqueadoId: "", descricao: "" });
+  };
+
+  const removeExcecao = (idx: number) => {
+    onChange(excecoes.filter((_, i) => i !== idx));
+  };
+
+  const disponiveis = franqueados.filter((f) => !excecoes.some((e) => e.franqueadoId === f.id));
+
+  return (
+    <div className="space-y-4">
+      {excecoes.length > 0 && (
+        <div className="space-y-2">
+          {excecoes.map((exc, idx) => {
+            const fq = franqueados.find((f) => f.id === exc.franqueadoId);
+            return (
+              <div key={idx} className="flex items-center justify-between p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{fq?.nome ?? exc.franqueadoId}</p>
+                  <p className="text-xs text-gray-500">{exc.descricao}</p>
+                </div>
+                <button
+                  onClick={() => removeExcecao(idx)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Label className="text-xs text-gray-500">Franqueado</Label>
+          <Select
+            value={novaExcecao.franqueadoId}
+            onValueChange={(v) => setNovaExcecao((prev) => ({ ...prev, franqueadoId: v }))}
+          >
+            <SelectTrigger className="h-9 mt-1">
+              <SelectValue placeholder="Selecionar franqueado…" />
+            </SelectTrigger>
+            <SelectContent>
+              {disponiveis.map((f) => (
+                <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1">
+          <Label className="text-xs text-gray-500">Descrição</Label>
+          <Input
+            value={novaExcecao.descricao}
+            onChange={(e) => setNovaExcecao((prev) => ({ ...prev, descricao: e.target.value }))}
+            placeholder="Descreva a exceção…"
+            className="h-9 mt-1"
+          />
+        </div>
+        <button
+          onClick={addExcecao}
+          disabled={!novaExcecao.franqueadoId || !novaExcecao.descricao.trim()}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-primary border border-primary/25 rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Adicionar
+        </button>
+      </div>
+
+      {excecoes.length === 0 && (
+        <p className="text-xs text-gray-400">Nenhuma exceção configurada. Exceções são refletidas como notas no resultado.</p>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// DESCONTOS EDITOR
+// ============================================
+
+function DescontosEditor({
+  descontos,
+  franqueados,
+  onChange,
+}: {
+  descontos: DescontoApuracao[];
+  franqueados: ApuracaoFranqueado[];
+  onChange: (descontos: DescontoApuracao[]) => void;
+}) {
+  const [novoDesconto, setNovoDesconto] = useState<{
+    franqueadoId: string;
+    tipo: "percentual" | "fixo";
+    valor: string;
+    descricao: string;
+    ciclos: string;
+  }>({ franqueadoId: "", tipo: "percentual", valor: "", descricao: "", ciclos: "0" });
+
+  const addDesconto = () => {
+    if (!novoDesconto.franqueadoId || !novoDesconto.valor) return;
+    const valorNum = parseFloat(novoDesconto.valor);
+    if (isNaN(valorNum) || valorNum <= 0) return;
+
+    onChange([
+      ...descontos,
+      {
+        franqueadoId: novoDesconto.franqueadoId,
+        tipo: novoDesconto.tipo,
+        valor: novoDesconto.tipo === "fixo" ? Math.round(valorNum * 100) : valorNum,
+        descricao: novoDesconto.descricao.trim() || `Desconto ${novoDesconto.tipo === "percentual" ? `${valorNum}%` : `R$ ${valorNum}`}`,
+        ciclos: parseInt(novoDesconto.ciclos) || 0,
+      },
+    ]);
+    setNovoDesconto({ franqueadoId: "", tipo: "percentual", valor: "", descricao: "", ciclos: "0" });
+  };
+
+  const removeDesconto = (idx: number) => {
+    onChange(descontos.filter((_, i) => i !== idx));
+  };
+
+  const disponiveis = franqueados.filter((f) => !descontos.some((d) => d.franqueadoId === f.id));
+
+  function fmtDescontoValor(d: DescontoApuracao): string {
+    if (d.tipo === "percentual") return `${d.valor}%`;
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(d.valor / 100);
+  }
+
+  return (
+    <div className="space-y-4">
+      {descontos.length > 0 && (
+        <div className="space-y-2">
+          {descontos.map((desc, idx) => {
+            const fq = franqueados.find((f) => f.id === desc.franqueadoId);
+            return (
+              <div key={idx} className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{fq?.nome ?? desc.franqueadoId}</p>
+                  <p className="text-xs text-gray-500">
+                    {fmtDescontoValor(desc)} — {desc.descricao}
+                    {desc.ciclos > 0 && <span className="ml-1 text-blue-600">({desc.ciclos} ciclo{desc.ciclos > 1 ? "s" : ""})</span>}
+                    {desc.ciclos === 0 && <span className="ml-1 text-blue-600">(permanente)</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeDesconto(idx)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs text-gray-500">Franqueado</Label>
+            <Select
+              value={novoDesconto.franqueadoId}
+              onValueChange={(v) => setNovoDesconto((prev) => ({ ...prev, franqueadoId: v }))}
+            >
+              <SelectTrigger className="h-9 mt-1">
+                <SelectValue placeholder="Selecionar…" />
+              </SelectTrigger>
+              <SelectContent>
+                {disponiveis.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500">Tipo</Label>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setNovoDesconto((prev) => ({ ...prev, tipo: "percentual" }))}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  novoDesconto.tipo === "percentual"
+                    ? "bg-secondary text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                Percentual
+              </button>
+              <button
+                onClick={() => setNovoDesconto((prev) => ({ ...prev, tipo: "fixo" }))}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  novoDesconto.tipo === "fixo"
+                    ? "bg-secondary text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                Valor Fixo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs text-gray-500">Valor {novoDesconto.tipo === "percentual" ? "(%)" : "(R$)"}</Label>
+            <Input
+              type="number"
+              step={novoDesconto.tipo === "percentual" ? "0.5" : "0.01"}
+              min="0"
+              value={novoDesconto.valor}
+              onChange={(e) => setNovoDesconto((prev) => ({ ...prev, valor: e.target.value }))}
+              placeholder="0"
+              className="h-9 mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500">Descrição</Label>
+            <Input
+              value={novoDesconto.descricao}
+              onChange={(e) => setNovoDesconto((prev) => ({ ...prev, descricao: e.target.value }))}
+              placeholder="Motivo do desconto…"
+              className="h-9 mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500">Aplicar por</Label>
+            <Select
+              value={novoDesconto.ciclos}
+              onValueChange={(v) => setNovoDesconto((prev) => ({ ...prev, ciclos: v }))}
+            >
+              <SelectTrigger className="h-9 mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Permanente</SelectItem>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n} ciclo{n > 1 ? "s" : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={addDesconto}
+            disabled={!novoDesconto.franqueadoId || !novoDesconto.valor}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-primary border border-primary/25 rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Adicionar desconto
+          </button>
+        </div>
+      </div>
+
+      {descontos.length === 0 && (
+        <p className="text-xs text-gray-400">Nenhum desconto neste ciclo. Descontos são subtraídos do total por franqueado.</p>
       )}
     </div>
   );

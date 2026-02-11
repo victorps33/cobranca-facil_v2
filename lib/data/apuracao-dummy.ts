@@ -13,12 +13,25 @@ export interface ApuracaoFranqueado {
   status: "ok" | "alerta"; // alerta se variação > 20%
 }
 
+export interface ExcecaoApuracao {
+  franqueadoId: string;
+  descricao: string;
+}
+
+export interface DescontoApuracao {
+  franqueadoId: string;
+  descricao: string;
+  tipo: "percentual" | "fixo";
+  valor: number; // em centavos se fixo, percentual se percentual
+  ciclos: number; // 0 = permanente
+}
+
 export interface RegraApuracao {
   royaltyPercent: number;
   marketingPercent: number;
   baseCalculo: "bruto" | "liquido";
-  exceções: { franqueadoId: string; descricao: string }[];
-  descontos: { franqueadoId: string; descricao: string; valor: number }[];
+  exceções: ExcecaoApuracao[];
+  descontos: DescontoApuracao[];
 }
 
 export interface NfConfig {
@@ -34,11 +47,16 @@ export interface ResultadoFranqueado {
   faturamento: number;
   royalty: number;
   marketing: number;
+  desconto: number;       // valor do desconto aplicado em centavos
   totalCobrar: number;
-  variacao: number;      // percentual de variação vs mês anterior
-  flagRevisao: boolean;  // true se variação > 20%
+  variacao: number;       // percentual de variação vs mês anterior
+  flagRevisao: boolean;   // true se variação > 20%
   nfRoyalty: boolean;
   nfMarketing: boolean;
+  temExcecao: boolean;
+  temDesconto: boolean;
+  excecaoDescricao?: string;
+  descontoDescricao?: string;
 }
 
 export interface FonteDados {
@@ -127,7 +145,7 @@ export function calcularApuracao(
     const faturamento = f.total;
     const royalty = Math.round(faturamento * (regras.royaltyPercent / 100));
     const marketing = Math.round(faturamento * (regras.marketingPercent / 100));
-    const totalCobrar = royalty + marketing;
+    let subtotal = royalty + marketing;
 
     const variacao = f.mesAnterior > 0
       ? ((faturamento - f.mesAnterior) / f.mesAnterior) * 100
@@ -139,17 +157,39 @@ export function calcularApuracao(
     const isExceçãoRoyalty = nfConfig.exceçõesRoyalty.includes(f.id);
     const isExceçãoMarketing = nfConfig.exceçõesMarketing.includes(f.id);
 
+    // Exceções de regras
+    const excecao = regras.exceções.find((e) => e.franqueadoId === f.id);
+    const temExcecao = !!excecao;
+
+    // Descontos
+    const descontoRegra = regras.descontos.find((d) => d.franqueadoId === f.id);
+    let desconto = 0;
+    if (descontoRegra) {
+      if (descontoRegra.tipo === "percentual") {
+        desconto = Math.round(subtotal * (descontoRegra.valor / 100));
+      } else {
+        desconto = descontoRegra.valor;
+      }
+    }
+    const temDesconto = desconto > 0;
+    const totalCobrar = Math.max(0, subtotal - desconto);
+
     return {
       id: f.id,
       nome: f.nome,
       faturamento,
       royalty,
       marketing,
+      desconto,
       totalCobrar,
       variacao: Math.round(variacao),
       flagRevisao,
       nfRoyalty: isExceçãoRoyalty ? !nfConfig.royalty : nfConfig.royalty,
       nfMarketing: isExceçãoMarketing ? !nfConfig.marketing : nfConfig.marketing,
+      temExcecao,
+      temDesconto,
+      excecaoDescricao: excecao?.descricao,
+      descontoDescricao: descontoRegra?.descricao,
     };
   });
 }

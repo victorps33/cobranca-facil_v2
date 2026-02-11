@@ -47,13 +47,16 @@ interface Customer {
 interface FormData {
   // Step 1 - Dados da Cobrança
   description: string;
-  chargeType: "avista" | "parcelado" | "assinatura";
+  chargeType: "avista" | "parcelado" | "recorrente";
   installments: number;
   dueDate: string;
   amount: string;
   paymentMethods: string[];
   passFeesToCustomer: boolean;
   anticipate: boolean;
+  // Recorrente
+  recorrenciaPeriodo: "mensal" | "trimestral" | "semestral" | "anual";
+  recorrenciaCiclos: string; // "sem_fim" = sem fim
   // Step 2 - Juros e Multa
   interestPercent: string;
   fineType: "percent" | "fixed";
@@ -86,6 +89,8 @@ const initialFormData: FormData = {
   paymentMethods: ["boleto"],
   passFeesToCustomer: false,
   anticipate: false,
+  recorrenciaPeriodo: "mensal",
+  recorrenciaCiclos: "sem_fim",
   interestPercent: "1",
   fineType: "percent",
   fineValue: "2",
@@ -116,9 +121,11 @@ export default function NovaCobrancaPage() {
     try {
       const res = await fetch("/api/customers");
       const data = await res.json();
-      setCustomers(data);
+      // Garantir que data é um array (API pode retornar erro se tenant não configurado)
+      setCustomers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching customers:", error);
+      setCustomers([]);
     }
   };
 
@@ -236,7 +243,10 @@ export default function NovaCobrancaPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-900">Nova Cobrança</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Nova Cobrança Avulsa</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Cobranças do ciclo de apuração são emitidas automaticamente na Apuração.</p>
+          </div>
           <button
             onClick={() => router.push("/cobrancas")}
             aria-label="Fechar"
@@ -282,11 +292,14 @@ export default function NovaCobrancaPage() {
                   {[
                     { id: "avista", label: "À vista" },
                     { id: "parcelado", label: "Parcelado" },
-                    { id: "assinatura", label: "Assinatura" },
+                    { id: "recorrente", label: "Recorrente" },
                   ].map((type) => (
                     <button
                       key={type.id}
-                      onClick={() => updateFormData({ chargeType: type.id as any })}
+                      onClick={() => updateFormData({
+                        chargeType: type.id as any,
+                        ...(type.id === "parcelado" ? { installments: 2 } : {}),
+                      })}
                       className={cn(
                         "px-4 py-2 rounded-full text-sm font-medium transition-colors",
                         formData.chargeType === type.id
@@ -298,6 +311,11 @@ export default function NovaCobrancaPage() {
                     </button>
                   ))}
                 </div>
+                {formData.chargeType === "recorrente" && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    A cobrança será gerada automaticamente com a periodicidade escolhida.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-6">
@@ -352,6 +370,47 @@ export default function NovaCobrancaPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {formData.chargeType === "recorrente" && (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Periodicidade</Label>
+                    <Select
+                      value={formData.recorrenciaPeriodo}
+                      onValueChange={(v) => updateFormData({ recorrenciaPeriodo: v as any })}
+                    >
+                      <SelectTrigger className="w-full mt-2 h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mensal">Mensal</SelectItem>
+                        <SelectItem value="trimestral">Trimestral</SelectItem>
+                        <SelectItem value="semestral">Semestral</SelectItem>
+                        <SelectItem value="anual">Anual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Quantidade de ciclos</Label>
+                    <Select
+                      value={formData.recorrenciaCiclos}
+                      onValueChange={(v) => updateFormData({ recorrenciaCiclos: v })}
+                    >
+                      <SelectTrigger className="w-full mt-2 h-11">
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sem_fim">Sem fim (até cancelar)</SelectItem>
+                        {[3, 6, 12, 24, 36].map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n} ciclos
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
 

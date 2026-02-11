@@ -105,6 +105,39 @@ export default function ApuracaoPage() {
         period={`Competência: ${competenciaLabel}`}
       />
 
+      {/* Prazo badge */}
+      {activeTab === "novo" && competenciaSelecionada && (() => {
+        const [mes, ano] = competenciaSelecionada.split("/");
+        const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const mesIdx = meses.indexOf(mes);
+        if (mesIdx === -1) return null;
+        // Prazo: dia 10 do mês seguinte à competência
+        const prazo = new Date(parseInt(ano), mesIdx + 1, 10);
+        const hoje = new Date();
+        const diasRestantes = Math.ceil((prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+        const prazoStr = prazo.toLocaleDateString("pt-BR");
+        const isAtrasado = diasRestantes < 0;
+        const isUrgente = diasRestantes >= 0 && diasRestantes <= 3;
+        return (
+          <div className={cn(
+            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium",
+            isAtrasado
+              ? "bg-red-50 text-red-700 border border-red-200"
+              : isUrgente
+              ? "bg-amber-50 text-amber-700 border border-amber-200"
+              : "bg-blue-50 text-blue-700 border border-blue-200"
+          )}>
+            <Calendar className="h-4 w-4" />
+            {isAtrasado
+              ? `Prazo expirado (era ${prazoStr})`
+              : diasRestantes === 0
+              ? `Último dia para apuração (${prazoStr})`
+              : `A realizar até ${prazoStr} (${diasRestantes} dia${diasRestantes !== 1 ? "s" : ""})`
+            }
+          </div>
+        );
+      })()}
+
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
         {([

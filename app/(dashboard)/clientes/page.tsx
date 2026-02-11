@@ -8,7 +8,7 @@ import { FranqueadoraCard } from "@/components/franqueadora-card";
 import { ImportDialog } from "@/components/franqueados/ImportDialog";
 import { franqueadosDummy, type Franqueado } from "@/lib/data/clientes-dummy";
 import { exportFranqueadosToXlsx } from "@/lib/franqueados-import-export";
-import { MapPin, Upload, Download, AlertTriangle, X } from "lucide-react";
+import { MapPin, Upload, Download, AlertTriangle, X, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type StatusFilter = "Todos" | "Aberta" | "Fechada" | "Vendida";
@@ -51,6 +51,7 @@ export default function ClientesPage() {
   const [franqueados, setFranqueados] =
     useState<Franqueado[]>(franqueadosDummy);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Todos");
+  const [searchQuery, setSearchQuery] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [dupBannerDismissed, setDupBannerDismissed] = useState(false);
 
@@ -64,9 +65,23 @@ export default function ClientesPage() {
   }, [franqueados]);
 
   const filtered = useMemo(() => {
-    if (statusFilter === "Todos") return franqueados;
-    return franqueados.filter((c) => c.statusLoja === statusFilter);
-  }, [statusFilter, franqueados]);
+    let result = franqueados;
+    if (statusFilter !== "Todos") {
+      result = result.filter((c) => c.statusLoja === statusFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (c) =>
+          c.nome.toLowerCase().includes(q) ||
+          c.cidade.toLowerCase().includes(q) ||
+          c.bairro.toLowerCase().includes(q) ||
+          c.responsavel.toLowerCase().includes(q) ||
+          c.cnpj.includes(q)
+      );
+    }
+    return result;
+  }, [statusFilter, searchQuery, franqueados]);
 
   // Detect duplicate CNPJs within the full list
   const duplicateCnpjs = useMemo(() => {
@@ -97,24 +112,47 @@ export default function ClientesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Franqueados"
-        subtitle={`${counts.Todos} franqueados cadastrados`}
-        primaryAction={{ label: "Novo Franqueado", href: "/clientes/novo" }}
-        secondaryActions={[
-          {
-            label: "Importar",
-            icon: <Upload className="h-4 w-4" />,
-            onClick: () => setImportOpen(true),
-          },
-          {
-            label: "Exportar",
-            icon: <Download className="h-4 w-4" />,
-            onClick: () => exportFranqueadosToXlsx(filtered),
-          },
-        ]}
+        title="Cadastro"
+        subtitle="Gerencie os dados da franqueadora e seus franqueados"
       />
 
-      <FranqueadoraCard />
+      {/* Seção: Franqueadora */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-gray-900">Franqueadora</h2>
+        <FranqueadoraCard />
+      </div>
+
+      {/* Seção: Franqueados */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Franqueados
+            <span className="ml-2 text-sm font-normal text-gray-400">{counts.Todos} cadastrados</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Importar
+            </button>
+            <button
+              onClick={() => exportFranqueadosToXlsx(filtered)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar
+            </button>
+            <a
+              href="/clientes/novo"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors"
+            >
+              Novo Franqueado
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* Duplicate CNPJ warning banner */}
       {duplicateCnpjs.size > 0 && !dupBannerDismissed && (
@@ -139,7 +177,28 @@ export default function ClientesPage() {
 
       {/* Table card */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {/* Tab bar + Search */}
+        {/* Search + Tab bar */}
+        <div className="px-4 pt-4 pb-0">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
+              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="border-b border-gray-100">
           <div className="flex items-center justify-between px-4">
             {/* Status tabs */}

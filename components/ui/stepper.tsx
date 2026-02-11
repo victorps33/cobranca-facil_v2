@@ -13,15 +13,16 @@ interface StepperProps {
   steps: Step[];
   currentStep: number;
   onStepClick?: (step: number) => void;
+  allCompleted?: boolean;
 }
 
-export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
+export function Stepper({ steps, currentStep, onStepClick, allCompleted }: StepperProps) {
   return (
     <nav aria-label="Progress" className="w-full">
       <ol className="flex items-center justify-between">
         {steps.map((step, index) => {
-          const isCompleted = currentStep > step.id;
-          const isCurrent = currentStep === step.id;
+          const isCompleted = allCompleted || currentStep > step.id;
+          const isCurrent = !allCompleted && currentStep === step.id;
           const isClickable = onStepClick && (isCompleted || isCurrent);
 
           return (

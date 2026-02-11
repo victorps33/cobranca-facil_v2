@@ -23,8 +23,16 @@ import {
   Phone,
   MapPin,
   User,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+interface ContatoFranqueadora {
+  id?: string;
+  nome: string;
+  telefone: string;
+  isPrimario: boolean;
+}
 
 interface Franqueadora {
   id: string;
@@ -39,6 +47,7 @@ interface Franqueadora {
   telefone: string | null;
   telefoneSecundario: string | null;
   responsavel: string | null;
+  contatos?: ContatoFranqueadora[];
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +73,7 @@ export function FranqueadoraCard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [contatos, setContatos] = useState<ContatoFranqueadora[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
 
   const fetchData = async () => {
@@ -86,6 +96,13 @@ export function FranqueadoraCard() {
           telefoneSecundario: json.telefoneSecundario || "",
           responsavel: json.responsavel || "",
         });
+        if (json.contatos?.length) {
+          setContatos(json.contatos.map((c: ContatoFranqueadora) => ({
+            nome: c.nome,
+            telefone: c.telefone,
+            isPrimario: c.isPrimario,
+          })));
+        }
       }
     } catch {
       setExpanded(true);
@@ -113,8 +130,18 @@ export function FranqueadoraCard() {
         telefoneSecundario: data.telefoneSecundario || "",
         responsavel: data.responsavel || "",
       });
+      if (data.contatos?.length) {
+        setContatos(data.contatos.map((c) => ({
+          nome: c.nome,
+          telefone: c.telefone,
+          isPrimario: c.isPrimario,
+        })));
+      } else {
+        setContatos([]);
+      }
     } else {
       setForm(EMPTY_FORM);
+      setContatos([]);
     }
     setErrors([]);
     setDialogOpen(true);
@@ -129,7 +156,7 @@ export function FranqueadoraCard() {
       const res = await fetch("/api/franqueadora", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, contatos }),
       });
 
       if (!res.ok) {
@@ -143,14 +170,20 @@ export function FranqueadoraCard() {
       }
 
       const updated = await res.json();
+      const isCreating = !data;
       setData(updated);
 
       toast({
-        title: "Franqueadora atualizada!",
+        title: isCreating ? "Franqueadora cadastrada!" : "Franqueadora atualizada!",
         description: "Os dados foram salvos com sucesso.",
       });
 
       setDialogOpen(false);
+
+      // Recarregar a página após criar para atualizar a sessão JWT com o novo franqueadoraId
+      if (isCreating) {
+        window.location.reload();
+      }
     } catch {
       toast({
         title: "Erro",
@@ -265,20 +298,6 @@ export function FranqueadoraCard() {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Celular</p>
-                    <p className="text-sm text-gray-900 flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-gray-300 shrink-0" aria-hidden="true" />
-                      {data.celular || "—"}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Telefone</p>
-                    <p className="text-sm text-gray-900 flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-gray-300 shrink-0" aria-hidden="true" />
-                      {data.telefone || "—"}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
                     <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Endereço</p>
                     <p className="text-sm text-gray-900 flex items-center gap-1.5">
                       <MapPin className="h-3.5 w-3.5 text-gray-300 shrink-0" aria-hidden="true" />
@@ -286,6 +305,29 @@ export function FranqueadoraCard() {
                     </p>
                   </div>
                 </div>
+
+                {/* Row 3: Contatos */}
+                {data.contatos && data.contatos.length > 0 && (
+                  <div className="pt-3 border-t border-gray-50">
+                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">Contatos</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {data.contatos.map((c, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-gray-900">
+                          <User className="h-3.5 w-3.5 text-gray-300 shrink-0" aria-hidden="true" />
+                          <div>
+                            <span className="font-medium">{c.nome}</span>
+                            {c.isPrimario && (
+                              <span className="ml-1.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                                Principal
+                              </span>
+                            )}
+                            <p className="text-xs text-gray-500">{c.telefone}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-end pt-1">
                   <Button variant="outline" size="sm" onClick={handleOpenDialog}>
@@ -317,13 +359,21 @@ export function FranqueadoraCard() {
 
       {/* Modal de edição */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {data ? "Editar Franqueadora" : "Cadastrar Franqueadora"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-xs text-gray-500">
+              <span className="text-red-500">*</span> Campos obrigatórios
+            </p>
+
             {errors.length > 0 && (
               <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 space-y-1">
                 {errors.map((err, i) => (
@@ -469,6 +519,73 @@ export function FranqueadoraCard() {
                   placeholder="(00) 0000-0000"
                 />
               </div>
+            </div>
+
+            {/* Contatos */}
+            <div className="space-y-3 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-gray-700">Contatos</Label>
+                <button
+                  type="button"
+                  onClick={() => setContatos((prev) => [...prev, { nome: "", telefone: "", isPrimario: prev.length === 0 }])}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Adicionar contato
+                </button>
+              </div>
+
+              {contatos.length === 0 && (
+                <p className="text-xs text-gray-400">Nenhum contato adicionado.</p>
+              )}
+
+              {contatos.map((contato, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <Input
+                      value={contato.nome}
+                      onChange={(e) => {
+                        const updated = [...contatos];
+                        updated[idx] = { ...updated[idx], nome: e.target.value };
+                        setContatos(updated);
+                      }}
+                      placeholder="Nome do contato…"
+                    />
+                    <Input
+                      type="tel"
+                      inputMode="tel"
+                      value={contato.telefone}
+                      onChange={(e) => {
+                        const updated = [...contatos];
+                        updated[idx] = { ...updated[idx], telefone: e.target.value };
+                        setContatos(updated);
+                      }}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const wasPrimario = contatos[idx].isPrimario;
+                      const updated = contatos.filter((_, i) => i !== idx);
+                      // Se removeu o primário, marcar o primeiro como primário
+                      if (wasPrimario && updated.length > 0) {
+                        updated[0] = { ...updated[0], isPrimario: true };
+                      }
+                      setContatos(updated);
+                    }}
+                    className="mt-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Remover contato"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  {idx === 0 && contatos.length > 0 && (
+                    <span className="mt-2 text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-full whitespace-nowrap">
+                      Principal
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
 
             <DialogFooter>

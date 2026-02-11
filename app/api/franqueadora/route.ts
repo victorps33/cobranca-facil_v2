@@ -13,6 +13,7 @@ export async function GET() {
 
     const franqueadora = await prisma.franqueadora.findUnique({
       where: { id: franqueadoraId },
+      include: { contatos: { orderBy: [{ isPrimario: "desc" }, { createdAt: "asc" }] } },
     });
     return NextResponse.json(franqueadora);
   } catch {
@@ -64,18 +65,59 @@ export async function PUT(req: NextRequest) {
     };
 
     const franqueadoraId = session!.user.franqueadoraId;
+    const userId = session!.user.id;
 
-    let franqueadora;
+    // Preparar contatos (se enviados)
+    const contatos: { nome: string; telefone: string; isPrimario: boolean }[] = Array.isArray(body.contatos)
+      ? body.contatos
+          .filter((c: { nome?: string; telefone?: string }) => c.nome?.trim() && c.telefone?.trim())
+          .map((c: { nome: string; telefone: string; isPrimario?: boolean }, i: number) => ({
+            nome: c.nome.trim(),
+            telefone: c.telefone.trim(),
+            isPrimario: i === 0 || !!c.isPrimario,
+          }))
+      : [];
+
+    let franqueadora: { id: string };
     if (franqueadoraId) {
       franqueadora = await prisma.franqueadora.update({
         where: { id: franqueadoraId },
         data,
       });
+
+      // Atualizar contatos: deletar existentes e recriar
+      if (Array.isArray(body.contatos)) {
+        await prisma.contatoFranqueadora.deleteMany({ where: { franqueadoraId } });
+        if (contatos.length > 0) {
+          await prisma.contatoFranqueadora.createMany({
+            data: contatos.map((c) => ({ ...c, franqueadoraId })),
+          });
+        }
+      }
     } else {
       franqueadora = await prisma.franqueadora.create({ data });
+
+      // Criar contatos
+      if (contatos.length > 0) {
+        await prisma.contatoFranqueadora.createMany({
+          data: contatos.map((c) => ({ ...c, franqueadoraId: franqueadora.id })),
+        });
+      }
+
+      // Associar a franqueadora ao usuário que a criou
+      await prisma.user.update({
+        where: { id: userId },
+        data: { franqueadoraId: franqueadora.id },
+      });
     }
 
-    return NextResponse.json(franqueadora);
+    // Retornar com contatos incluídos
+    const result = await prisma.franqueadora.findUnique({
+      where: { id: franqueadora.id },
+      include: { contatos: { orderBy: [{ isPrimario: "desc" }, { createdAt: "asc" }] } },
+    });
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json(
       { error: "Falha ao salvar dados da franqueadora" },

@@ -29,12 +29,28 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    // Validação de campos obrigatórios
+    const errors: string[] = [];
+    if (!body.name?.trim()) errors.push("Nome é obrigatório");
+    if (!body.doc?.trim()) errors.push("CPF/CNPJ é obrigatório");
+    if (!body.email?.trim()) {
+      errors.push("E-mail é obrigatório");
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+      errors.push("E-mail inválido");
+    }
+    if (!body.phone?.trim()) errors.push("Telefone é obrigatório");
+
+    if (errors.length > 0) {
+      return NextResponse.json({ errors }, { status: 400 });
+    }
+
     const customer = await prisma.customer.create({
       data: {
-        name: body.name,
-        doc: body.doc,
-        email: body.email,
-        phone: body.phone,
+        name: body.name.trim(),
+        doc: body.doc.trim(),
+        email: body.email.trim(),
+        phone: body.phone.trim(),
         franqueadoraId: tenantId!,
       },
     });

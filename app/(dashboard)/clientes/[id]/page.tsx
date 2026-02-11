@@ -187,18 +187,20 @@ export default function ClienteDetalhePage() {
       {/* Informações */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">Informações</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+        <div className="grid gap-3 sm:grid-cols-2 text-sm">
+          {/* Responsável e Telefone agrupados */}
           <div className="flex items-center gap-3 text-gray-600">
             <User className="h-4 w-4 text-gray-400 shrink-0" />
             <span>{franqueado.responsavel}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-600">
-            <Mail className="h-4 w-4 text-gray-400 shrink-0" />
-            <span className="truncate">{franqueado.email}</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-600">
             <Phone className="h-4 w-4 text-gray-400 shrink-0" />
             <span>{franqueado.telefone}</span>
+          </div>
+          {/* Email e Endereço */}
+          <div className="flex items-center gap-3 text-gray-600">
+            <Mail className="h-4 w-4 text-gray-400 shrink-0" />
+            <span className="truncate">{franqueado.email}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-600">
             <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
@@ -206,6 +208,7 @@ export default function ClienteDetalhePage() {
               {franqueado.bairro}, {franqueado.cidade}/{franqueado.estado}
             </span>
           </div>
+          {/* Loja e Data */}
           <div className="flex items-center gap-3 text-gray-600">
             <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
             <span>Loja {franqueado.statusLoja}</span>
