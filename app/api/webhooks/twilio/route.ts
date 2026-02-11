@@ -174,9 +174,11 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     console.error("[Webhook Twilio] Error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    // Temporário: retorna erro em JSON para diagnóstico
     return new Response(
-      '<Response></Response>',
-      { status: 200, headers: { "Content-Type": "text/xml" } }
+      JSON.stringify({ error: message, stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5) : [] }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
