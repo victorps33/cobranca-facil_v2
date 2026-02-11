@@ -40,8 +40,9 @@ export async function sendWhatsApp(
 
   try {
     const normalized = normalizePhone(to);
+    const fromAddr = from.startsWith("whatsapp:") ? from : `whatsapp:${from}`;
     const msg = await client.messages.create({
-      from: `whatsapp:${from}`,
+      from: fromAddr,
       to: `whatsapp:${normalized}`,
       body,
     });

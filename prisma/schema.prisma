@@ -84,6 +84,7 @@ model Customer {
   doc             String
   email           String
   phone           String
+  whatsappPhone   String?
   franqueadoraId  String?
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
   createdAt       DateTime  @default(now())

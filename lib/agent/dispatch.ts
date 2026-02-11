@@ -37,7 +37,10 @@ export async function dispatchMessage(
   } else {
     switch (queueItem.channel) {
       case "WHATSAPP":
-        result = await sendWhatsApp(customer.phone, queueItem.content);
+        result = await sendWhatsApp(
+          customer.whatsappPhone || customer.phone,
+          queueItem.content
+        );
         break;
       case "SMS":
         result = await sendSms(customer.phone, queueItem.content);

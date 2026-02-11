@@ -31,15 +31,37 @@ export async function POST(request: Request) {
 
     const channel = isWhatsApp ? "WHATSAPP" : "SMS";
     const normalizedPhone = normalizePhone(from);
+    // Número exato que o WhatsApp/Twilio usa (ex: +554899026030)
+    const rawWhatsappPhone = from.replace(/^whatsapp:/, "");
 
-    // Find customer by phone
+    // Find customer by phone — tenta com e sem nono dígito
+    const phoneDigits = normalizedPhone.replace("+55", "");
+    // Gera variante sem nono dígito (ex: 48999026030 → 4899026030)
+    const withoutNinthDigit =
+      phoneDigits.length === 11 && /^\d{2}9/.test(phoneDigits)
+        ? phoneDigits.slice(0, 2) + phoneDigits.slice(3)
+        : null;
+
     let customer = await prisma.customer.findFirst({
       where: {
-        phone: {
-          contains: normalizedPhone.replace("+55", ""),
-        },
+        OR: [
+          { whatsappPhone: rawWhatsappPhone },
+          { phone: { contains: phoneDigits } },
+          ...(withoutNinthDigit
+            ? [{ phone: { contains: withoutNinthDigit } }]
+            : []),
+        ],
       },
     });
+
+    // Se encontrou, atualiza o whatsappPhone para garantir envio correto
+    if (customer && isWhatsApp && customer.whatsappPhone !== rawWhatsappPhone) {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { whatsappPhone: rawWhatsappPhone },
+      });
+      customer.whatsappPhone = rawWhatsappPhone;
+    }
 
     // Auto-create customer if not found
     if (!customer) {
@@ -59,6 +81,7 @@ export async function POST(request: Request) {
           doc: "",
           email: "",
           phone: normalizedPhone,
+          whatsappPhone: isWhatsApp ? rawWhatsappPhone : null,
           franqueadoraId: defaultFranqueadora.id,
         },
       });
