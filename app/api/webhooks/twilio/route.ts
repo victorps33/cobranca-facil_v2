@@ -167,18 +167,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // Return TwiML empty response
-    return new Response(
-      '<Response></Response>',
-      { status: 200, headers: { "Content-Type": "text/xml" } }
-    );
+    // TEMPORÁRIO: retorna diagnóstico em JSON
+    const dbUrl = process.env.DATABASE_URL || "NOT_SET";
+    const convCount = await prisma.conversation.count();
+    return NextResponse.json({
+      ok: true,
+      customerId: customer.id,
+      customerName: customer.name,
+      conversationId: conversation.id,
+      messageId: message.id,
+      dbHost: dbUrl.includes("@") ? dbUrl.split("@")[1]?.split("/")[0] : "unknown",
+      totalConversations: convCount,
+    });
   } catch (err) {
     console.error("[Webhook Twilio] Error:", err);
-    const message = err instanceof Error ? err.message : String(err);
-    // Temporário: retorna erro em JSON para diagnóstico
-    return new Response(
-      JSON.stringify({ error: message, stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5) : [] }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({
+      ok: false,
+      error: msg,
+      dbUrl: process.env.DATABASE_URL ? "SET" : "NOT_SET",
+      directUrl: process.env.DIRECT_URL ? "SET" : "NOT_SET",
+    }, { status: 500 });
   }
 }
