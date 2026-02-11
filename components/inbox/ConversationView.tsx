@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { MessageComposer } from "./MessageComposer";
 import { ConversationHeader } from "./ConversationHeader";
-import { Loader2, MessageSquareOff } from "lucide-react";
+import { MessageSquareOff } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 interface Message {
@@ -78,8 +79,39 @@ export function ConversationView({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header skeleton */}
+        <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-8 w-20 rounded-full" />
+        </div>
+        {/* Messages skeleton */}
+        <div className="flex-1 px-4 py-3 bg-gray-50/30 space-y-4">
+          <div className="flex justify-center">
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
+          {/* Left-aligned bubbles */}
+          <div className="flex gap-2">
+            <Skeleton className="h-16 w-64 rounded-2xl rounded-tl-sm" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-12 w-48 rounded-2xl rounded-tl-sm" />
+          </div>
+          {/* Right-aligned bubble */}
+          <div className="flex justify-end">
+            <Skeleton className="h-12 w-56 rounded-2xl rounded-tr-sm" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-16 w-60 rounded-2xl rounded-tl-sm" />
+          </div>
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-44 rounded-2xl rounded-tr-sm" />
+          </div>
+        </div>
       </div>
     );
   }

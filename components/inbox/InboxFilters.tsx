@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/cn";
-import { Search, Mail, MessageSquare, Smartphone, X } from "lucide-react";
+import { FilterPillGroup } from "@/components/ui/filter-pills";
+import { Search, X } from "lucide-react";
 
 interface InboxFiltersProps {
   search: string;
@@ -13,16 +13,18 @@ interface InboxFiltersProps {
 }
 
 const channelOptions = [
-  { value: "EMAIL", label: "Email", icon: Mail },
-  { value: "WHATSAPP", label: "WhatsApp", icon: MessageSquare },
-  { value: "SMS", label: "SMS", icon: Smartphone },
+  { key: "all", label: "Todos" },
+  { key: "EMAIL", label: "Email" },
+  { key: "WHATSAPP", label: "WhatsApp" },
+  { key: "SMS", label: "SMS" },
 ];
 
 const statusOptions = [
-  { value: "ABERTA", label: "Abertas" },
-  { value: "PENDENTE_IA", label: "Pendente IA" },
-  { value: "PENDENTE_HUMANO", label: "Pendente Humano" },
-  { value: "RESOLVIDA", label: "Resolvidas" },
+  { key: "all", label: "Todos" },
+  { key: "ABERTA", label: "Abertas" },
+  { key: "PENDENTE_IA", label: "Pendente IA" },
+  { key: "PENDENTE_HUMANO", label: "Pendente Humano" },
+  { key: "RESOLVIDA", label: "Resolvidas" },
 ];
 
 export function InboxFilters({
@@ -43,7 +45,7 @@ export function InboxFilters({
           placeholder="Buscar conversas..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-colors"
         />
         {search && (
           <button
@@ -56,49 +58,18 @@ export function InboxFilters({
       </div>
 
       {/* Channel pills */}
-      <div className="flex flex-wrap gap-1.5">
-        {channelOptions.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() =>
-              onChannelFilterChange(
-                channelFilter === opt.value ? null : opt.value
-              )
-            }
-            className={cn(
-              "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-              channelFilter === opt.value
-                ? "bg-primary text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            <opt.icon className="h-3 w-3" />
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <FilterPillGroup
+        options={channelOptions}
+        value={channelFilter || "all"}
+        onChange={(v) => onChannelFilterChange(v === "all" ? null : v)}
+      />
 
       {/* Status pills */}
-      <div className="flex flex-wrap gap-1.5">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() =>
-              onStatusFilterChange(
-                statusFilter === opt.value ? null : opt.value
-              )
-            }
-            className={cn(
-              "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-              statusFilter === opt.value
-                ? "bg-primary text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <FilterPillGroup
+        options={statusOptions}
+        value={statusFilter || "all"}
+        onChange={(v) => onStatusFilterChange(v === "all" ? null : v)}
+      />
     </div>
   );
 }

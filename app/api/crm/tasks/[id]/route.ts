@@ -27,7 +27,13 @@ export async function GET(
       return NextResponse.json({ error: "Tarefa não encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json(task);
+    const { customer, assignedTo, createdBy, ...rest } = task;
+    return NextResponse.json({
+      ...rest,
+      customerName: customer?.name ?? "Desconhecido",
+      assignedTo: assignedTo?.name ?? null,
+      createdBy: createdBy?.name ?? "Sistema",
+    });
   } catch {
     return NextResponse.json({ error: "Erro ao buscar tarefa" }, { status: 500 });
   }
@@ -72,7 +78,7 @@ export async function PATCH(
     if (body.assignedToId !== undefined) data.assignedToId = body.assignedToId || null;
     if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
 
-    const task = await prisma.collectionTask.update({
+    const updated = await prisma.collectionTask.update({
       where: { id: params.id },
       data,
       include: {
@@ -81,7 +87,13 @@ export async function PATCH(
         createdBy: { select: { name: true } },
       },
     });
-    return NextResponse.json(task);
+    const { customer: c, assignedTo: a, createdBy: cb, ...taskRest } = updated;
+    return NextResponse.json({
+      ...taskRest,
+      customerName: c?.name ?? "Desconhecido",
+      assignedTo: a?.name ?? null,
+      createdBy: cb?.name ?? "Sistema",
+    });
   } catch {
     return NextResponse.json({ error: "Erro ao atualizar tarefa" }, { status: 500 });
   }

@@ -14,8 +14,12 @@ export async function GET(
       where: { id: params.id, franqueadoraId: tenantId! },
       include: {
         customer: {
-          select: { id: true, name: true, email: true, phone: true, doc: true },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            doc: true,
             charges: {
               where: { status: { in: ["PENDING", "OVERDUE"] } },
               orderBy: { dueDate: "asc" },

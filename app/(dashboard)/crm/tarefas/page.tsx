@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -9,6 +9,12 @@ import { StatCard } from "@/components/layout/StatCard";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { CreateTaskDialog } from "@/components/crm/CreateTaskDialog";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/cn";
 import { toast } from "@/components/ui/use-toast";
 import { exportTasksToXlsx } from "@/lib/crm-export";
@@ -21,6 +27,7 @@ import {
 import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
 import type { CrmTask as ApiCrmTask } from "@/lib/types/crm";
 import type { UserRole } from "@prisma/client";
+import { Skeleton, KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import {
   Search,
   Clock,
@@ -31,7 +38,9 @@ import {
   User,
   ChevronDown,
   Download,
-  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 const fmtDate = (dateStr: string) =>
@@ -42,6 +51,13 @@ const statusTransitions: Record<string, CrmTask["status"][]> = {
   EM_ANDAMENTO: ["PENDENTE", "CONCLUIDA", "CANCELADA"],
   CONCLUIDA: ["PENDENTE", "EM_ANDAMENTO"],
   CANCELADA: ["PENDENTE"],
+};
+
+const PRIORITY_ORDER: Record<string, number> = {
+  CRITICA: 0,
+  ALTA: 1,
+  MEDIA: 2,
+  BAIXA: 3,
 };
 
 function mapApiTask(t: ApiCrmTask): CrmTask {
@@ -79,6 +95,9 @@ function getTasksStats(tasks: CrmTask[]) {
   return { pendentes, emAndamento, concluidas, atrasadas };
 }
 
+type SortKey = "dueDate" | "priority" | null;
+type SortDir = "asc" | "desc";
+
 export default function TarefasPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -91,6 +110,8 @@ export default function TarefasPage() {
   const [showMyTasks, setShowMyTasks] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const PAGE_SIZE = 10;
 
   // API data
@@ -106,26 +127,34 @@ export default function TarefasPage() {
       .then((data: ApiCrmTask[]) => setTasks(data.map(mapApiTask)))
       .catch(() => {
         setTasks([]);
-        toast({ title: "Erro", description: "Falha ao carregar tarefas.", variant: "destructive" });
+        toast({
+          title: "Erro",
+          description: "Falha ao carregar tarefas.",
+          variant: "destructive",
+        });
       })
       .finally(() => setLoading(false));
   }, []);
 
-  // Dropdown state for inline status change
-  const [openStatusMenuId, setOpenStatusMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenStatusMenuId(null);
-      }
-    }
-    if (openStatusMenuId) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [openStatusMenuId]);
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column)
+      return <ArrowUpDown className="h-3 w-3 text-gray-300" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-3 w-3 text-gray-600" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-gray-600" />
+    );
+  };
 
   const filtered = useMemo(() => {
     let list = [...tasks];
@@ -149,16 +178,51 @@ export default function TarefasPage() {
       list = list.filter((t) => t.assignedToId === session.user.id);
     }
 
-    const hoje = new Date();
-    list.sort((a, b) => {
-      const aOverdue = a.dueDate && new Date(a.dueDate) < hoje && (a.status === "PENDENTE" || a.status === "EM_ANDAMENTO") ? 0 : 1;
-      const bOverdue = b.dueDate && new Date(b.dueDate) < hoje && (b.status === "PENDENTE" || b.status === "EM_ANDAMENTO") ? 0 : 1;
-      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
+    // Sort
+    if (sortKey === "dueDate") {
+      list.sort((a, b) => {
+        const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return sortDir === "asc" ? aDate - bDate : bDate - aDate;
+      });
+    } else if (sortKey === "priority") {
+      list.sort((a, b) => {
+        const aOrd = PRIORITY_ORDER[a.priority] ?? 99;
+        const bOrd = PRIORITY_ORDER[b.priority] ?? 99;
+        return sortDir === "asc" ? aOrd - bOrd : bOrd - aOrd;
+      });
+    } else {
+      // Default: overdue first, then newest
+      const hoje = new Date();
+      list.sort((a, b) => {
+        const aOverdue =
+          a.dueDate &&
+          new Date(a.dueDate) < hoje &&
+          (a.status === "PENDENTE" || a.status === "EM_ANDAMENTO")
+            ? 0
+            : 1;
+        const bOverdue =
+          b.dueDate &&
+          new Date(b.dueDate) < hoje &&
+          (b.status === "PENDENTE" || b.status === "EM_ANDAMENTO")
+            ? 0
+            : 1;
+        if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+    }
 
     return list;
-  }, [search, statusFilter, priorityFilter, showMyTasks, session?.user?.id, tasks]);
+  }, [
+    search,
+    statusFilter,
+    priorityFilter,
+    showMyTasks,
+    session?.user?.id,
+    tasks,
+    sortKey,
+    sortDir,
+  ]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const safeCurrentPage = Math.min(page, Math.max(1, totalPages));
@@ -168,11 +232,18 @@ export default function TarefasPage() {
   );
 
   const stats = getTasksStats(tasks);
-  const hasActiveFilters = search !== "" || statusFilter !== "all" || priorityFilter !== "all" || showMyTasks;
+  const hasActiveFilters =
+    search !== "" ||
+    statusFilter !== "all" ||
+    priorityFilter !== "all" ||
+    showMyTasks;
   const hoje = new Date();
 
   const handleAddTask = async (
-    data: Pick<CrmTask, "title" | "description" | "priority" | "dueDate" | "assignedTo" | "assignedToId"> & { customerId?: string }
+    data: Pick<
+      CrmTask,
+      "title" | "description" | "priority" | "dueDate" | "assignedTo" | "assignedToId"
+    > & { customerId?: string }
   ) => {
     try {
       const res = await fetch("/api/crm/tasks", {
@@ -192,28 +263,38 @@ export default function TarefasPage() {
       const newTask: CrmTask = {
         id: created.id,
         customerId: created.customerId,
-        customerName: created.customer?.name ?? "Geral",
+        customerName: created.customerName ?? "Geral",
         status: created.status,
         priority: created.priority,
         title: created.title,
         description: created.description ?? undefined,
         dueDate: created.dueDate ?? undefined,
-        assignedTo: created.assignedTo?.name ?? undefined,
+        assignedTo: created.assignedTo ?? undefined,
         assignedToId: created.assignedToId ?? undefined,
         completedAt: created.completedAt ?? undefined,
-        createdBy: created.createdBy?.name ?? session?.user?.name ?? "Usuário",
+        createdBy:
+          created.createdBy ?? session?.user?.name ?? "Usuario",
         createdById: created.createdById,
         createdAt: created.createdAt,
       };
       setTasks((prev) => [newTask, ...prev]);
-      toast({ title: "Tarefa criada", description: `"${data.title}" foi adicionada.` });
+      toast({
+        title: "Tarefa criada",
+        description: `"${data.title}" foi adicionada.`,
+      });
     } catch {
-      toast({ title: "Erro", description: "Falha ao criar tarefa.", variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: "Falha ao criar tarefa.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: CrmTask["status"]) => {
-    setOpenStatusMenuId(null);
+  const handleStatusChange = async (
+    taskId: string,
+    newStatus: CrmTask["status"]
+  ) => {
     try {
       const res = await fetch(`/api/crm/tasks/${taskId}`, {
         method: "PATCH",
@@ -227,7 +308,9 @@ export default function TarefasPage() {
             ? {
                 ...t,
                 status: newStatus,
-                ...(newStatus === "CONCLUIDA" && { completedAt: new Date().toISOString() }),
+                ...(newStatus === "CONCLUIDA" && {
+                  completedAt: new Date().toISOString(),
+                }),
               }
             : t
         )
@@ -237,15 +320,29 @@ export default function TarefasPage() {
         description: `Tarefa movida para "${TASK_STATUS_LABELS[newStatus]}".`,
       });
     } catch {
-      toast({ title: "Erro", description: "Falha ao atualizar status.", variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar status.",
+        variant: "destructive",
+      });
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Carregando tarefas...</span>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <KpiSkeleton count={4} />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-48 rounded-xl" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-20 rounded-full" />
+          ))}
+        </div>
+        <TableSkeleton rows={8} cols={6} />
       </div>
     );
   }
@@ -286,7 +383,7 @@ export default function TarefasPage() {
         />
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4 text-gray-400" />}
-          label="Concluídas"
+          label="Concluidas"
           value={String(stats.concluidas)}
         />
         <StatCard
@@ -304,8 +401,11 @@ export default function TarefasPage() {
           <input
             type="search"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Buscar por tarefa, cliente ou responsável…"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Buscar por tarefa, cliente ou responsavel..."
             className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
           />
         </div>
@@ -314,25 +414,34 @@ export default function TarefasPage() {
             { key: "all", label: "Todos" },
             { key: "PENDENTE", label: "Pendente" },
             { key: "EM_ANDAMENTO", label: "Em Andamento" },
-            { key: "CONCLUIDA", label: "Concluída" },
+            { key: "CONCLUIDA", label: "Concluida" },
             { key: "CANCELADA", label: "Cancelada" },
           ]}
           value={statusFilter}
-          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
         />
         <FilterPillGroup
           options={[
             { key: "all", label: "Todas" },
-            { key: "CRITICA", label: "Crítica" },
+            { key: "CRITICA", label: "Critica" },
             { key: "ALTA", label: "Alta" },
-            { key: "MEDIA", label: "Média" },
+            { key: "MEDIA", label: "Media" },
             { key: "BAIXA", label: "Baixa" },
           ]}
           value={priorityFilter}
-          onChange={(v) => { setPriorityFilter(v); setPage(1); }}
+          onChange={(v) => {
+            setPriorityFilter(v);
+            setPage(1);
+          }}
         />
         <button
-          onClick={() => { setShowMyTasks((v) => !v); setPage(1); }}
+          onClick={() => {
+            setShowMyTasks((v) => !v);
+            setPage(1);
+          }}
           className={cn(
             "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
             showMyTasks
@@ -373,14 +482,24 @@ export default function TarefasPage() {
                   <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
                     Cliente
                   </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Prioridade
+                  <th
+                    className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 transition-colors"
+                    onClick={() => handleSort("priority")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Prioridade <SortIcon column="priority" />
+                    </span>
                   </th>
                   <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Responsável
+                    Responsavel
                   </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Vencimento
+                  <th
+                    className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 transition-colors"
+                    onClick={() => handleSort("dueDate")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Vencimento <SortIcon column="dueDate" />
+                    </span>
                   </th>
                   <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
                     Status
@@ -402,7 +521,9 @@ export default function TarefasPage() {
                     >
                       <td
                         className="px-5 py-3 cursor-pointer"
-                        onClick={() => t.customerId && router.push(`/crm/${t.customerId}`)}
+                        onClick={() =>
+                          t.customerId && router.push(`/crm/${t.customerId}`)
+                        }
                       >
                         <p className="font-medium text-gray-900">{t.title}</p>
                         {t.description && (
@@ -413,7 +534,9 @@ export default function TarefasPage() {
                       </td>
                       <td
                         className="px-4 py-3 text-gray-600 cursor-pointer"
-                        onClick={() => t.customerId && router.push(`/crm/${t.customerId}`)}
+                        onClick={() =>
+                          t.customerId && router.push(`/crm/${t.customerId}`)
+                        }
                       >
                         {t.customerName}
                       </td>
@@ -429,8 +552,15 @@ export default function TarefasPage() {
                       </td>
                       <td className="px-4 py-3">
                         {t.assignedTo ? (
-                          <span className="inline-flex items-center gap-1 text-sm text-gray-600">
-                            <User className="h-3 w-3 text-gray-400" />
+                          <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 text-[10px] font-medium text-gray-500">
+                              {t.assignedTo
+                                .split(" ")
+                                .map((n) => n[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()}
+                            </span>
                             {t.assignedTo}
                           </span>
                         ) : (
@@ -456,46 +586,41 @@ export default function TarefasPage() {
                       </td>
                       <td className="px-4 py-3">
                         {!isReadOnly && transitions.length > 0 ? (
-                          <div
-                            className="relative"
-                            ref={openStatusMenuId === t.id ? menuRef : undefined}
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenStatusMenuId(openStatusMenuId === t.id ? null : t.id);
-                              }}
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity",
-                                TASK_STATUS_COLORS[t.status]
-                              )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity",
+                                  TASK_STATUS_COLORS[t.status]
+                                )}
+                              >
+                                {TASK_STATUS_LABELS[t.status]}
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="min-w-[160px] rounded-xl"
                             >
-                              {TASK_STATUS_LABELS[t.status]}
-                              <ChevronDown className="h-3 w-3" />
-                            </button>
-                            {openStatusMenuId === t.id && (
-                              <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
-                                {transitions.map((status) => (
-                                  <button
-                                    key={status}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleStatusChange(t.id, status);
-                                    }}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <span
-                                      className={cn(
-                                        "inline-block h-2 w-2 rounded-full",
-                                        TASK_STATUS_COLORS[status].split(" ")[0]
-                                      )}
-                                    />
-                                    {TASK_STATUS_LABELS[status]}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                              {transitions.map((status) => (
+                                <DropdownMenuItem
+                                  key={status}
+                                  onClick={() =>
+                                    handleStatusChange(t.id, status)
+                                  }
+                                  className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer rounded-lg"
+                                >
+                                  <span
+                                    className={cn(
+                                      "inline-block h-2 w-2 rounded-full",
+                                      TASK_STATUS_COLORS[status].split(" ")[0]
+                                    )}
+                                  />
+                                  {TASK_STATUS_LABELS[status]}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         ) : (
                           <span
                             className={cn(

@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { Mail, MessageSquare, Smartphone, Bot, User as UserIcon } from "lucide-react";
+import { CONVERSATION_STATUS_DOT_COLORS } from "@/lib/utils";
+import { Bot, User as UserIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -20,18 +21,6 @@ interface ConversationListItemProps {
   onClick: () => void;
 }
 
-const channelIcon: Record<string, typeof Mail> = {
-  EMAIL: Mail,
-  WHATSAPP: MessageSquare,
-  SMS: Smartphone,
-};
-
-const statusColors: Record<string, string> = {
-  ABERTA: "bg-green-400",
-  PENDENTE_IA: "bg-yellow-400",
-  PENDENTE_HUMANO: "bg-red-400",
-  RESOLVIDA: "bg-gray-300",
-};
 
 export function ConversationListItem({
   conversation,
@@ -39,7 +28,6 @@ export function ConversationListItem({
   isUnread,
   onClick,
 }: ConversationListItemProps) {
-  const ChannelIcon = channelIcon[conversation.channel] || Mail;
   const lastMsg = conversation.messages[0];
   const preview = lastMsg?.content?.slice(0, 80) || "Sem mensagens";
   const senderIsAI = lastMsg?.sender === "AI";
@@ -54,15 +42,22 @@ export function ConversationListItem({
       )}
     >
       <div className="flex items-start gap-2.5">
-        {/* Channel icon + status dot */}
+        {/* Avatar initials + status dot */}
         <div className="relative flex-shrink-0 mt-0.5">
           <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
-            <ChannelIcon className="h-4 w-4 text-gray-500" />
+            <span className="text-xs font-medium text-gray-500">
+              {conversation.customer.name
+                .split(" ")
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase()}
+            </span>
           </div>
           <span
             className={cn(
               "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
-              statusColors[conversation.status] || "bg-gray-300"
+              CONVERSATION_STATUS_DOT_COLORS[conversation.status] || "bg-gray-300"
             )}
           />
         </div>

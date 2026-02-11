@@ -1,14 +1,19 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/cn";
+import {
+  CHANNEL_LABELS,
+  CONVERSATION_STATUS_LABELS,
+  CONVERSATION_STATUS_COLORS,
+} from "@/lib/utils";
 import {
   Mail,
   MessageSquare,
   Smartphone,
-  UserPlus,
   CheckCircle,
-  AlertTriangle,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 interface ConversationHeaderProps {
@@ -30,24 +35,11 @@ const channelIcon: Record<string, typeof Mail> = {
   SMS: Smartphone,
 };
 
-const channelLabel: Record<string, string> = {
-  EMAIL: "Email",
-  WHATSAPP: "WhatsApp",
-  SMS: "SMS",
-};
-
-const statusLabel: Record<string, string> = {
-  ABERTA: "Aberta",
-  PENDENTE_IA: "Pendente IA",
-  PENDENTE_HUMANO: "Pendente Humano",
-  RESOLVIDA: "Resolvida",
-};
-
-const statusColors: Record<string, string> = {
-  ABERTA: "text-green-700 bg-green-50",
-  PENDENTE_IA: "text-yellow-700 bg-yellow-50",
-  PENDENTE_HUMANO: "text-red-700 bg-red-50",
-  RESOLVIDA: "text-gray-500 bg-gray-50",
+const statusTransitions: Record<string, string[]> = {
+  ABERTA: ["PENDENTE_HUMANO", "RESOLVIDA"],
+  PENDENTE_IA: ["ABERTA", "PENDENTE_HUMANO", "RESOLVIDA"],
+  PENDENTE_HUMANO: ["ABERTA", "RESOLVIDA"],
+  RESOLVIDA: ["ABERTA"],
 };
 
 export function ConversationHeader({
@@ -57,6 +49,21 @@ export function ConversationHeader({
   showSidePanel,
 }: ConversationHeaderProps) {
   const ChannelIcon = channelIcon[conversation.channel] || Mail;
+  const [openMenu, setOpenMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenu]);
+
+  const transitions = statusTransitions[conversation.status] ?? [];
 
   return (
     <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 bg-white flex-shrink-0">
@@ -67,28 +74,52 @@ export function ConversationHeader({
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <ChannelIcon className="h-3.5 w-3.5 text-gray-400" />
           <span className="text-xs text-gray-400">
-            {channelLabel[conversation.channel]}
+            {CHANNEL_LABELS[conversation.channel]}
           </span>
         </div>
-        <select
-          value={conversation.status}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className={cn(
-            "text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer",
-            statusColors[conversation.status]
+
+        {/* Status dropdown */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setOpenMenu(!openMenu)}
+            className={cn(
+              "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity",
+              CONVERSATION_STATUS_COLORS[conversation.status]
+            )}
+          >
+            {CONVERSATION_STATUS_LABELS[conversation.status]}
+            {transitions.length > 0 && <ChevronDown className="h-3 w-3" />}
+          </button>
+          {openMenu && transitions.length > 0 && (
+            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+              {transitions.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    onStatusChange(status);
+                    setOpenMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-2 w-2 rounded-full",
+                      CONVERSATION_STATUS_COLORS[status]?.split(" ")[0]
+                    )}
+                  />
+                  {CONVERSATION_STATUS_LABELS[status]}
+                </button>
+              ))}
+            </div>
           )}
-        >
-          <option value="ABERTA">Aberta</option>
-          <option value="PENDENTE_HUMANO">Pendente Humano</option>
-          <option value="RESOLVIDA">Resolvida</option>
-        </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
         {conversation.status !== "RESOLVIDA" && (
           <button
             onClick={() => onStatusChange("RESOLVIDA")}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors"
           >
             <CheckCircle className="h-3.5 w-3.5" />
             Resolver
@@ -105,7 +136,10 @@ export function ConversationHeader({
           title="Info do cliente"
         >
           <ChevronRight
-            className={cn("h-4 w-4 transition-transform", showSidePanel && "rotate-180")}
+            className={cn(
+              "h-4 w-4 transition-transform",
+              showSidePanel && "rotate-180"
+            )}
           />
         </button>
       </div>

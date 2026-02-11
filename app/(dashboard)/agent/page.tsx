@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { StatCard } from "@/components/layout/StatCard";
+import { FilterPillGroup } from "@/components/ui/filter-pills";
+import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
+import { Pagination } from "@/components/ui/pagination";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton, KpiSkeleton } from "@/components/ui/skeleton";
 import {
   Bot,
   Brain,
-  MessageSquare,
-  AlertTriangle,
   Send,
-  XCircle,
-  Clock,
+  AlertTriangle,
   TrendingUp,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,10 +66,10 @@ interface Escalation {
 }
 
 const actionLabels: Record<string, string> = {
-  SEND_COLLECTION: "Cobrança Enviada",
+  SEND_COLLECTION: "Cobranca Enviada",
   RESPOND_CUSTOMER: "Resposta ao Cliente",
-  ESCALATE_HUMAN: "Escalação",
-  NEGOTIATE: "Negociação",
+  ESCALATE_HUMAN: "Escalacao",
+  NEGOTIATE: "Negociacao",
   SKIP: "Ignorada",
   MARK_PROMISE: "Promessa Registrada",
   UPDATE_STATUS: "Status Atualizado",
@@ -82,19 +85,25 @@ const actionColors: Record<string, string> = {
   UPDATE_STATUS: "bg-cyan-50 text-cyan-700",
 };
 
+const fmtCurrency = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+    cents / 100
+  );
+
+const PAGE_SIZE = 10;
+
 export default function AgentDashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [escalations, setEscalations] = useState<Escalation[]>([]);
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "decisions" | "escalations"
-  >("overview");
+  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/agent/dashboard").then((r) => r.json()),
-      fetch("/api/agent/decisions?limit=10").then((r) => r.json()),
+      fetch("/api/agent/decisions?limit=50").then((r) => r.json()),
       fetch("/api/agent/escalations").then((r) => r.json()),
     ])
       .then(([dash, decs, escs]) => {
@@ -106,10 +115,64 @@ export default function AgentDashboardPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const filteredDecisions = useMemo(() => {
+    if (actionFilter === "all") return decisions;
+    return decisions.filter((d) => d.action === actionFilter);
+  }, [decisions, actionFilter]);
+
+  const totalPages = Math.ceil(filteredDecisions.length / PAGE_SIZE);
+  const safeCurrentPage = Math.min(page, Math.max(1, totalPages));
+  const paginatedDecisions = filteredDecisions.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
+  );
+
+  const actionFilterOptions = useMemo(() => {
+    const opts: { key: string; label: string; count?: number }[] = [
+      { key: "all", label: "Todas" },
+    ];
+    if (dashboard?.actionBreakdown) {
+      dashboard.actionBreakdown.forEach((ab) => {
+        opts.push({
+          key: ab.action,
+          label: actionLabels[ab.action] || ab.action,
+          count: ab.count,
+        });
+      });
+    }
+    return opts;
+  }, [dashboard]);
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-8 w-24 rounded-full" />
+        </div>
+        <KpiSkeleton count={4} />
+        <div className="flex gap-6 border-b border-gray-200 pb-0">
+          <Skeleton className="h-5 w-32 mb-3" />
+          <Skeleton className="h-5 w-28 mb-3" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-28 rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -117,13 +180,10 @@ export default function AgentDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Agente AI (Mia)</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Monitoramento do agente autônomo de cobrança
-          </p>
-        </div>
+      <PageHeader
+        title="Agente AI (Mia)"
+        subtitle="Monitoramento do agente autonomo de cobranca"
+      >
         <div
           className={cn(
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium",
@@ -135,248 +195,216 @@ export default function AgentDashboardPage() {
           <span
             className={cn(
               "h-2 w-2 rounded-full",
-              dashboard?.agentEnabled ? "bg-green-500 animate-pulse" : "bg-gray-400"
+              dashboard?.agentEnabled
+                ? "bg-green-500 animate-pulse"
+                : "bg-gray-400"
             )}
           />
           {dashboard?.agentEnabled ? "Ativo" : "Desativado"}
         </div>
-      </div>
+      </PageHeader>
 
       {/* KPI Cards */}
       {dashboard && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            icon={Brain}
-            label="Decisões Hoje"
-            value={dashboard.decisionsToday}
-            subtitle={`${dashboard.decisions7d} nos últimos 7 dias`}
-            color="text-primary"
+          <StatCard
+            icon={<Brain className="h-4 w-4" />}
+            label="Decisoes Hoje"
+            value={String(dashboard.decisionsToday)}
+            caption={`${dashboard.decisions7d} nos ultimos 7 dias`}
           />
-          <KPICard
-            icon={Send}
+          <StatCard
+            icon={<Send className="h-4 w-4" />}
             label="Mensagens Enviadas"
-            value={dashboard.messagesSent}
-            subtitle={`${dashboard.messagesQueued} na fila`}
-            color="text-blue-600"
+            value={String(dashboard.messagesSent)}
+            caption={`${dashboard.messagesQueued} na fila`}
           />
-          <KPICard
-            icon={AlertTriangle}
-            label="Escalações Ativas"
-            value={dashboard.escalationsActive}
-            subtitle={`${dashboard.escalationsTotal} total`}
-            color="text-red-600"
+          <StatCard
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="Escalacoes Ativas"
+            value={String(dashboard.escalationsActive)}
+            caption={`${dashboard.escalationsTotal} total`}
+            danger={dashboard.escalationsActive > 0}
           />
-          <KPICard
-            icon={TrendingUp}
-            label="Confiança Média"
+          <StatCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Confianca Media"
             value={`${(dashboard.avgConfidence * 100).toFixed(0)}%`}
-            subtitle={`${dashboard.conversationsOpen} conversas abertas`}
-            color="text-green-600"
+            caption={`${dashboard.conversationsOpen} conversas abertas`}
           />
-        </div>
-      )}
-
-      {/* Action Breakdown */}
-      {dashboard && dashboard.actionBreakdown.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Distribuição de Ações (30 dias)
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {dashboard.actionBreakdown.map((ab) => (
-              <div
-                key={ab.action}
-                className={cn(
-                  "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm",
-                  actionColors[ab.action] || "bg-gray-100 text-gray-600"
-                )}
-              >
-                <span className="font-semibold">{ab.count}</span>
-                {actionLabels[ab.action] || ab.action}
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-6">
-          {(
-            [
-              { id: "overview", label: "Decisões Recentes" },
-              {
-                id: "escalations",
-                label: `Escalações (${escalations.length})`,
-              },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "pb-3 text-sm font-medium transition-colors border-b-2",
-                activeTab === tab.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs defaultValue="overview" onValueChange={() => setPage(1)}>
+        <TabsList>
+          <TabsTrigger value="overview">Decisoes Recentes</TabsTrigger>
+          <TabsTrigger value="escalations">
+            Escalacoes ({escalations.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      {activeTab === "overview" && (
-        <div className="space-y-3">
-          {decisions.length === 0 ? (
-            <p className="text-sm text-gray-500 py-8 text-center">
-              Nenhuma decisão registrada ainda
-            </p>
-          ) : (
-            decisions.map((dec) => (
-              <div
-                key={dec.id}
-                className="bg-white rounded-xl border border-gray-200 p-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "px-2 py-0.5 rounded-full text-xs font-medium",
-                        actionColors[dec.action] || "bg-gray-100"
-                      )}
-                    >
-                      {actionLabels[dec.action] || dec.action}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      Confiança: {(dec.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    {formatDistanceToNow(new Date(dec.createdAt), {
-                      addSuffix: true,
-                      locale: ptBR,
-                    })}
-                  </span>
-                </div>
+        {/* Tab: Decisions */}
+        <TabsContent value="overview">
+          <div className="space-y-4">
+            <FilterPillGroup
+              options={actionFilterOptions}
+              value={actionFilter}
+              onChange={(v) => {
+                setActionFilter(v);
+                setPage(1);
+              }}
+            />
 
-                <div className="mt-2">
-                  <Link
-                    href={`/crm/${dec.customer.id}`}
-                    className="text-sm font-medium text-gray-900 hover:text-primary"
+            {filteredDecisions.length === 0 ? (
+              <FilterEmptyState
+                message="Nenhuma decisao encontrada para o filtro selecionado."
+                suggestion="Tente selecionar outra acao ou aguarde novas decisoes do agente."
+                icon={<Bot className="h-6 w-6 text-gray-400" />}
+                onClear={
+                  actionFilter !== "all"
+                    ? () => setActionFilter("all")
+                    : undefined
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                {paginatedDecisions.map((dec) => (
+                  <div
+                    key={dec.id}
+                    className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-shadow"
                   >
-                    {dec.customer.name}
-                  </Link>
-                  {dec.charge && (
-                    <span className="text-xs text-gray-400 ml-2">
-                      {dec.charge.description} —{" "}
-                      {new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      }).format(dec.charge.amountCents / 100)}
-                    </span>
-                  )}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "px-2.5 py-0.5 rounded-full text-xs font-medium",
+                            actionColors[dec.action] || "bg-gray-100"
+                          )}
+                        >
+                          {actionLabels[dec.action] || dec.action}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                          Confianca: {(dec.confidence * 100).toFixed(0)}%
+                          <span className="inline-block w-12 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <span
+                              className="block h-full rounded-full bg-primary/70"
+                              style={{ width: `${(dec.confidence * 100).toFixed(0)}%` }}
+                            />
+                          </span>
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(dec.createdAt), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="mt-2">
+                      <Link
+                        href={`/crm/${dec.customer.id}`}
+                        className="text-sm font-medium text-gray-900 hover:text-primary transition-colors"
+                      >
+                        {dec.customer.name}
+                      </Link>
+                      {dec.charge && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          {dec.charge.description} —{" "}
+                          {fmtCurrency(dec.charge.amountCents)}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      {dec.reasoning}
+                    </p>
+
+                    {dec.outputMessage && (
+                      <div className="mt-2 p-2.5 bg-gray-50 rounded-xl text-xs text-gray-600 border-l-2 border-primary/30">
+                        {dec.outputMessage.slice(0, 200)}
+                        {dec.outputMessage.length > 200 ? "..." : ""}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <Pagination
+                    currentPage={safeCurrentPage}
+                    totalPages={totalPages}
+                    totalItems={filteredDecisions.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
                 </div>
-
-                <p className="text-xs text-gray-500 mt-1">{dec.reasoning}</p>
-
-                {dec.outputMessage && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 border-l-2 border-primary/30">
-                    {dec.outputMessage.slice(0, 200)}
-                    {dec.outputMessage.length > 200 ? "..." : ""}
-                  </div>
-                )}
               </div>
-            ))
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        </TabsContent>
 
-      {activeTab === "escalations" && (
-        <div className="space-y-3">
-          {escalations.length === 0 ? (
-            <p className="text-sm text-gray-500 py-8 text-center">
-              Nenhuma escalação ativa
-            </p>
-          ) : (
-            escalations.map((esc) => (
-              <div
-                key={esc.id}
-                className="bg-white rounded-xl border border-red-200 p-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Link
-                      href={`/crm/${esc.customer.id}`}
-                      className="text-sm font-medium text-gray-900 hover:text-primary"
-                    >
-                      {esc.customer.name}
-                    </Link>
-                    <span className="text-xs text-gray-400 ml-2">
-                      {esc.channel}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
+        {/* Tab: Escalations */}
+        <TabsContent value="escalations">
+          <div className="space-y-3">
+            {escalations.length === 0 ? (
+              <FilterEmptyState
+                message="Nenhuma escalacao ativa."
+                suggestion="O agente escalara automaticamente conversas que precisem de atencao humana."
+                icon={<AlertTriangle className="h-6 w-6 text-gray-400" />}
+              />
+            ) : (
+              escalations.map((esc) => (
+                <div
+                  key={esc.id}
+                  className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Link
+                        href={`/crm/${esc.customer.id}`}
+                        className="text-sm font-medium text-gray-900 hover:text-primary transition-colors"
+                      >
+                        {esc.customer.name}
+                      </Link>
+                      <span className="text-xs text-gray-400 ml-2">
+                        {esc.channel}
+                      </span>
+                    </div>
                     <Link
                       href={`/inbox?selected=${esc.id}`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-primary bg-primary/5 rounded-lg hover:bg-primary/10"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors"
                     >
                       Abrir no Inbox <ChevronRight className="h-3 w-3" />
                     </Link>
                   </div>
+
+                  {esc.agentDecisions[0] && (
+                    <div className="mt-2">
+                      {esc.agentDecisions[0].escalationReason && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 mr-2">
+                          <AlertTriangle className="h-3 w-3" />
+                          {esc.agentDecisions[0].escalationReason}
+                        </span>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {esc.agentDecisions[0].reasoning}
+                      </p>
+                    </div>
+                  )}
+
+                  {esc.messages[0] && (
+                    <div className="mt-2 p-2.5 bg-gray-50 rounded-xl text-xs text-gray-600">
+                      Ultima mensagem: {esc.messages[0].content.slice(0, 150)}
+                      {esc.messages[0].content.length > 150 ? "..." : ""}
+                    </div>
+                  )}
                 </div>
-
-                {esc.agentDecisions[0] && (
-                  <div className="mt-2">
-                    {esc.agentDecisions[0].escalationReason && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 mr-2">
-                        <AlertTriangle className="h-3 w-3" />
-                        {esc.agentDecisions[0].escalationReason}
-                      </span>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      {esc.agentDecisions[0].reasoning}
-                    </p>
-                  </div>
-                )}
-
-                {esc.messages[0] && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
-                    Última mensagem: {esc.messages[0].content.slice(0, 150)}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function KPICard({
-  icon: Icon,
-  label,
-  value,
-  subtitle,
-  color,
-}: {
-  icon: typeof Bot;
-  label: string;
-  value: string | number;
-  subtitle: string;
-  color: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={cn("h-4 w-4", color)} />
-        <span className="text-xs font-medium text-gray-500">{label}</span>
-      </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
+              ))
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

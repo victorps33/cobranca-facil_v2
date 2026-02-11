@@ -29,7 +29,15 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(tasks);
+
+    const mapped = tasks.map(({ customer, assignedTo, createdBy, ...t }) => ({
+      ...t,
+      customerName: customer?.name ?? "Desconhecido",
+      assignedTo: assignedTo?.name ?? null,
+      createdBy: createdBy?.name ?? "Sistema",
+    }));
+
+    return NextResponse.json(mapped);
   } catch {
     return NextResponse.json([]);
   }
@@ -54,7 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
-    const task = await prisma.collectionTask.create({
+    const created = await prisma.collectionTask.create({
       data: {
         customerId: body.customerId,
         chargeId: body.chargeId || null,
@@ -72,7 +80,13 @@ export async function POST(req: NextRequest) {
         createdBy: { select: { name: true } },
       },
     });
-    return NextResponse.json(task, { status: 201 });
+    const { customer: c, assignedTo: a, createdBy: cb, ...taskRest } = created;
+    return NextResponse.json({
+      ...taskRest,
+      customerName: c?.name ?? "Desconhecido",
+      assignedTo: a?.name ?? null,
+      createdBy: cb?.name ?? "Sistema",
+    }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Falha ao criar tarefa" }, { status: 500 });
   }

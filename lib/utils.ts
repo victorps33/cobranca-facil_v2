@@ -324,3 +324,28 @@ export const TASK_PRIORITY_COLORS: Record<string, string> = {
   ALTA: "bg-amber-50 text-amber-700",
   CRITICA: "bg-red-50 text-red-700",
 };
+
+// ============================================
+// CONVERSATION / INBOX HELPERS
+// ============================================
+
+export const CONVERSATION_STATUS_LABELS: Record<string, string> = {
+  ABERTA: "Aberta",
+  PENDENTE_IA: "Pendente IA",
+  PENDENTE_HUMANO: "Pendente Humano",
+  RESOLVIDA: "Resolvida",
+};
+
+export const CONVERSATION_STATUS_COLORS: Record<string, string> = {
+  ABERTA: "text-green-700 bg-green-50",
+  PENDENTE_IA: "text-yellow-700 bg-yellow-50",
+  PENDENTE_HUMANO: "text-red-700 bg-red-50",
+  RESOLVIDA: "text-gray-500 bg-gray-100",
+};
+
+export const CONVERSATION_STATUS_DOT_COLORS: Record<string, string> = {
+  ABERTA: "bg-green-400",
+  PENDENTE_IA: "bg-yellow-400",
+  PENDENTE_HUMANO: "bg-red-400",
+  RESOLVIDA: "bg-gray-300",
+};

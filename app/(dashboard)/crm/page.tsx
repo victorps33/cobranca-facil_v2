@@ -12,7 +12,8 @@ import { toast } from "@/components/ui/use-toast";
 import { CrmDashboard } from "@/components/crm/CrmDashboard";
 import { exportCrmClientsToXlsx } from "@/lib/crm-export";
 import type { CrmCustomer } from "@/lib/types/crm";
-import { Search, Users, AlertTriangle, DollarSign, ListTodo, ArrowUpDown, ArrowUp, ArrowDown, Download, Loader2 } from "lucide-react";
+import { Skeleton, KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { Search, Users, AlertTriangle, DollarSign, ListTodo, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
 
 type SortKey = "nome" | "status" | "valorAberto" | "totalVencido" | "qtdTarefasAbertas" | "ultimaInteracao";
 type SortDir = "asc" | "desc";
@@ -152,9 +153,27 @@ export default function CrmPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Carregando CRM...</span>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <KpiSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-28 w-full rounded-xl" />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-48 rounded-xl" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-full" />
+          ))}
+        </div>
+        <TableSkeleton rows={8} cols={6} />
       </div>
     );
   }

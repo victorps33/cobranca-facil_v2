@@ -52,6 +52,20 @@ interface ConversationDetail {
   }[];
 }
 
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    setMatches(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
+}
+
 export function InboxShell() {
   const [conversations, setConversations] = useState<ConversationListItem[]>(
     []
@@ -69,6 +83,7 @@ export function InboxShell() {
     "list"
   );
   const lastMessageId = useRef<string | null>(null);
+  const isMobile = useMediaQuery("(max-width: 1023px)");
 
   // Fetch conversations list
   const fetchConversations = useCallback(async () => {
@@ -135,7 +150,6 @@ export function InboxShell() {
 
   // Fetch unread counts
   const fetchUnreadIds = useCallback(async () => {
-    // Simple approach: conversations where status is PENDENTE_IA or PENDENTE_HUMANO are "unread"
     const unread = new Set<string>();
     conversations.forEach((c) => {
       if (c.status === "PENDENTE_IA" || c.status === "PENDENTE_HUMANO") {
@@ -159,7 +173,6 @@ export function InboxShell() {
   useEffect(() => {
     if (selectedId) {
       fetchDetail(selectedId);
-      // Mark as read
       fetch(`/api/inbox/conversations/${selectedId}/read`, {
         method: "POST",
       }).catch(() => {});
@@ -182,10 +195,9 @@ export function InboxShell() {
   const handleSendMessage = async (content: string, isInternal: boolean) => {
     if (!selectedId) return;
 
-    // Optimistic update
     const optimisticMsg = {
       id: `temp-${Date.now()}`,
-      sender: isInternal ? "AGENT" : "AGENT",
+      sender: "AGENT" as const,
       content,
       createdAt: new Date().toISOString(),
       isInternal,
@@ -209,7 +221,6 @@ export function InboxShell() {
       const msg = await res.json();
       if (msg.id) {
         lastMessageId.current = msg.id;
-        // Replace optimistic with real
         setDetail((prev) => {
           if (!prev) return prev;
           return {
@@ -221,7 +232,6 @@ export function InboxShell() {
         });
       }
     } catch {
-      // Revert optimistic update
       setDetail((prev) => {
         if (!prev) return prev;
         return {
@@ -240,16 +250,12 @@ export function InboxShell() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      setDetail((prev) =>
-        prev ? { ...prev, status } : prev
-      );
+      setDetail((prev) => (prev ? { ...prev, status } : prev));
       fetchConversations();
     } catch {
       // silently fail
     }
   };
-
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
 
   // Mobile: show either list or conversation
   if (isMobile && mobileView === "conversation") {
@@ -258,7 +264,7 @@ export function InboxShell() {
         <div className="flex-1 flex flex-col">
           <button
             onClick={() => setMobileView("list")}
-            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border-b border-gray-200"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border-b border-gray-200 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -278,6 +284,7 @@ export function InboxShell() {
 
   return (
     <div className="flex h-full">
+      {/* Conversation List — fixed width */}
       <ConversationList
         conversations={conversations}
         selectedId={selectedId}
@@ -292,6 +299,7 @@ export function InboxShell() {
         unreadIds={unreadIds}
       />
 
+      {/* Conversation View — flexible center */}
       <ConversationView
         conversation={detail}
         isLoading={isLoadingDetail}
@@ -301,6 +309,7 @@ export function InboxShell() {
         showSidePanel={showSidePanel}
       />
 
+      {/* Side Panel — toggleable */}
       {showSidePanel && detail && (
         <CustomerSidePanel customer={detail.customer} />
       )}

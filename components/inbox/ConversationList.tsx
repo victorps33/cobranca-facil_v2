@@ -2,7 +2,9 @@
 
 import { InboxFilters } from "./InboxFilters";
 import { ConversationListItem } from "./ConversationListItem";
-import { Loader2 } from "lucide-react";
+import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MessageSquare } from "lucide-react";
 
 interface Conversation {
   id: string;
@@ -63,12 +65,34 @@ export function ConversationList({
 
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          <div className="space-y-0">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="px-4 py-3 border-b border-gray-50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+            ))}
           </div>
         ) : conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <p className="text-sm text-gray-500">Nenhuma conversa encontrada</p>
+          <div className="px-4 py-8">
+            <FilterEmptyState
+              message="Nenhuma conversa encontrada."
+              suggestion="Tente ajustar os filtros ou aguarde novas mensagens."
+              icon={<MessageSquare className="h-6 w-6 text-gray-400" />}
+              onClear={
+                search || channelFilter || statusFilter
+                  ? () => {
+                      onSearchChange("");
+                      onChannelFilterChange(null);
+                      onStatusFilterChange(null);
+                    }
+                  : undefined
+              }
+            />
           </div>
         ) : (
           conversations.map((conv) => (
