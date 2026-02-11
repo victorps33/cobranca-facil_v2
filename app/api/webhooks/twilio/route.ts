@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone, verifyTwilioSignature } from "@/lib/agent/providers/twilio";
 import { createInteractionLog } from "@/lib/inbox/sync";
@@ -167,26 +166,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // TEMPORÁRIO: retorna diagnóstico em JSON
-    const dbUrl = process.env.DATABASE_URL || "NOT_SET";
-    const convCount = await prisma.conversation.count();
-    return NextResponse.json({
-      ok: true,
-      customerId: customer.id,
-      customerName: customer.name,
-      conversationId: conversation.id,
-      messageId: message.id,
-      dbHost: dbUrl.includes("@") ? dbUrl.split("@")[1]?.split("/")[0] : "unknown",
-      totalConversations: convCount,
-    });
+    return new Response(
+      '<Response></Response>',
+      { status: 200, headers: { "Content-Type": "text/xml" } }
+    );
   } catch (err) {
     console.error("[Webhook Twilio] Error:", err);
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({
-      ok: false,
-      error: msg,
-      dbUrl: process.env.DATABASE_URL ? "SET" : "NOT_SET",
-      directUrl: process.env.DIRECT_URL ? "SET" : "NOT_SET",
-    }, { status: 500 });
+    return new Response(
+      '<Response></Response>',
+      { status: 200, headers: { "Content-Type": "text/xml" } }
+    );
   }
 }
