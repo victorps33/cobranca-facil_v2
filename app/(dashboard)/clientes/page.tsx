@@ -189,7 +189,7 @@ export default function ClientesPage() {
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto min-h-[480px]">
               <table className="w-full text-sm" aria-label="Lista de franqueados">
                 <thead>
                   <tr className="border-b border-gray-100 text-left">

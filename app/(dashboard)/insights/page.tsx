@@ -626,7 +626,7 @@ export default function InsightsPage() {
 
   // ── Render ──
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)]">
+    <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>

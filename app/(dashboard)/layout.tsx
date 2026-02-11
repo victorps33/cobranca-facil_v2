@@ -14,7 +14,7 @@ export default function DashboardLayout({
         <TopBar />
         <main id="main-content" className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8">
           <ScrollToTop />
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto min-h-full">{children}</div>
         </main>
       </div>
     </div>
