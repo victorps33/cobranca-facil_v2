@@ -68,30 +68,55 @@ export async function dispatchMessage(
       },
     });
 
-    // Create InteractionLog (CRM compatibility)
+    // Create InteractionLog (skip if already created by inbox handler)
     if (customer) {
-      await createInteractionLog({
-        customerId: queueItem.customerId,
-        chargeId: queueItem.chargeId,
-        channel: queueItem.channel,
-        content: queueItem.content,
-        direction: "OUTBOUND",
-        franqueadoraId: queueItem.franqueadoraId,
-      });
-    }
-
-    // Create/update Message in Conversation
-    if (queueItem.conversationId) {
-      await prisma.message.create({
-        data: {
-          conversationId: queueItem.conversationId,
-          sender: "AI",
+      const recentLog = await prisma.interactionLog.findFirst({
+        where: {
+          customerId: queueItem.customerId,
+          direction: "OUTBOUND",
           content: queueItem.content,
-          contentType: "text",
-          channel: queueItem.channel,
-          externalId: result.providerMsgId,
+          createdAt: { gte: new Date(Date.now() - 60000) },
         },
       });
+      if (!recentLog) {
+        await createInteractionLog({
+          customerId: queueItem.customerId,
+          chargeId: queueItem.chargeId,
+          channel: queueItem.channel,
+          content: queueItem.content,
+          direction: "OUTBOUND",
+          franqueadoraId: queueItem.franqueadoraId,
+        });
+      }
+    }
+
+    // Create/update Message in Conversation (skip if already created by inbox handler)
+    if (queueItem.conversationId) {
+      const existingMessage = await prisma.message.findFirst({
+        where: {
+          conversationId: queueItem.conversationId,
+          content: queueItem.content,
+          createdAt: { gte: new Date(Date.now() - 60000) },
+        },
+      });
+
+      if (existingMessage) {
+        await prisma.message.update({
+          where: { id: existingMessage.id },
+          data: { externalId: result.providerMsgId },
+        });
+      } else {
+        await prisma.message.create({
+          data: {
+            conversationId: queueItem.conversationId,
+            sender: "AI",
+            content: queueItem.content,
+            contentType: "text",
+            channel: queueItem.channel,
+            externalId: result.providerMsgId,
+          },
+        });
+      }
 
       await prisma.conversation.update({
         where: { id: queueItem.conversationId },
