@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { normalizePhone } from "@/lib/agent/providers/twilio";
+import { normalizePhone, verifyTwilioSignature } from "@/lib/agent/providers/twilio";
 import { createInteractionLog } from "@/lib/inbox/sync";
 
 export async function POST(request: Request) {
@@ -10,6 +10,18 @@ export async function POST(request: Request) {
       string,
       string
     >;
+
+    // Verify Twilio signature
+    const signature = request.headers.get("x-twilio-signature") || "";
+    const url =
+      process.env.NEXTAUTH_URL
+        ? `${process.env.NEXTAUTH_URL}/api/webhooks/twilio`
+        : request.url;
+
+    if (process.env.TWILIO_AUTH_TOKEN && !verifyTwilioSignature(url, body, signature)) {
+      console.warn("[Webhook Twilio] Invalid signature");
+      return new Response("Forbidden", { status: 403 });
+    }
 
     // Extract message details
     const from = body.From || "";
@@ -21,7 +33,7 @@ export async function POST(request: Request) {
     const normalizedPhone = normalizePhone(from);
 
     // Find customer by phone
-    const customer = await prisma.customer.findFirst({
+    let customer = await prisma.customer.findFirst({
       where: {
         phone: {
           contains: normalizedPhone.replace("+55", ""),
@@ -29,9 +41,32 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!customer || !customer.franqueadoraId) {
-      // Still return 200 so Twilio doesn't retry
-      console.warn(`[Webhook Twilio] Customer not found for phone: ${normalizedPhone}`);
+    // Auto-create customer if not found
+    if (!customer) {
+      const defaultFranqueadora = await prisma.franqueadora.findFirst();
+      if (!defaultFranqueadora) {
+        console.warn("[Webhook Twilio] No franqueadora found — cannot create customer");
+        return new Response(
+          '<Response></Response>',
+          { status: 200, headers: { "Content-Type": "text/xml" } }
+        );
+      }
+
+      const profileName = body.ProfileName || normalizedPhone;
+      customer = await prisma.customer.create({
+        data: {
+          name: profileName,
+          doc: "",
+          email: "",
+          phone: normalizedPhone,
+          franqueadoraId: defaultFranqueadora.id,
+        },
+      });
+      console.log(`[Webhook Twilio] Auto-created customer: ${customer.id} (${profileName})`);
+    }
+
+    if (!customer.franqueadoraId) {
+      console.warn(`[Webhook Twilio] Customer ${customer.id} has no franqueadoraId`);
       return new Response(
         '<Response></Response>',
         { status: 200, headers: { "Content-Type": "text/xml" } }

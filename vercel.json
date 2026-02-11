@@ -1,16 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/dunning-run",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/message-dispatch",
-      "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/retry-failed",
-      "schedule": "0 14 * * *"
+      "path": "/api/cron/all",
+      "schedule": "0 12 * * *"
     }
   ]
 }
