@@ -122,6 +122,11 @@ export async function POST(
         },
       });
 
+      // Dispatch immediately (fire-and-forget)
+      dispatchMessage(queueItem).catch((err) =>
+        console.error("[Inbox] Dispatch error:", err)
+      );
+
       // Sync to InteractionLog
       await createInteractionLog({
         customerId: conversation.customerId,
