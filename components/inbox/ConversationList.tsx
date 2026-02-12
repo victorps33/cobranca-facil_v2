@@ -45,13 +45,15 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <div className="flex flex-col h-full border-r border-gray-200 bg-white w-80 flex-shrink-0">
-      <div className="h-14 flex items-center px-4 border-b border-gray-200">
-        <h2 className="text-base font-semibold text-gray-900">Inbox</h2>
-        {conversations.length > 0 && (
-          <span className="ml-2 text-xs text-gray-400">
-            {conversations.length}
-          </span>
-        )}
+      <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gray-900">Conversas</h2>
+          {conversations.length > 0 && (
+            <span className="text-xs tabular-nums text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md">
+              {conversations.length}
+            </span>
+          )}
+        </div>
       </div>
 
       <InboxFilters
@@ -63,9 +65,9 @@ export function ConversationList({
         onStatusFilterChange={onStatusFilterChange}
       />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {isLoading ? (
-          <div className="space-y-0">
+          <div>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="px-4 py-3 border-b border-gray-50 space-y-2">
                 <div className="flex items-center justify-between">

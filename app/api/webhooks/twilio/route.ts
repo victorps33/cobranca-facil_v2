@@ -12,10 +12,11 @@ export async function POST(request: Request) {
 
     // Verify Twilio signature
     const signature = request.headers.get("x-twilio-signature") || "";
-    const url =
-      process.env.NEXTAUTH_URL
-        ? `${process.env.NEXTAUTH_URL}/api/webhooks/twilio`
-        : request.url;
+    // Use WEBHOOK_BASE_URL (public URL) for signature verification, fallback to NEXTAUTH_URL or request.url
+    const webhookBaseUrl = process.env.WEBHOOK_BASE_URL || process.env.NEXTAUTH_URL;
+    const url = webhookBaseUrl
+      ? `${webhookBaseUrl}/api/webhooks/twilio`
+      : request.url;
 
     if (process.env.TWILIO_AUTH_TOKEN && !verifyTwilioSignature(url, body, signature)) {
       console.warn("[Webhook Twilio] Invalid signature");
@@ -23,7 +24,9 @@ export async function POST(request: Request) {
     }
 
     // Extract message details
-    const from = body.From || "";
+    console.log("[Webhook Twilio] Body keys:", Object.keys(body).join(", "));
+    console.log("[Webhook Twilio] From:", body.From, "To:", body.To, "WaId:", body.WaId);
+    const from = body.From || (body.WaId ? `whatsapp:+${body.WaId}` : "");
     const to = body.To || "";
     const messageBody = body.Body || "";
     const messageSid = body.MessageSid || "";

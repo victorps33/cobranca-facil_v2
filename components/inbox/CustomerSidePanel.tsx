@@ -43,7 +43,7 @@ export function CustomerSidePanel({ customer }: CustomerSidePanelProps) {
   const hasOverdue = customer.charges.some((c) => c.status === "OVERDUE");
 
   return (
-    <div className="w-72 flex-shrink-0 border-l border-gray-200 bg-white overflow-y-auto">
+    <div className="w-72 flex-shrink-0 border-l border-gray-200 bg-white overflow-y-auto min-h-0">
       {/* Header */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-3">

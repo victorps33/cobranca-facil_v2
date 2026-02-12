@@ -260,11 +260,11 @@ export function InboxShell() {
   // Mobile: show either list or conversation
   if (isMobile && mobileView === "conversation") {
     return (
-      <div className="flex h-full">
-        <div className="flex-1 flex flex-col">
+      <div className="flex h-full bg-white">
+        <div className="flex-1 flex flex-col min-h-0">
           <button
             onClick={() => setMobileView("list")}
-            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border-b border-gray-200 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 border-b border-gray-200 bg-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -283,8 +283,8 @@ export function InboxShell() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Conversation List — fixed width */}
+    <div className="flex h-full bg-white">
+      {/* Conversation List */}
       <ConversationList
         conversations={conversations}
         selectedId={selectedId}
@@ -299,7 +299,7 @@ export function InboxShell() {
         unreadIds={unreadIds}
       />
 
-      {/* Conversation View — flexible center */}
+      {/* Conversation View */}
       <ConversationView
         conversation={detail}
         isLoading={isLoadingDetail}
@@ -309,7 +309,7 @@ export function InboxShell() {
         showSidePanel={showSidePanel}
       />
 
-      {/* Side Panel — toggleable */}
+      {/* Side Panel */}
       {showSidePanel && detail && (
         <CustomerSidePanel customer={detail.customer} />
       )}
