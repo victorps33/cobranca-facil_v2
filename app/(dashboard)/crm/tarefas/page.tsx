@@ -23,9 +23,8 @@ import {
   TASK_STATUS_COLORS,
   TASK_PRIORITY_LABELS,
   TASK_PRIORITY_COLORS,
-} from "@/lib/data/crm-tasks-dummy";
-import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
-import type { CrmTask as ApiCrmTask } from "@/lib/types/crm";
+} from "@/lib/crm-constants";
+import type { CrmTask } from "@/lib/types/crm";
 import type { UserRole } from "@prisma/client";
 import { Skeleton, KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import {
@@ -60,7 +59,7 @@ const PRIORITY_ORDER: Record<string, number> = {
   BAIXA: 3,
 };
 
-function mapApiTask(t: ApiCrmTask): CrmTask {
+function mapApiTask(t: CrmTask): CrmTask {
   return {
     id: t.id,
     customerId: t.customerId,
@@ -124,7 +123,7 @@ export default function TarefasPage() {
         if (!res.ok) throw new Error();
         return res.json();
       })
-      .then((data: ApiCrmTask[]) => setTasks(data.map(mapApiTask)))
+      .then((data: CrmTask[]) => setTasks(data.map(mapApiTask)))
       .catch(() => {
         setTasks([]);
         toast({

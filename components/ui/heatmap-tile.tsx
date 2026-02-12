@@ -9,26 +9,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 
-// ── Dados derivados do ciclo mais recente de apuração ──
-
-const latestCiclo = ciclosHistorico[0];
-
-const heatmapData = latestCiclo.detalhes
-  .map((d) => ({
-    name: d.franqueado.replace("Franquia ", ""),
-    value: Math.round(d.faturamento / 100), // centavos → reais
-  }))
-  .sort((a, b) => b.value - a.value);
-
-const maxValue = heatmapData[0]?.value || 1;
-const dataWithPercentage = heatmapData.map((d) => ({
-  ...d,
-  percentage: Math.round((d.value / maxValue) * 100),
-}));
-
-// ── Cores por intensidade ──
+interface HeatmapTileProps {
+  data: { name: string; value: number }[];
+  competencia: string;
+}
 
 const getBarColor = (percentage: number) => {
   if (percentage >= 80) return "#F85B00";
@@ -63,9 +48,17 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// ── Componente ──
+export function HeatmapTile({ data, competencia }: HeatmapTileProps) {
+  if (!data || data.length === 0) return null;
 
-export function HeatmapTile() {
+  const sortedData = [...data].sort((a, b) => b.value - a.value);
+  const maxValue = sortedData[0]?.value || 1;
+  const dataWithPercentage = sortedData.map((d) => ({
+    ...d,
+    name: d.name.replace("Franquia ", ""),
+    percentage: Math.round((d.value / maxValue) * 100),
+  }));
+
   const total = dataWithPercentage.reduce((acc, item) => acc + item.value, 0);
 
   return (
@@ -78,7 +71,7 @@ export function HeatmapTile() {
               Concentração de Faturamento
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
-              Distribuição por franqueado — {latestCiclo.competenciaShort}
+              Distribuição por franqueado — {competencia}
             </p>
           </div>
           <div className="text-right">

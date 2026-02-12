@@ -9,9 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { TASK_PRIORITY_LABELS } from "@/lib/data/crm-tasks-dummy";
-import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
-import type { TenantUser } from "@/lib/types/crm";
+import { TASK_PRIORITY_LABELS } from "@/lib/crm-constants";
+import type { CrmTask, TenantUser } from "@/lib/types/crm";
 
 interface CreateTaskDialogProps {
   open: boolean;

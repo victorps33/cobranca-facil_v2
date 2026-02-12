@@ -232,7 +232,13 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
 
           {/* Footer text below card */}
           <p className="mt-6 text-center text-sm text-gray-500">
-            Plataforma de cobranças Menlo
+            Não tem conta?{" "}
+            <a
+              href="/auth/registro"
+              className="font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+            >
+              Cadastre-se
+            </a>
           </p>
         </div>
       </div>

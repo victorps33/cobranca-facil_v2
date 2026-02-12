@@ -10,10 +10,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Copy, Check, Printer } from "lucide-react";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
-import type { Franqueado } from "@/lib/data/clientes-dummy";
-import { getBoletoByCobranca } from "@/lib/data/documentos-dummy";
-import { FRANQUEADORA, fmt, fmtDate } from "@/lib/constants";
+import type { Cobranca, Franqueado } from "@/lib/types";
+import { fmt, fmtDate } from "@/lib/constants";
 
 interface BoletoViewerDialogProps {
   open: boolean;
@@ -32,25 +30,17 @@ export function BoletoViewerDialog({
 
   if (!cobranca) return null;
 
-  // Use centralized dummy data
-  const boleto = getBoletoByCobranca(cobranca.id);
-
   const vencNum = cobranca.dataVencimento.replace(/-/g, "");
   const valorNum = String(cobranca.valorOriginal).padStart(10, "0");
-  const linhaDigitavel = boleto?.linhaDigitavel
-    ?? `23793.38128 60000.000003 00000.000401 1 ${vencNum}${valorNum}`;
+  const linhaDigitavel = `23793.38128 60000.000003 00000.000401 1 ${vencNum}${valorNum}`;
 
-  const bancoNum = boleto?.bancoNumero ?? "237";
-  const bancoNome = boleto?.bancoNome ?? "Bradesco";
-  const agenciaConta = boleto
-    ? `${boleto.agencia} / ${boleto.conta}`
-    : "0237 / 12345-6";
-  const nossoNumero = boleto?.nossoNumero
-    ?? `237/${cobranca.id.slice(0, 11).toUpperCase()}`;
-  const numDocumento = boleto?.numeroDocumento
-    ?? cobranca.id.slice(0, 8).toUpperCase();
+  const bancoNum = "237";
+  const bancoNome = "Bradesco";
+  const agenciaConta = "0237 / 12345-6";
+  const nossoNumero = `237/${cobranca.id.slice(0, 11).toUpperCase()}`;
+  const numDocumento = cobranca.id.slice(0, 8).toUpperCase();
 
-  const instrucoes = boleto?.instrucoes ?? [
+  const instrucoes = [
     "Após o vencimento, cobrar multa de 2% sobre o valor do documento e juros de mora de 1% ao mês.",
     "Não receber após 30 dias do vencimento.",
   ];
@@ -92,13 +82,7 @@ export function BoletoViewerDialog({
                 Beneficiário / Cedente
               </p>
               <p className="font-semibold text-gray-900">
-                {boleto?.cedente.razaoSocial ?? FRANQUEADORA.razaoSocial}
-              </p>
-              <p className="text-xs text-gray-600">
-                CNPJ: {boleto?.cedente.cnpj ?? FRANQUEADORA.cnpj}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {boleto?.cedente.endereco ?? FRANQUEADORA.endereco}
+                {cobranca.cliente}
               </p>
             </div>
             <div className="p-4">
@@ -106,12 +90,6 @@ export function BoletoViewerDialog({
                 Agência / Código do Beneficiário
               </p>
               <p className="font-semibold text-gray-900 tabular-nums">{agenciaConta}</p>
-              {boleto && (
-                <div className="mt-2">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Carteira</p>
-                  <p className="text-xs font-medium text-gray-700">{boleto.carteira}</p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -169,40 +147,17 @@ export function BoletoViewerDialog({
             </div>
           </div>
 
-          {/* ── Multa e Juros (se dados disponíveis) ── */}
-          {boleto && (boleto.valorMulta > 0 || boleto.valorJuros > 0) && (
-            <div className="grid grid-cols-3 border-b border-gray-300 bg-red-50/50">
-              <div className="p-4 border-r border-gray-300">
-                <p className="text-[10px] text-red-400 uppercase tracking-wide mb-1">Multa (2%)</p>
-                <p className="font-medium text-red-700 tabular-nums">{fmt(boleto.valorMulta)}</p>
-              </div>
-              <div className="p-4 border-r border-gray-300">
-                <p className="text-[10px] text-red-400 uppercase tracking-wide mb-1">Juros de mora</p>
-                <p className="font-medium text-red-700 tabular-nums">{fmt(boleto.valorJuros)}</p>
-              </div>
-              <div className="p-4">
-                <p className="text-[10px] text-red-400 uppercase tracking-wide mb-1">Total com encargos</p>
-                <p className="font-bold text-red-700 tabular-nums">
-                  {fmt(cobranca.valorOriginal + boleto.valorMulta + boleto.valorJuros)}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* ── Sacado ── */}
           <div className="p-4 border-b border-gray-300">
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">
               Pagador / Sacado
             </p>
             <p className="font-semibold text-gray-900">
-              {boleto?.sacado.razaoSocial ?? franqueado?.razaoSocial ?? cobranca.cliente}
+              {franqueado?.razaoSocial ?? cobranca.cliente}
             </p>
             <p className="text-xs text-gray-600">
-              CNPJ: {boleto?.sacado.cnpj ?? franqueado?.cnpj ?? "—"}
+              CNPJ: {franqueado?.cnpj ?? "—"}
             </p>
-            {boleto?.sacado.endereco && (
-              <p className="text-xs text-gray-500 mt-0.5">{boleto.sacado.endereco}</p>
-            )}
           </div>
 
           {/* ── Instruções ── */}

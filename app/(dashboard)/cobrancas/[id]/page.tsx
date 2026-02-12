@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { cobrancasDummy } from "@/lib/data/cobrancas-dummy";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
-import { franqueadosDummy } from "@/lib/data/clientes-dummy";
+import type { Cobranca, Franqueado } from "@/lib/types";
 import {
   ArrowLeft,
   Copy,
@@ -20,7 +18,7 @@ import {
   CornerDownLeft,
   Barcode,
 } from "lucide-react";
-import { FRANQUEADORA, fmt, fmtDate } from "@/lib/constants";
+import { fmt, fmtDate } from "@/lib/constants";
 import { NotaFiscalViewerDialog } from "@/components/cobrancas/NotaFiscalViewerDialog";
 import { BoletoViewerDialog } from "@/components/cobrancas/BoletoViewerDialog";
 import { PixComprovanteDialog } from "@/components/cobrancas/PixComprovanteDialog";
@@ -59,7 +57,7 @@ function relativeDate(
   payDateIso?: string,
 ): string {
   if (status === "Paga" && payDateIso) return `Paga em ${fmtDate(payDateIso)}`;
-  const today = new Date("2026-02-07T12:00:00");
+  const today = new Date();
   const due = new Date(dueDateIso + "T12:00:00");
   const diff = Math.round(
     (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
@@ -71,12 +69,17 @@ function relativeDate(
   return `Vencida há ${abs} dia${abs > 1 ? "s" : ""}.`;
 }
 
+interface FranqueadoraInfo {
+  nome: string;
+  razaoSocial: string;
+  cnpj: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function CobrancaDetalhePage() {
   const params = useParams();
-  const router = useRouter();
   const [paymentTab, setPaymentTab] = useState<"pix" | "boleto">("pix");
   const [calculoOpen, setCalculoOpen] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -84,7 +87,45 @@ export default function CobrancaDetalhePage() {
   const [boletoViewerOpen, setBoletoViewerOpen] = useState(false);
   const [pixComprovanteOpen, setPixComprovanteOpen] = useState(false);
 
-  const cobranca = cobrancasDummy.find((c) => c.id === params.id);
+  const [cobranca, setCobranca] = useState<Cobranca | null>(null);
+  const [franqueado, setFranqueado] = useState<Franqueado | null>(null);
+  const [franqueadora, setFranqueadora] = useState<FranqueadoraInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/charges").then((r) => r.json()),
+      fetch("/api/customers").then((r) => r.json()),
+      fetch("/api/franqueadora").then((r) => r.json()),
+    ])
+      .then(([charges, customers, franqueadoraData]) => {
+        const found = Array.isArray(charges)
+          ? charges.find((c: Cobranca) => c.id === params.id) ?? null
+          : null;
+        setCobranca(found);
+
+        if (found && Array.isArray(customers)) {
+          const customer = customers.find(
+            (f: Franqueado) => f.id === found.clienteId,
+          );
+          setFranqueado(customer ?? null);
+        }
+
+        if (franqueadoraData) {
+          setFranqueadora(franqueadoraData);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 h-96 animate-pulse" />
+      </div>
+    );
+  }
 
   if (!cobranca) {
     return (
@@ -107,14 +148,6 @@ export default function CobrancaDetalhePage() {
       </div>
     );
   }
-
-  const franqueado = franqueadosDummy.find((f) => f.id === cobranca.clienteId);
-  const ciclo = ciclosHistorico.find(
-    (c) => c.competencia === cobranca.competencia,
-  );
-  const detalhe = ciclo?.detalhes.find(
-    (d) => d.franqueado === cobranca.cliente,
-  );
 
   const pixCode = `00020101021226840014br.gov.bcb.pix2562qrcode.cobrancafacil.com/v2/cobv/${cobranca.id}`;
   const vencNum = cobranca.dataVencimento.replace(/-/g, "");
@@ -167,7 +200,7 @@ export default function CobrancaDetalhePage() {
               {/* ID */}
               <div className="flex items-center gap-1.5 mb-8">
                 <span className="text-sm text-gray-400">
-                  ID #{cobranca.id}
+                  ID #{cobranca.id.slice(0, 8)}
                 </span>
                 <button
                   onClick={() => copy(cobranca.id, "id")}
@@ -258,13 +291,13 @@ export default function CobrancaDetalhePage() {
               <div className="space-y-1">
                 <p className="text-xs text-gray-400 mb-2">Franqueadora</p>
                 <p className="text-sm font-semibold text-gray-900">
-                  {FRANQUEADORA.nome}
+                  {franqueadora?.nome ?? "—"}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {FRANQUEADORA.razaoSocial}
+                  {franqueadora?.razaoSocial ?? "—"}
                 </p>
                 <p className="text-sm text-gray-500 tabular-nums">
-                  {FRANQUEADORA.cnpj}
+                  {franqueadora?.cnpj ?? "—"}
                 </p>
               </div>
             </div>
@@ -320,88 +353,18 @@ export default function CobrancaDetalhePage() {
               <>
                 <div className="mx-8 border-t border-gray-100" />
                 <div className="px-8 pt-5 pb-8 space-y-0">
-                  {detalhe ? (
-                    <>
-                      {/* Faturamento apurado */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <span className="text-sm text-gray-600">
-                          Faturamento apurado
-                        </span>
-                        <span className="text-sm font-medium text-gray-900 tabular-nums">
-                          {fmt(detalhe.faturamento)}
-                        </span>
-                      </div>
-
-                      {/* Royalties */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <div className="flex items-baseline gap-3">
-                          <span className="text-sm text-gray-600">
-                            Taxa de Royalties
-                          </span>
-                          <span className="text-sm text-gray-400">4%</span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 tabular-nums">
-                          {fmt(detalhe.royalties)}
-                        </span>
-                      </div>
-
-                      {/* Marketing */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <div className="flex items-baseline gap-3">
-                          <span className="text-sm text-gray-600">
-                            Taxa de Marketing
-                          </span>
-                          <span className="text-sm text-gray-400">2%</span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 tabular-nums">
-                          {fmt(detalhe.marketing)}
-                        </span>
-                      </div>
-
-                      {/* Treinamento BB2 */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <div className="flex items-baseline gap-3">
-                          <span className="text-sm text-gray-600">
-                            Treinamento BB2
-                          </span>
-                          <span className="text-sm text-gray-400">
-                            Brilhante no básico
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 tabular-nums">
-                          R$ 1.200,00
-                        </span>
-                      </div>
-
-                      {/* Crédito */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <div className="flex items-baseline gap-3">
-                          <span className="text-sm text-teal-600">
-                            Crédito
-                          </span>
-                          <span className="text-sm text-gray-400">
-                            Correção de ciclo anterior
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-teal-600 tabular-nums">
-                          − R$ 52,00
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
-                        <span className="text-sm text-gray-600">
-                          {cobranca.descricao}
-                        </span>
-                        <span className="text-sm font-medium text-gray-900 tabular-nums">
-                          {fmt(cobranca.valorOriginal)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 pt-2 pb-2">
-                        Cobrança avulsa — sem dados de apuração vinculados.
-                      </p>
-                    </>
+                  <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">
+                      {cobranca.descricao}
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 tabular-nums">
+                      {fmt(cobranca.valorOriginal)}
+                    </span>
+                  </div>
+                  {cobranca.categoria && (
+                    <p className="text-xs text-gray-400 pt-2 pb-2">
+                      Categoria: {cobranca.categoria}
+                    </p>
                   )}
 
                   {/* Total */}
@@ -599,7 +562,6 @@ export default function CobrancaDetalhePage() {
         onOpenChange={setNfViewerOpen}
         cobranca={cobranca}
         franqueado={franqueado}
-        detalhe={detalhe}
       />
       <BoletoViewerDialog
         open={boletoViewerOpen}

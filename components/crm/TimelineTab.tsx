@@ -13,18 +13,15 @@ import {
   CheckCircle2,
   Bot,
 } from "lucide-react";
-import type { CrmInteraction } from "@/lib/data/crm-interactions-dummy";
-import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
+import type { CrmInteraction, CrmTask } from "@/lib/types/crm";
+import type { Cobranca } from "@/lib/types";
 import {
   INTERACTION_TYPE_LABELS,
   DIRECTION_LABELS,
-} from "@/lib/data/crm-interactions-dummy";
-import {
   TASK_STATUS_LABELS,
   TASK_PRIORITY_LABELS,
   TASK_PRIORITY_COLORS,
-} from "@/lib/data/crm-tasks-dummy";
+} from "@/lib/crm-constants";
 
 // ── Types ──
 

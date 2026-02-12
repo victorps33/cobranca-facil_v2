@@ -17,7 +17,7 @@ import {
   completeImportedRows,
   type ParseResult,
 } from "@/lib/franqueados-import-export";
-import type { Franqueado } from "@/lib/data/clientes-dummy";
+import type { Franqueado } from "@/lib/types";
 
 type DialogState = "idle" | "parsing" | "preview";
 

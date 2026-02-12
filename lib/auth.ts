@@ -4,8 +4,13 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
+import { createDefaultDunningRule } from "@/lib/default-dunning-rule";
 
-const ALLOWED_GOOGLE_DOMAINS = ["menlopagamentos.com.br", "gmail.com"];
+// Optional: restrict Google OAuth to specific domains via env var
+// Example: ALLOWED_GOOGLE_DOMAINS=menlopagamentos.com.br,gmail.com
+const ALLOWED_GOOGLE_DOMAINS = process.env.ALLOWED_GOOGLE_DOMAINS
+  ? process.env.ALLOWED_GOOGLE_DOMAINS.split(",").map((d) => d.trim())
+  : null; // null = allow all domains
 
 const providers: Provider[] = [];
 
@@ -32,7 +37,7 @@ providers.push(
       if (!credentials?.email || !credentials?.password) return null;
 
       const user = await prisma.user.findUnique({
-        where: { email: credentials.email },
+        where: { email: credentials.email.toLowerCase() },
       });
 
       if (!user || !user.password) return null;
@@ -47,6 +52,7 @@ providers.push(
         image: user.image,
         role: user.role,
         franqueadoraId: user.franqueadoraId,
+        onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
       };
     },
   })
@@ -58,12 +64,16 @@ export const authOptions: NextAuthOptions = {
   providers,
   callbacks: {
     async signIn({ user, account }) {
-      // Google OAuth: only allow specific domains
       if (account?.provider === "google") {
         const email = user.email;
-        const domain = email?.split("@")[1];
-        if (!domain || !ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
-          return false;
+        if (!email) return false;
+
+        // Optional domain restriction
+        if (ALLOWED_GOOGLE_DOMAINS) {
+          const domain = email.split("@")[1];
+          if (!domain || !ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+            return false;
+          }
         }
 
         // Auto-provision: find or create user in DB
@@ -72,15 +82,29 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!dbUser) {
-          const franqueadora = await prisma.franqueadora.findFirst();
-          dbUser = await prisma.user.create({
-            data: {
-              email,
-              name: user.name,
-              image: user.image,
-              role: "VISUALIZADOR",
-              franqueadoraId: franqueadora?.id ?? null,
-            },
+          // Create Franqueadora + User + Default Dunning Rule in a transaction
+          dbUser = await prisma.$transaction(async (tx) => {
+            const franqueadora = await tx.franqueadora.create({
+              data: {
+                nome: user.name || "Minha Empresa",
+                razaoSocial: user.name || "Minha Empresa",
+                email,
+              },
+            });
+
+            const newUser = await tx.user.create({
+              data: {
+                email,
+                name: user.name,
+                image: user.image,
+                role: "ADMINISTRADOR",
+                franqueadoraId: franqueadora.id,
+              },
+            });
+
+            await createDefaultDunningRule(tx, franqueadora.id);
+
+            return newUser;
           });
         }
 
@@ -88,6 +112,7 @@ export const authOptions: NextAuthOptions = {
         user.id = dbUser.id;
         user.role = dbUser.role;
         user.franqueadoraId = dbUser.franqueadoraId;
+        user.onboardingCompletedAt = dbUser.onboardingCompletedAt?.toISOString() ?? null;
       }
 
       return true;
@@ -98,16 +123,31 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.franqueadoraId = user.franqueadoraId;
+        token.onboardingCompletedAt = user.onboardingCompletedAt;
       }
 
       // Se franqueadoraId ainda é null, verificar no banco (pode ter sido associada após login)
       if (!token.franqueadoraId && token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { franqueadoraId: true },
+          select: { franqueadoraId: true, onboardingCompletedAt: true },
         });
         if (dbUser?.franqueadoraId) {
           token.franqueadoraId = dbUser.franqueadoraId;
+        }
+        if (dbUser?.onboardingCompletedAt) {
+          token.onboardingCompletedAt = dbUser.onboardingCompletedAt.toISOString();
+        }
+      }
+
+      // Re-fetch onboardingCompletedAt if null (may have been completed after login)
+      if (!token.onboardingCompletedAt && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { onboardingCompletedAt: true },
+        });
+        if (dbUser?.onboardingCompletedAt) {
+          token.onboardingCompletedAt = dbUser.onboardingCompletedAt.toISOString();
         }
       }
 
@@ -118,6 +158,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.franqueadoraId = token.franqueadoraId;
+        session.user.onboardingCompletedAt = token.onboardingCompletedAt;
       }
       return session;
     },

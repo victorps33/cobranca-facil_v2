@@ -2,6 +2,12 @@ import { PrismaClient } from "@prisma/client";
 import { addDays, subDays } from "date-fns";
 import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
+import {
+  TEMPLATE_EMAIL_D5,
+  TEMPLATE_WHATSAPP_D1,
+  TEMPLATE_SMS_D3,
+  TEMPLATE_WHATSAPP_D7,
+} from "../lib/default-dunning-rule";
 
 const prisma = new PrismaClient();
 
@@ -86,18 +92,6 @@ const customersData: Array<{
   // ── all_paid (1 client with all PAID) ──
   { name: "Diego Monteiro", doc: "090.123.456-90", email: "diego@email.com", phone: "(85) 96666-1111", profile: "all_paid" },
 ];
-
-// Template presets
-const TEMPLATE_EMAIL_D5 = `Olá, {{nome}}! 😊
-Só um lembrete de que a cobrança **{{descricao}}** no valor de **{{valor}}** vence em **{{vencimento}}**.
-Boleto: {{link_boleto}}
-Se já estiver tudo certo, pode ignorar esta mensagem. Obrigado!`;
-
-const TEMPLATE_WHATSAPP_D1 = `Oi, {{nome}}! Lembrete: **{{descricao}}** ({{valor}}) vence amanhã ({{vencimento}}). Boleto: {{link_boleto}}`;
-
-const TEMPLATE_SMS_D3 = `{{nome}}, a cobrança {{descricao}} ({{valor}}) venceu em {{vencimento}}. Para pagar: {{link_boleto}}`;
-
-const TEMPLATE_WHATSAPP_D7 = `Oi, {{nome}}. A cobrança **{{descricao}}** ({{valor}}) segue em aberto desde **{{vencimento}}**. 2ª via: {{link_boleto}}. Se precisar negociar, me avise.`;
 
 // ── Charge helper ──
 const chargeDescriptions = [
@@ -334,6 +328,8 @@ async function main() {
         password: adminPassword,
         role: "ADMINISTRADOR",
         franqueadoraId: franqueadora.id,
+        onboardingCompletedAt: new Date(),
+        checklistDismissedAt: new Date(),
       },
     }),
     prisma.user.create({
@@ -343,6 +339,8 @@ async function main() {
         password: userPassword,
         role: "FINANCEIRO",
         franqueadoraId: franqueadora.id,
+        onboardingCompletedAt: new Date(),
+        checklistDismissedAt: new Date(),
       },
     }),
     prisma.user.create({
@@ -352,6 +350,8 @@ async function main() {
         password: userPassword,
         role: "OPERACIONAL",
         franqueadoraId: franqueadora.id,
+        onboardingCompletedAt: new Date(),
+        checklistDismissedAt: new Date(),
       },
     }),
     prisma.user.create({
@@ -361,6 +361,8 @@ async function main() {
         password: userPassword,
         role: "VISUALIZADOR",
         franqueadoraId: franqueadora.id,
+        onboardingCompletedAt: new Date(),
+        checklistDismissedAt: new Date(),
       },
     }),
   ]);

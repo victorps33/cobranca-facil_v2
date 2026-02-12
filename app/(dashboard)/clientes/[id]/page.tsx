@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { TooltipHint } from "@/components/ui/tooltip-hint";
-import { franqueadosDummy } from "@/lib/data/clientes-dummy";
-import { cobrancasDummy } from "@/lib/data/cobrancas-dummy";
+import type { Franqueado, Cobranca } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import {
   MapPin,
@@ -19,8 +18,6 @@ import {
   Contact,
 } from "lucide-react";
 
-// ── Helpers ──
-
 const fmtBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     cents / 100
@@ -30,10 +27,10 @@ const fmtDate = (dateStr: string) =>
   new Intl.DateTimeFormat("pt-BR").format(new Date(dateStr));
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  Saudável:       { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-  Controlado:     { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-500" },
+  "Saudável":       { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+  "Controlado":     { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-500" },
   "Exige Atenção": { bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-500" },
-  Crítico:        { bg: "bg-red-50",     text: "text-red-700",     dot: "bg-red-500" },
+  "Crítico":        { bg: "bg-red-50",     text: "text-red-700",     dot: "bg-red-500" },
 };
 
 const cobrancaStatusColors: Record<string, { bg: string; text: string }> = {
@@ -43,35 +40,39 @@ const cobrancaStatusColors: Record<string, { bg: string; text: string }> = {
   Cancelada: { bg: "bg-gray-100",   text: "text-gray-500" },
 };
 
-// ── Component ──
-
 export default function ClienteDetalhePage() {
   const params = useParams();
-  const router = useRouter();
+  const [franqueado, setFranqueado] = useState<Franqueado | null>(null);
+  const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const franqueado = useMemo(
-    () => franqueadosDummy.find((f) => f.id === params.id) ?? null,
-    [params.id]
-  );
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/customers").then((r) => r.json()),
+      fetch("/api/charges").then((r) => r.json()),
+    ]).then(([customers, charges]) => {
+      const found = Array.isArray(customers)
+        ? customers.find((f: Franqueado) => f.id === params.id) ?? null
+        : null;
+      setFranqueado(found);
 
-  const cobrancas = useMemo(
-    () =>
-      cobrancasDummy
-        .filter((c) => c.clienteId === params.id)
-        .sort((a, b) => b.dataVencimento.localeCompare(a.dataVencimento)),
-    [params.id]
-  );
+      const clienteCharges = Array.isArray(charges)
+        ? charges
+            .filter((c: Cobranca) => c.clienteId === params.id)
+            .sort((a: Cobranca, b: Cobranca) => b.dataVencimento.localeCompare(a.dataVencimento))
+        : [];
+      setCobrancas(clienteCharges);
+    }).finally(() => setLoading(false));
+  }, [params.id]);
 
-  const stats = useMemo(() => {
-    const vencidas = cobrancas.filter((c) => c.status === "Vencida");
-    const pagas = cobrancas.filter((c) => c.status === "Paga");
-    return {
-      total: cobrancas.length,
-      vencidas: vencidas.length,
-      pagas: pagas.length,
-      valorVencido: vencidas.reduce((s, c) => s + c.valorAberto, 0),
-    };
-  }, [cobrancas]);
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs items={[{ label: "Franqueados", href: "/clientes" }, { label: "Carregando..." }]} />
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 h-64 animate-pulse" />
+      </div>
+    );
+  }
 
   if (!franqueado) {
     return (
@@ -96,17 +97,22 @@ export default function ClienteDetalhePage() {
     );
   }
 
-  const sc = statusColors[franqueado.status] ?? statusColors.Saudável;
+  const sc = statusColors[franqueado.status] ?? statusColors["Saudável"];
+
+  const stats = {
+    total: cobrancas.length,
+    vencidas: cobrancas.filter((c) => c.status === "Vencida").length,
+    pagas: cobrancas.filter((c) => c.status === "Paga").length,
+    valorVencido: cobrancas.filter((c) => c.status === "Vencida").reduce((s, c) => s + c.valorAberto, 0),
+  };
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: "Franqueados", href: "/clientes" },
         { label: franqueado.nome },
       ]} />
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900 truncate">
@@ -137,7 +143,6 @@ export default function ClienteDetalhePage() {
         </div>
       </div>
 
-      {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-4">
         {[
           {
@@ -188,16 +193,14 @@ export default function ClienteDetalhePage() {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">Informações</h3>
         <div className="grid gap-3 sm:grid-cols-2 text-sm">
-          {/* Responsável e Telefone agrupados */}
           <div className="flex items-center gap-3 text-gray-600">
             <User className="h-4 w-4 text-gray-400 shrink-0" />
-            <span>{franqueado.responsavel}</span>
+            <span>{franqueado.responsavel || "—"}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-600">
             <Phone className="h-4 w-4 text-gray-400 shrink-0" />
-            <span>{franqueado.telefone}</span>
+            <span>{franqueado.telefone || "—"}</span>
           </div>
-          {/* Email e Endereço */}
           <div className="flex items-center gap-3 text-gray-600">
             <Mail className="h-4 w-4 text-gray-400 shrink-0" />
             <span className="truncate">{franqueado.email}</span>
@@ -205,17 +208,22 @@ export default function ClienteDetalhePage() {
           <div className="flex items-center gap-3 text-gray-600">
             <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
             <span>
-              {franqueado.bairro}, {franqueado.cidade}/{franqueado.estado}
+              {franqueado.bairro && franqueado.cidade
+                ? `${franqueado.bairro}, ${franqueado.cidade}/${franqueado.estado}`
+                : "—"}
             </span>
           </div>
-          {/* Loja e Data */}
           <div className="flex items-center gap-3 text-gray-600">
             <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
             <span>Loja {franqueado.statusLoja}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-600">
             <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-            <span>Aberta em {fmtDate(franqueado.dataAbertura)}</span>
+            <span>
+              {franqueado.dataAbertura
+                ? `Aberta em ${fmtDate(franqueado.dataAbertura)}`
+                : "—"}
+            </span>
           </div>
         </div>
       </div>
@@ -237,27 +245,13 @@ export default function ClienteDetalhePage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Descrição
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Categoria
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Vencimento
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">
-                    Valor
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">
-                    Aberto
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Pagamento
-                  </th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
-                    Status
-                  </th>
+                  <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Descrição</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Categoria</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Vencimento</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Valor</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Aberto</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Pagamento</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,38 +263,20 @@ export default function ClienteDetalhePage() {
                       className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3">
-                        <p className="font-medium text-gray-900 truncate max-w-[200px]">
-                          {c.descricao}
-                        </p>
+                        <p className="font-medium text-gray-900 truncate max-w-[200px]">{c.descricao}</p>
                         <p className="text-xs text-gray-400">{c.competencia}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{c.categoria}</td>
-                      <td className="px-4 py-3 text-gray-600 tabular-nums">
-                        {fmtDate(c.dataVencimento)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-900 tabular-nums font-medium">
-                        {fmtBRL(c.valorOriginal)}
-                      </td>
+                      <td className="px-4 py-3 text-gray-600 tabular-nums">{fmtDate(c.dataVencimento)}</td>
+                      <td className="px-4 py-3 text-right text-gray-900 tabular-nums font-medium">{fmtBRL(c.valorOriginal)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        <span
-                          className={
-                            c.valorAberto > 0
-                              ? "text-red-600 font-medium"
-                              : "text-gray-400"
-                          }
-                        >
+                        <span className={c.valorAberto > 0 ? "text-red-600 font-medium" : "text-gray-400"}>
                           {c.valorAberto > 0 ? fmtBRL(c.valorAberto) : "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{c.formaPagamento}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                            sc2.bg,
-                            sc2.text
-                          )}
-                        >
+                        <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", sc2.bg, sc2.text)}>
                           {c.status}
                         </span>
                       </td>

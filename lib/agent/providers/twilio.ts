@@ -25,7 +25,8 @@ export function normalizePhone(phone: string): string {
 
 export async function sendWhatsApp(
   to: string,
-  body: string
+  body: string,
+  fromOverride?: string
 ): Promise<DispatchResult> {
   const client = getClient();
   if (!client) {
@@ -33,7 +34,7 @@ export async function sendWhatsApp(
     return { success: true, providerMsgId: `mock-wa-${Date.now()}` };
   }
 
-  const from = process.env.TWILIO_WHATSAPP_FROM;
+  const from = fromOverride || process.env.TWILIO_WHATSAPP_FROM;
   if (!from) {
     return { success: false, error: "TWILIO_WHATSAPP_FROM not configured" };
   }
@@ -56,7 +57,8 @@ export async function sendWhatsApp(
 
 export async function sendSms(
   to: string,
-  body: string
+  body: string,
+  fromOverride?: string
 ): Promise<DispatchResult> {
   const client = getClient();
   if (!client) {
@@ -64,7 +66,7 @@ export async function sendSms(
     return { success: true, providerMsgId: `mock-sms-${Date.now()}` };
   }
 
-  const from = process.env.TWILIO_SMS_FROM;
+  const from = fromOverride || process.env.TWILIO_SMS_FROM;
   if (!from) {
     return { success: false, error: "TWILIO_SMS_FROM not configured" };
   }

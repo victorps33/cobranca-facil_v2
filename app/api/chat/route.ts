@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { franqueadosDummy } from "@/lib/data/clientes-dummy";
-import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
+import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/auth-helpers";
 
 // ── Anthropic client ──
@@ -66,7 +64,7 @@ Tipos disponíveis:
 - notify|id-notificacao|Rótulo da ação|Descrição curta
 
 Rotas disponíveis para navigate:
-- /clientes/ID → página do franqueado (IDs: c1a2b3c4-d5e6-7890-abcd-ef1234567890 para Morumbi, c9012345-6789-0123-2345-901234567890 para Recife, ca123456-7890-1234-3456-012345678901 para Fortaleza, cb234567-8901-2345-4567-123456789012 para Salvador, cc345678-9012-3456-5678-234567890123 para Curitiba, c4d5e6f7-8901-2345-def0-456789012345 para Campo Belo)
+- /clientes/ID → página do franqueado
 - /reguas → configuração de réguas de cobrança
 - /cobrancas → lista de cobranças
 - /cobrancas/nova → criar nova cobrança
@@ -76,54 +74,114 @@ Tipos de export disponíveis:
 
 Use ações que façam sentido para os insights apresentados. Sempre inclua pelo menos 2 ações.`;
 
-// ── Build data context for the AI ──
+// ── Build data context from real Prisma data ──
 
-function buildDataContext(): string {
-  const stats = getCobrancasStats(cobrancasDummy);
-
+async function buildDataContext(franqueadoraId: string): Promise<string> {
   const fmtBRL = (cents: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
-  const franqueados = franqueadosDummy;
-  const franqueadosByStatus = {
-    saudavel: franqueados.filter((f) => f.status === "Saudável").length,
-    controlado: franqueados.filter((f) => f.status === "Controlado").length,
-    exigeAtencao: franqueados.filter((f) => f.status === "Exige Atenção").length,
-    critico: franqueados.filter((f) => f.status === "Crítico").length,
+  // Fetch customers with charges
+  const customers = await prisma.customer.findMany({
+    where: { franqueadoraId },
+    include: { charges: true },
+  });
+
+  // Fetch all charges
+  const charges = await prisma.charge.findMany({
+    where: { customer: { franqueadoraId } },
+    include: { customer: true },
+  });
+
+  if (customers.length === 0 && charges.length === 0) {
+    return "\n=== DADOS DA REDE ===\nNenhum dado cadastrado ainda. A rede ainda não possui franqueados ou cobranças registradas.\n===";
+  }
+
+  // Customer metrics
+  const customerMetrics = customers.map((c) => {
+    const custCharges = charges.filter((ch) => ch.customerId === c.id);
+    const emitido = custCharges.reduce((s, ch) => s + ch.amountCents, 0);
+    const recebido = custCharges.filter((ch) => ch.status === "PAID").reduce((s, ch) => s + ch.amountCents, 0);
+    const aberto = custCharges.filter((ch) => ch.status === "PENDING" || ch.status === "OVERDUE").reduce((s, ch) => s + ch.amountCents, 0);
+    const inadimplencia = emitido > 0 ? aberto / emitido : 0;
+    const vencidas = custCharges.filter((ch) => ch.status === "OVERDUE").length;
+
+    // PMR
+    const pagas = custCharges.filter((ch) => ch.status === "PAID" && ch.paidAt);
+    const pmrDays = pagas.length > 0
+      ? Math.round(pagas.reduce((s, ch) => {
+          const diff = (ch.paidAt!.getTime() - ch.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+          return s + diff;
+        }, 0) / pagas.length)
+      : 0;
+
+    // Status
+    let status = "Saudável";
+    if (inadimplencia > 0.3) status = "Crítico";
+    else if (inadimplencia > 0.15) status = "Exige Atenção";
+    else if (inadimplencia > 0.05) status = "Controlado";
+
+    return {
+      nome: c.name,
+      id: c.id,
+      cidade: c.cidade || "—",
+      estado: c.estado || "—",
+      status,
+      pmr: pmrDays,
+      inadimplencia,
+      emitido,
+      recebido,
+      aberto,
+      vencidas,
+    };
+  });
+
+  const totalEmitido = customerMetrics.reduce((s, c) => s + c.emitido, 0);
+  const totalRecebido = customerMetrics.reduce((s, c) => s + c.recebido, 0);
+  const totalAberto = customerMetrics.reduce((s, c) => s + c.aberto, 0);
+  const pmrMedio = customerMetrics.length > 0
+    ? Math.round(customerMetrics.reduce((s, c) => s + c.pmr, 0) / customerMetrics.length)
+    : 0;
+
+  const byStatus = {
+    saudavel: customerMetrics.filter((c) => c.status === "Saudável").length,
+    controlado: customerMetrics.filter((c) => c.status === "Controlado").length,
+    exigeAtencao: customerMetrics.filter((c) => c.status === "Exige Atenção").length,
+    critico: customerMetrics.filter((c) => c.status === "Crítico").length,
   };
-  const pmrMedio = Math.round(franqueados.reduce((s, f) => s + f.pmr, 0) / franqueados.length);
-  const totalAberto = franqueados.reduce((s, f) => s + f.valorAberto, 0);
-  const totalEmitido = franqueados.reduce((s, f) => s + f.valorEmitido, 0);
-  const totalRecebido = franqueados.reduce((s, f) => s + f.valorRecebido, 0);
 
-  const criticos = franqueados
-    .filter((f) => f.status === "Crítico" || f.status === "Exige Atenção")
-    .map((f) => `  - ${f.nome} (${f.cidade}/${f.estado}): status=${f.status}, PMR=${f.pmr}d, inadimplência=${(f.inadimplencia * 100).toFixed(1)}%, aberto=${fmtBRL(f.valorAberto)}`)
+  const todosFranqueados = customerMetrics
+    .map((c) => `  - ${c.nome} (${c.cidade}/${c.estado}): status=${c.status}, PMR=${c.pmr}d, inadimplência=${(c.inadimplencia * 100).toFixed(1)}%, emitido=${fmtBRL(c.emitido)}, recebido=${fmtBRL(c.recebido)}, aberto=${fmtBRL(c.aberto)}`)
     .join("\n");
 
-  const todosFranqueados = franqueados
-    .map((f) => `  - ${f.nome} (${f.cidade}/${f.estado}): status=${f.status}, PMR=${f.pmr}d, inadimplência=${(f.inadimplencia * 100).toFixed(1)}%, emitido=${fmtBRL(f.valorEmitido)}, recebido=${fmtBRL(f.valorRecebido)}, aberto=${fmtBRL(f.valorAberto)}`)
+  const criticos = customerMetrics
+    .filter((c) => c.status === "Crítico" || c.status === "Exige Atenção")
+    .map((c) => `  - ${c.nome} (${c.cidade}/${c.estado}): status=${c.status}, PMR=${c.pmr}d, inadimplência=${(c.inadimplencia * 100).toFixed(1)}%, aberto=${fmtBRL(c.aberto)}`)
     .join("\n");
 
-  const vencidas = cobrancasDummy.filter((c) => c.status === "Vencida");
-  const valorVencido = vencidas.reduce((s, c) => s + c.valorAberto, 0);
-  const vencidasDetail = vencidas
-    .sort((a, b) => b.valorAberto - a.valorAberto)
+  // Charge stats
+  const totalCharges = charges.length;
+  const abertasCount = charges.filter((c) => c.status === "PENDING").length;
+  const vencidasCount = charges.filter((c) => c.status === "OVERDUE").length;
+  const pagasCount = charges.filter((c) => c.status === "PAID").length;
+  const valorVencido = charges.filter((c) => c.status === "OVERDUE").reduce((s, c) => s + c.amountCents, 0);
+  const taxaRecebimento = totalCharges > 0 ? (pagasCount / totalCharges) * 100 : 0;
+
+  const vencidasDetail = charges
+    .filter((c) => c.status === "OVERDUE")
+    .sort((a, b) => b.amountCents - a.amountCents)
     .slice(0, 10)
-    .map((c) => `  - ${c.cliente}: ${c.descricao} — ${fmtBRL(c.valorAberto)} (venc. ${c.dataVencimento})`)
+    .map((c) => `  - ${c.customer?.name ?? "—"}: ${c.description} — ${fmtBRL(c.amountCents)} (venc. ${c.dueDate.toISOString().slice(0, 10)})`)
     .join("\n");
 
-  const apuracaoSummary = ciclosHistorico
-    .map((c) => `  - ${c.competencia}: ${c.franqueados} franqueados, fat=${fmtBRL(c.faturamentoTotal)}, cobrado=${fmtBRL(c.totalCobrado)}, NFs=${c.nfsEmitidas}`)
-    .join("\n");
-
+  // Regional distribution
   const byRegiao: Record<string, { count: number; aberto: number; inadimplencia: number[] }> = {};
-  franqueados.forEach((f) => {
-    const key = f.estado;
+  customerMetrics.forEach((c) => {
+    const key = c.estado;
+    if (key === "—") return;
     if (!byRegiao[key]) byRegiao[key] = { count: 0, aberto: 0, inadimplencia: [] };
     byRegiao[key].count++;
-    byRegiao[key].aberto += f.valorAberto;
-    byRegiao[key].inadimplencia.push(f.inadimplencia);
+    byRegiao[key].aberto += c.aberto;
+    byRegiao[key].inadimplencia.push(c.inadimplencia);
   });
   const regiaoDetail = Object.entries(byRegiao)
     .map(([uf, data]) => {
@@ -135,135 +193,26 @@ function buildDataContext(): string {
   return `
 === DADOS DA REDE ===
 
-FRANQUEADOS (${franqueados.length} total):
-- Saudável: ${franqueadosByStatus.saudavel} | Controlado: ${franqueadosByStatus.controlado} | Exige Atenção: ${franqueadosByStatus.exigeAtencao} | Crítico: ${franqueadosByStatus.critico}
+FRANQUEADOS (${customers.length} total):
+- Saudável: ${byStatus.saudavel} | Controlado: ${byStatus.controlado} | Exige Atenção: ${byStatus.exigeAtencao} | Crítico: ${byStatus.critico}
 - PMR médio: ${pmrMedio}d | Emitido: ${fmtBRL(totalEmitido)} | Recebido: ${fmtBRL(totalRecebido)} | Aberto: ${fmtBRL(totalAberto)}
 
 DETALHE POR FRANQUEADO:
-${todosFranqueados}
+${todosFranqueados || "  Nenhum franqueado cadastrado."}
 
 FRANQUEADOS COM PROBLEMAS:
 ${criticos || "  Nenhum em situação crítica."}
 
-COBRANÇAS (${stats.total} total):
-- Abertas: ${stats.byStatus.aberta} | Vencidas: ${stats.byStatus.vencida} (${fmtBRL(valorVencido)}) | Pagas: ${stats.byStatus.paga}
-- Taxa de recebimento: ${stats.taxaRecebimento.toFixed(1)}%
-- Royalties: ${fmtBRL(stats.byCategoria.royalties)} | FNP: ${fmtBRL(stats.byCategoria.fnp)}
-- Boleto: ${stats.byFormaPagamento.boleto} | Pix: ${stats.byFormaPagamento.pix} | Cartão: ${stats.byFormaPagamento.cartao}
+COBRANÇAS (${totalCharges} total):
+- Abertas: ${abertasCount} | Vencidas: ${vencidasCount} (${fmtBRL(valorVencido)}) | Pagas: ${pagasCount}
+- Taxa de recebimento: ${taxaRecebimento.toFixed(1)}%
 
 COBRANÇAS VENCIDAS (top 10):
 ${vencidasDetail || "  Nenhuma."}
 
 DISTRIBUIÇÃO REGIONAL:
-${regiaoDetail}
-
-HISTÓRICO DE APURAÇÃO:
-${apuracaoSummary}
+${regiaoDetail || "  Sem dados regionais."}
 ===`;
-}
-
-// ── Mock responses (fallback) ──
-
-interface MockResponse {
-  reply: string;
-  suggestions: string[];
-  actions: string[];
-}
-
-const mocks: Record<string, MockResponse> = {
-  prioridade: {
-    reply: `**Ranking de cobrança por urgência:**
-
-1. **Franquia Recife** — R$ 18.400 vencidos, **45 dias** de atraso, status Crítico. Maior valor absoluto e maior tempo sem pagamento — risco de virar inadimplência irrecuperável.
-2. **Franquia Salvador** — R$ 22.000 em aberto, **67 dias** sem pagamento. Embora o valor seja maior, parte ainda está dentro do prazo; o vencido efetivo é R$ 14.200.
-3. **Franquia Fortaleza** — R$ 8.900 vencidos, **3 cobranças consecutivas** atrasadas. Valor menor, mas o padrão de atrasos seguidos indica deterioração acelerada.
-
-**Critério:** valor vencido × dias em atraso × tendência de piora. Recife pontua mais alto porque combina valor alto com atraso longo e sem sinal de regularização.`,
-    suggestions: [
-      "Gerar script de cobrança para Recife",
-      "Histórico de pagamentos Salvador",
-      "Quais franquias estão regularizando?",
-    ],
-    actions: [
-      "navigate|/clientes/c9012345-6789-0123-2345-901234567890|Abrir ficha da Franquia Recife|Prioridade #1 — R$ 18.400 vencidos há 45 dias",
-      "navigate|/cobrancas/nova|Criar cobrança para Recife|Iniciar cobrança formal do valor vencido",
-    ],
-  },
-  mudancas: {
-    reply: `**O que mudou na rede este mês:**
-
-**Pioraram:**
-- **Campo Belo** — PMR subiu **+87%** (de 8 para 15 dias), duas cobranças de Royalties em aberto totalizando R$ 24.000. Passou de Saudável para Exige Atenção.
-- **Fortaleza** — 3 atrasos consecutivos, faturamento caiu **18%**. Padrão de deterioração acelerada.
-
-**Melhoraram:**
-- **Curitiba** — regularizou 2 cobranças vencidas (R$ 9.200), voltou para status Controlado.
-- **Morumbi** — PMR caiu **20%** (de 25 para 20 dias), pagou adiantado 1 cobrança.
-
-**Saldo líquido:** a rede piorou marginalmente — os R$ 24.000 de novas pendências de Campo Belo superam os R$ 9.200 regularizados por Curitiba. O alerta principal é Campo Belo, que saiu do radar saudável.`,
-    suggestions: [
-      "Detalhar histórico Campo Belo",
-      "O que causou a melhora de Curitiba?",
-      "Tendência dos últimos 3 meses",
-    ],
-    actions: [
-      "navigate|/clientes/c4d5e6f7-8901-2345-def0-456789012345|Abrir ficha Campo Belo|PMR subiu 87% — requer acompanhamento",
-      "notify|alerta-campo-belo|Criar alerta de acompanhamento|Monitorar Campo Belo nas próximas 2 semanas",
-    ],
-  },
-  comparar: {
-    reply: `**Comparativo regional — inadimplência e recuperação:**
-
-| Região | Inadimplência média | PMR médio | Taxa recuperação |
-|--------|-------------------|-----------|-----------------|
-| **Nordeste (PE, CE, BA)** | **18,5%** | **42 dias** | **58%** |
-| **Sudeste (SP)** | 6,2% | 18 dias | 89% |
-| **Sul (PR)** | 8,1% | 22 dias | 82% |
-
-**Destaque:** O Nordeste tem inadimplência **3x maior** que o Sudeste e taxa de recuperação **31 pontos** abaixo. O gap é puxado principalmente por Recife (45 dias de PMR) e Salvador (67 dias sem pagamento). Sudeste e Sul têm performance similar, com SP liderando em recuperação.
-
-**Recomendação:** Criar régua de cobrança específica para o Nordeste, com gatilhos mais agressivos (D+5 ao invés de D+15) e canal preferencial WhatsApp.`,
-    suggestions: [
-      "Detalhar franqueados do Nordeste",
-      "Sugerir régua para Nordeste",
-      "Evolução regional mês a mês",
-    ],
-    actions: [
-      "navigate|/clientes/c9012345-6789-0123-2345-901234567890|Abrir ficha Recife|Maior inadimplente do NE — PMR 45 dias",
-      "navigate|/reguas|Configurar régua Nordeste|Criar régua específica com gatilhos D+5",
-    ],
-  },
-  previsao: {
-    reply: `**Previsão de recebimento — próximos 30 dias:**
-
-- **Cenário base:** R$ 89.000 — considera taxa histórica de recebimento de 78% sobre cobranças em aberto e a vencer.
-- **Cenário pessimista:** R$ 54.000 — se Salvador (R$ 22.000) e Fortaleza (R$ 8.900) não pagarem e Campo Belo atrasar novamente.
-
-**Franquias-chave no horizonte:**
-- **Morumbi** — R$ 32.000 a vencer, historicamente pontual (probabilidade alta)
-- **Curitiba** — R$ 15.000 a vencer, acabou de regularizar (probabilidade média-alta)
-- **Salvador** — R$ 22.000 em aberto, sem pagamento há 67 dias (probabilidade baixa)
-
-**Risco principal:** Salvador sozinha responde pela diferença de R$ 35.000 entre os cenários. Uma renegociação parcial (50%) já elevaria o cenário pessimista para R$ 65.000.`,
-    suggestions: [
-      "Simular renegociação com Salvador",
-      "Projeção para 60 dias",
-      "Quais cobranças vencem esta semana?",
-    ],
-    actions: [
-      "export|cobrancas-vencidas|Exportar cobranças vencidas|Planilha com vencidas para ação do financeiro",
-      "navigate|/clientes/cb234567-8901-2345-4567-123456789012|Abrir ficha Salvador|R$ 22.000 em aberto — maior risco da projeção",
-    ],
-  },
-};
-
-function getMockResponse(message: string): MockResponse {
-  const lower = message.toLowerCase();
-  if (lower.includes("cobrar primeiro") || lower.includes("priorid")) return mocks.prioridade;
-  if (lower.includes("mudou") || lower.includes("mudança") || lower.includes("este mês")) return mocks.mudancas;
-  if (lower.includes("compar") || lower.includes("região") || lower.includes("regiões")) return mocks.comparar;
-  if (lower.includes("previsão") || lower.includes("previs") || lower.includes("próximos")) return mocks.previsao;
-  return mocks.prioridade;
 }
 
 // ── SSE helpers ──
@@ -285,7 +234,7 @@ function sseEvent(data: string): Uint8Array {
 // ── POST handler ──
 
 export async function POST(request: Request) {
-  const { error } = await requireTenant();
+  const { session, error } = await requireTenant();
   if (error) return error;
 
   try {
@@ -318,7 +267,8 @@ export async function POST(request: Request) {
     }
 
     const anthropic = getAnthropicClient();
-    const dataContext = buildDataContext();
+    const franqueadoraId = session!.user.franqueadoraId ?? "";
+    const dataContext = await buildDataContext(franqueadoraId);
     const includeSuggestions = isStreaming;
 
     const detailInstruction = detailLevel === "detalhado"
@@ -358,20 +308,10 @@ export async function POST(request: Request) {
                   }
                 }
               } catch {
-                // Fallback: stream mock word-by-word
-                const mock = getMockResponse(lastUserMessage);
-                const fullText =
-                  mock.reply +
-                  "\n\n<<SUGESTÕES>>\n" +
-                  mock.suggestions.join("\n") +
-                  "\n<<AÇÕES>>\n" +
-                  mock.actions.join("\n");
-                const words = fullText.split(" ");
-                for (let i = 0; i < words.length; i++) {
-                  const text = (i === 0 ? "" : " ") + words[i];
-                  controller.enqueue(sseEvent(JSON.stringify({ text })));
-                  await new Promise((r) => setTimeout(r, 20));
-                }
+                // Fallback: send error message
+                controller.enqueue(
+                  sseEvent(JSON.stringify({ text: "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente." }))
+                );
               }
               controller.enqueue(sseEvent("[DONE]"));
               controller.close();
@@ -380,16 +320,13 @@ export async function POST(request: Request) {
 
           return new Response(readableStream, { headers: sseHeaders() });
         } catch {
-          // Fall through to mock streaming
+          // Fall through to fallback
         }
       }
 
-      // Mock streaming (no API key)
-      const mock = getMockResponse(lastUserMessage);
-      const fullText =
-        mock.reply + "\n\n<<SUGESTÕES>>\n" + mock.suggestions.join("\n") +
-        "\n<<AÇÕES>>\n" + mock.actions.join("\n");
-      const words = fullText.split(" ");
+      // Fallback when no API key
+      const fallbackText = "Para usar a Júlia IA, configure a variável ANTHROPIC_API_KEY no ambiente.\n\n<<SUGESTÕES>>\nComo configurar a API?\nQuais funcionalidades tenho?\nComo cadastrar franqueados?";
+      const words = fallbackText.split(" ");
 
       const readableStream = new ReadableStream({
         async start(controller) {
@@ -424,13 +361,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Mock fallback — include actions so frontend can parse them
-    const mockFallback = getMockResponse(lastUserMessage);
-    const fallbackReply =
-      mockFallback.reply +
-      "\n\n<<AÇÕES>>\n" +
-      mockFallback.actions.join("\n");
-    return NextResponse.json({ reply: fallbackReply });
+    // Fallback when no API key
+    return NextResponse.json({
+      reply: "Para usar a Júlia IA, configure a variável ANTHROPIC_API_KEY no ambiente.",
+    });
   } catch (error) {
     console.error("Error in chat API:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

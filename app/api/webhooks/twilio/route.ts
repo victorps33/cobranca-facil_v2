@@ -24,6 +24,7 @@ export async function POST(request: Request) {
 
     // Extract message details
     const from = body.From || "";
+    const to = body.To || "";
     const messageBody = body.Body || "";
     const messageSid = body.MessageSid || "";
     const isWhatsApp = from.startsWith("whatsapp:");
@@ -32,6 +33,32 @@ export async function POST(request: Request) {
     const normalizedPhone = normalizePhone(from);
     // Número exato que o WhatsApp/Twilio usa (ex: +554899026030)
     const rawWhatsappPhone = from.replace(/^whatsapp:/, "");
+
+    // Resolve franqueadora by the destination number (To field)
+    let resolvedFranqueadoraId: string | null = null;
+    if (to) {
+      const normalizedTo = to.startsWith("whatsapp:")
+        ? to  // WhatsApp: keep as-is (whatsapp:+55...)
+        : normalizePhone(to);  // SMS: normalize to +55...
+
+      const configByTo = await prisma.agentConfig.findFirst({
+        where: {
+          OR: [
+            { whatsappFrom: normalizedTo },
+            { smsFrom: normalizedTo },
+            // Also try the raw To value in case format differs slightly
+            { whatsappFrom: to },
+            { smsFrom: to },
+          ],
+        },
+        select: { franqueadoraId: true },
+      });
+
+      if (configByTo) {
+        resolvedFranqueadoraId = configByTo.franqueadoraId;
+        console.log(`[Webhook Twilio] Resolved franqueadora ${resolvedFranqueadoraId} from To: ${to}`);
+      }
+    }
 
     // Find customer by phone — tenta com e sem nono dígito
     const phoneDigits = normalizedPhone.replace("+55", "");
@@ -50,8 +77,25 @@ export async function POST(request: Request) {
             ? [{ phone: { contains: withoutNinthDigit } }]
             : []),
         ],
+        // If we know the franqueadora, scope the search to it
+        ...(resolvedFranqueadoraId ? { franqueadoraId: resolvedFranqueadoraId } : {}),
       },
     });
+
+    // If not found scoped to the resolved franqueadora, try global lookup
+    if (!customer && resolvedFranqueadoraId) {
+      customer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { whatsappPhone: rawWhatsappPhone },
+            { phone: { contains: phoneDigits } },
+            ...(withoutNinthDigit
+              ? [{ phone: { contains: withoutNinthDigit } }]
+              : []),
+          ],
+        },
+      });
+    }
 
     // Se encontrou, atualiza o whatsappPhone para garantir envio correto
     if (customer && isWhatsApp && customer.whatsappPhone !== rawWhatsappPhone) {
@@ -64,13 +108,18 @@ export async function POST(request: Request) {
 
     // Auto-create customer if not found
     if (!customer) {
-      const defaultFranqueadora = await prisma.franqueadora.findFirst();
-      if (!defaultFranqueadora) {
-        console.warn("[Webhook Twilio] No franqueadora found — cannot create customer");
-        return new Response(
-          '<Response></Response>',
-          { status: 200, headers: { "Content-Type": "text/xml" } }
-        );
+      // Use resolved franqueadora or fall back to first available
+      let franqueadoraId = resolvedFranqueadoraId;
+      if (!franqueadoraId) {
+        const defaultFranqueadora = await prisma.franqueadora.findFirst();
+        if (!defaultFranqueadora) {
+          console.warn("[Webhook Twilio] No franqueadora found — cannot create customer");
+          return new Response(
+            '<Response></Response>',
+            { status: 200, headers: { "Content-Type": "text/xml" } }
+          );
+        }
+        franqueadoraId = defaultFranqueadora.id;
       }
 
       const profileName = body.ProfileName || normalizedPhone;
@@ -81,10 +130,10 @@ export async function POST(request: Request) {
           email: "",
           phone: normalizedPhone,
           whatsappPhone: isWhatsApp ? rawWhatsappPhone : null,
-          franqueadoraId: defaultFranqueadora.id,
+          franqueadoraId,
         },
       });
-      console.log(`[Webhook Twilio] Auto-created customer: ${customer.id} (${profileName})`);
+      console.log(`[Webhook Twilio] Auto-created customer: ${customer.id} (${profileName}) for franqueadora ${franqueadoraId}`);
     }
 
     if (!customer.franqueadoraId) {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
-import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/kpi-tile";
 import { HeatmapTile } from "@/components/ui/heatmap-tile";
+import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import {
   ChartCard,
   StripeRevenueChart,
@@ -13,143 +13,125 @@ import {
   StripeChargesStatusChart,
   SafraCurveChart,
 } from "@/components/charts/stripe-charts";
-import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
 import {
   DollarSign,
   TrendingUp,
   AlertTriangle,
   FileText,
   Sparkles,
+  Users,
 } from "lucide-react";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 
-// ── Competências derivadas dos ciclos de apuração ──
-
-const competencias = ciclosHistorico.map((c) => ({
-  label: c.competenciaShort,
-  value: c.competencia,
-}));
-
-// ── Dados dos gráficos (derivados das cobranças reais) ──
-
-const ciclosChronological = [...ciclosHistorico].reverse();
-
-const safraColors = ["#9ca3af", "#8b5cf6", "#10b981", "#F85B00", "#85ace6"];
-
-function buildChartData() {
-  const revenueData = ciclosChronological.map((ciclo) => {
-    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
-    const totalEmitido = cobsDoMes.reduce((s, c) => s + c.valorOriginal, 0);
-    const totalRecebido = cobsDoMes.reduce((s, c) => s + c.valorPago, 0);
-    return {
-      month: ciclo.competenciaShort,
-      revenue: Math.round(totalRecebido / 100),
-      projected: Math.round(totalEmitido / 100),
-    };
-  });
-
-  const chargesStatusData = ciclosChronological.map((ciclo) => {
-    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
-    return {
-      month: ciclo.competenciaShort,
-      pagas: cobsDoMes.filter((c) => c.status === "Paga").length,
-      pendentes: cobsDoMes.filter((c) => c.status === "Aberta").length,
-      vencidas: cobsDoMes.filter((c) => c.status === "Vencida").length,
-    };
-  });
-
-  const paymentMethodsData = ciclosChronological.map((ciclo) => {
-    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === ciclo.competencia);
-    return {
-      month: ciclo.competenciaShort,
-      boleto: Math.round(
-        cobsDoMes.filter((c) => c.formaPagamento === "Boleto").reduce((s, c) => s + c.valorOriginal, 0) / 100
-      ),
-      pix: Math.round(
-        cobsDoMes.filter((c) => c.formaPagamento === "Pix").reduce((s, c) => s + c.valorOriginal, 0) / 100
-      ),
-      cartao: Math.round(
-        cobsDoMes.filter((c) => c.formaPagamento === "Cartão").reduce((s, c) => s + c.valorOriginal, 0) / 100
-      ),
-    };
-  });
-
-  return { revenueData, chargesStatusData, paymentMethodsData };
-}
-
-// ── Curva de Recebimento por Safra ──
-
-function buildSafraData() {
-  const hoje = new Date("2026-02-07");
-  const dayIntervals = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
-
-  // Safras: cada competência é uma safra (mais antiga → mais nova)
-  const safras = ciclosChronological.map((ciclo, idx) => ({
-    key: ciclo.competenciaShort.replace("/", ""),
-    label: ciclo.competenciaShort,
-    color: safraColors[idx % safraColors.length],
-    emissionDate: new Date(ciclo.dataApuracao + "T12:00:00"),
-    competencia: ciclo.competencia,
-  }));
-
-  const data = dayIntervals.map((d) => {
-    const point: Record<string, number | string | undefined> = { day: `D+${d}` };
-
-    for (const safra of safras) {
-      const cutoff = new Date(safra.emissionDate);
-      cutoff.setDate(cutoff.getDate() + d);
-
-      // Se a data de corte é no futuro, esta safra ainda não tem dados para este ponto
-      if (cutoff > hoje) {
-        point[safra.key] = undefined;
-        continue;
-      }
-
-      const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === safra.competencia);
-      const totalEmitido = cobsDoMes.reduce((s, c) => s + c.valorOriginal, 0);
-
-      if (totalEmitido === 0) {
-        point[safra.key] = 0;
-        continue;
-      }
-
-      const cutoffISO = cutoff.toISOString().split("T")[0];
-      const totalColetado = cobsDoMes
-        .filter((c) => c.dataPagamento && c.dataPagamento <= cutoffISO)
-        .reduce((s, c) => s + c.valorPago, 0);
-
-      point[safra.key] = Math.round((totalColetado / totalEmitido) * 100);
-    }
-
-    return point;
-  });
-
-  return {
-    data,
-    safras: safras.map((s) => ({ key: s.key, label: s.label, color: s.color })),
+interface DashboardData {
+  empty: boolean;
+  competencias?: { label: string; value: string }[];
+  kpisByCompetencia?: Record<string, {
+    totalEmitido: number;
+    totalRecebido: number;
+    totalAberto: number;
+    total: number;
+    pagas: number;
+    vencidas: number;
+    abertas: number;
+  }>;
+  charts?: {
+    revenueData: { month: string; revenue: number; projected: number }[];
+    chargesStatusData: { month: string; pagas: number; pendentes: number; vencidas: number }[];
+    paymentMethodsData: { month: string; boleto: number; pix: number; cartao: number }[];
+  };
+  heatmap?: {
+    data: { name: string; value: number }[];
+    competencia: string;
   };
 }
 
-const chartData = buildChartData();
-const safraData = buildSafraData();
-
-// ── Component ──
+interface OnboardingStatus {
+  showWizard: boolean;
+  showChecklist: boolean;
+  checklist: {
+    hasCustomer: boolean;
+    hasCharge: boolean;
+    hasDunningRule: boolean;
+    hasVisitedInsights: boolean;
+  };
+}
 
 export default function DashboardPage() {
-  const [selectedCompetencia, setSelectedCompetencia] = useState(competencias[0].value);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedCompetencia, setSelectedCompetencia] = useState("");
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((d) => {
+        setData(d);
+        if (d.competencias?.length > 0) {
+          setSelectedCompetencia(d.competencias[0].value);
+        }
+      })
+      .finally(() => setLoading(false));
+
+    fetch("/api/onboarding/status")
+      .then((r) => r.json())
+      .then((status: OnboardingStatus) => setOnboarding(status))
+      .catch(() => {});
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Dashboard" subtitle="Carregando..." />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-28 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || data.empty) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Dashboard"
+          subtitle="Visão consolidada de cobranças e recebimentos"
+          primaryAction={{ label: "Cadastrar Cliente", href: "/clientes/novo" }}
+        />
+        {onboarding && (
+          <OnboardingChecklist
+            checklist={onboarding.checklist}
+            show={onboarding.showChecklist}
+            onDismiss={() => setOnboarding((prev) => prev ? { ...prev, showChecklist: false } : prev)}
+          />
+        )}
+        <DataEmptyState
+          title="Bem-vindo ao Menlo!"
+          description="Comece cadastrando seus clientes e criando cobranças para ver seus dados aqui."
+          actionLabel="Cadastrar Cliente"
+          actionHref="/clientes"
+          icon={<Users className="h-6 w-6 text-gray-400" />}
+        />
+      </div>
+    );
+  }
+
+  const competencias = data.competencias || [];
+  const kpis = data.kpisByCompetencia || {};
 
   const selectedLabel = competencias.find((c) => c.value === selectedCompetencia)?.label || "";
   const periodLabel = `Competência: ${selectedLabel}`;
 
-  // ── KPIs do mês selecionado ──
-  const cobrancasDoMes = cobrancasDummy.filter((c) => c.competencia === selectedCompetencia);
-  const stats = getCobrancasStats(cobrancasDoMes);
-
-  const inadRate = stats.totalEmitido > 0
-    ? ((stats.totalAberto / stats.totalEmitido) * 100).toFixed(1)
+  // KPIs for selected competência
+  const currentKpi = kpis[selectedCompetencia] || { totalEmitido: 0, totalRecebido: 0, totalAberto: 0, total: 0, pagas: 0, vencidas: 0, abertas: 0 };
+  const inadRate = currentKpi.totalEmitido > 0
+    ? ((currentKpi.totalAberto / currentKpi.totalEmitido) * 100).toFixed(1)
     : "0.0";
 
-  // ── Trend vs. competência anterior ──
+  // Trend vs previous competência
   const currentIdx = competencias.findIndex((c) => c.value === selectedCompetencia);
   const prevComp = currentIdx < competencias.length - 1 ? competencias[currentIdx + 1] : null;
   let trendEmitido = 0;
@@ -157,19 +139,18 @@ export default function DashboardPage() {
   let trendInad = 0;
   let trendPendentes = 0;
 
-  if (prevComp) {
-    const prevCobs = cobrancasDummy.filter((c) => c.competencia === prevComp.value);
-    const prevStats = getCobrancasStats(prevCobs);
-    if (prevStats.totalEmitido > 0) {
-      trendEmitido = Math.round(((stats.totalEmitido - prevStats.totalEmitido) / prevStats.totalEmitido) * 100);
-      const prevInad = (prevStats.totalAberto / prevStats.totalEmitido) * 100;
+  if (prevComp && kpis[prevComp.value]) {
+    const prevKpi = kpis[prevComp.value];
+    if (prevKpi.totalEmitido > 0) {
+      trendEmitido = Math.round(((currentKpi.totalEmitido - prevKpi.totalEmitido) / prevKpi.totalEmitido) * 100);
+      const prevInad = (prevKpi.totalAberto / prevKpi.totalEmitido) * 100;
       trendInad = Math.round((Number(inadRate) - prevInad) * 10) / 10;
     }
-    if (prevStats.totalPago > 0) {
-      trendRecebido = Math.round(((stats.totalPago - prevStats.totalPago) / prevStats.totalPago) * 100);
+    if (prevKpi.totalRecebido > 0) {
+      trendRecebido = Math.round(((currentKpi.totalRecebido - prevKpi.totalRecebido) / prevKpi.totalRecebido) * 100);
     }
-    const prevPendentes = prevStats.byStatus.aberta + prevStats.byStatus.vencida;
-    const currPendentes = stats.byStatus.aberta + stats.byStatus.vencida;
+    const prevPendentes = prevKpi.abertas + prevKpi.vencidas;
+    const currPendentes = currentKpi.abertas + currentKpi.vencidas;
     if (prevPendentes > 0) {
       trendPendentes = Math.round(((currPendentes - prevPendentes) / prevPendentes) * 100);
     }
@@ -177,7 +158,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page Header ── */}
       <PageHeader
         title="Dashboard"
         subtitle="Visão consolidada de cobranças e recebimentos"
@@ -188,33 +168,39 @@ export default function DashboardPage() {
         ]}
       />
 
-      {/* ── Filtros de competência ── */}
+      {onboarding && (
+        <OnboardingChecklist
+          checklist={onboarding.checklist}
+          show={onboarding.showChecklist}
+          onDismiss={() => setOnboarding((prev) => prev ? { ...prev, showChecklist: false } : prev)}
+        />
+      )}
+
       <FilterPillGroup
         options={competencias.map((c) => ({ key: c.value, label: c.label }))}
         value={selectedCompetencia}
         onChange={setSelectedCompetencia}
       />
 
-      {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile
           title="Total Emitido"
-          value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          subtitle={`${stats.total} cobranças · ${selectedLabel}`}
+          value={`R$ ${(currentKpi.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          subtitle={`${currentKpi.total} cobranças · ${selectedLabel}`}
           trend={{ value: Math.abs(trendEmitido), direction: trendEmitido >= 0 ? "up" : "down" }}
           icon={<DollarSign className="h-4 w-4" />}
         />
         <KpiTile
           title="Total Recebido"
-          value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          subtitle={`${stats.byStatus.paga} pagas · ${selectedLabel}`}
+          value={`R$ ${(currentKpi.totalRecebido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          subtitle={`${currentKpi.pagas} pagas · ${selectedLabel}`}
           trend={{ value: Math.abs(trendRecebido), direction: trendRecebido >= 0 ? "up" : "down" }}
           icon={<TrendingUp className="h-4 w-4" />}
         />
         <KpiTile
           title="Taxa de Inadimplência"
           value={`${inadRate}%`}
-          subtitle={`${stats.byStatus.vencida} vencidas · ${selectedLabel}`}
+          subtitle={`${currentKpi.vencidas} vencidas · ${selectedLabel}`}
           tooltip="Percentual do valor emitido que está vencido e não foi pago"
           trend={{ value: Math.abs(trendInad), direction: trendInad <= 0 ? "down" : "up" }}
           icon={<AlertTriangle className="h-4 w-4" />}
@@ -222,31 +208,30 @@ export default function DashboardPage() {
         />
         <KpiTile
           title="Cobranças Pendentes"
-          value={String(stats.byStatus.aberta + stats.byStatus.vencida)}
-          subtitle={`De ${stats.total} emitidas · ${selectedLabel}`}
+          value={String(currentKpi.abertas + currentKpi.vencidas)}
+          subtitle={`De ${currentKpi.total} emitidas · ${selectedLabel}`}
           trend={{ value: Math.abs(trendPendentes), direction: trendPendentes <= 0 ? "down" : "up" }}
           icon={<FileText className="h-4 w-4" />}
         />
       </div>
 
-      {/* ── Charts ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Recebido vs. Emitido" subtitle="Últimos 5 meses">
-          <StripeRevenueChart data={chartData.revenueData} />
-        </ChartCard>
-        <ChartCard title="Curva de Recebimento por Safra" subtitle="Evolução cumulativa por competência">
-          <SafraCurveChart data={safraData.data} safras={safraData.safras} />
-        </ChartCard>
-        <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
-          <StripeChargesStatusChart data={chartData.chargesStatusData} />
-        </ChartCard>
-        <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
-          <StripePaymentMethodsChart data={chartData.paymentMethodsData} />
-        </ChartCard>
-      </div>
+      {data.charts && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ChartCard title="Recebido vs. Emitido" subtitle="Últimos períodos">
+            <StripeRevenueChart data={data.charts.revenueData} />
+          </ChartCard>
+          <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
+            <StripeChargesStatusChart data={data.charts.chargesStatusData} />
+          </ChartCard>
+          <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
+            <StripePaymentMethodsChart data={data.charts.paymentMethodsData} />
+          </ChartCard>
+        </div>
+      )}
 
-      {/* ── Heatmap ── */}
-      <HeatmapTile />
+      {data.heatmap && data.heatmap.data.length > 0 && (
+        <HeatmapTile data={data.heatmap.data} competencia={data.heatmap.competencia} />
+      )}
     </div>
   );
 }

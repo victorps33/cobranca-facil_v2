@@ -9,18 +9,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Printer } from "lucide-react";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
-import type { Franqueado } from "@/lib/data/clientes-dummy";
-import type { ApuracaoDetalhe } from "@/lib/data/apuracao-historico-dummy";
-import { getNfByCobranca, type NotaFiscal } from "@/lib/data/documentos-dummy";
-import { FRANQUEADORA, fmt, fmtDate } from "@/lib/constants";
+import type { Cobranca, Franqueado } from "@/lib/types";
+import { fmt, fmtDate } from "@/lib/constants";
 
 interface NotaFiscalViewerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cobranca: Cobranca | null;
   franqueado?: Franqueado | null;
-  detalhe?: ApuracaoDetalhe | null;
 }
 
 export function NotaFiscalViewerDialog({
@@ -28,30 +24,26 @@ export function NotaFiscalViewerDialog({
   onOpenChange,
   cobranca,
   franqueado,
-  detalhe,
 }: NotaFiscalViewerDialogProps) {
   if (!cobranca) return null;
 
-  // Use centralized dummy data, fallback to inline generation
-  const nf = getNfByCobranca(cobranca.id);
+  const nfNumero = cobranca.id.slice(0, 8).toUpperCase();
+  const nfSerie = "RPS";
+  const hashVerificacao = cobranca.id.replace(/-/g, "").toUpperCase().slice(0, 32);
+  const valorServicos = cobranca.valorOriginal;
 
-  const nfNumero = nf?.numero ?? cobranca.id.slice(0, 8).toUpperCase();
-  const nfSerie = nf?.serie ?? "RPS";
-  const hashVerificacao = nf?.codigoVerificacao ?? cobranca.id.replace(/-/g, "").toUpperCase().slice(0, 32);
-  const valorServicos = nf?.valorServicos ?? cobranca.valorOriginal;
+  const iss = Math.round(valorServicos * 0.05);
+  const pis = Math.round(valorServicos * 0.0065);
+  const cofins = Math.round(valorServicos * 0.03);
+  const inss = 0;
+  const ir = Math.round(valorServicos * 0.015);
+  const csll = Math.round(valorServicos * 0.01);
+  const valorLiquido = valorServicos - iss;
 
-  const iss = nf?.valorIss ?? Math.round(valorServicos * 0.05);
-  const pis = nf?.valorPis ?? Math.round(valorServicos * 0.0065);
-  const cofins = nf?.valorCofins ?? Math.round(valorServicos * 0.03);
-  const inss = nf?.valorInss ?? 0;
-  const ir = nf?.valorIr ?? Math.round(valorServicos * 0.015);
-  const csll = nf?.valorCsll ?? Math.round(valorServicos * 0.01);
-  const valorLiquido = nf?.valorLiquido ?? (valorServicos - iss);
-
-  const discriminacao = nf?.discriminacao ?? cobranca.descricao;
-  const codigoServico = nf?.codigoServico ?? "17.08";
-  const cnae = nf?.cnaeAtividade ?? "7020-4/00";
-  const naturezaOp = nf?.naturezaOperacao ?? "Tributação no Município";
+  const discriminacao = cobranca.descricao;
+  const codigoServico = "17.08";
+  const cnae = "7020-4/00";
+  const naturezaOp = "Tributação no Município";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,17 +100,8 @@ export function NotaFiscalViewerDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="font-semibold text-gray-900">
-                  {nf?.prestador.razaoSocial ?? FRANQUEADORA.razaoSocial}
+                  {cobranca.cliente}
                 </p>
-                <p className="text-xs text-gray-600">
-                  CNPJ: {nf?.prestador.cnpj ?? FRANQUEADORA.cnpj}
-                </p>
-                <p className="text-xs text-gray-600">
-                  Inscrição Municipal: {nf?.prestador.inscricaoMunicipal ?? FRANQUEADORA.inscricaoMunicipal}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-gray-600">{nf?.prestador.endereco ?? FRANQUEADORA.endereco}</p>
               </div>
             </div>
           </div>
@@ -130,14 +113,16 @@ export function NotaFiscalViewerDialog({
             </p>
             <div className="space-y-1">
               <p className="font-semibold text-gray-900">
-                {nf?.tomador.razaoSocial ?? franqueado?.razaoSocial ?? cobranca.cliente}
+                {franqueado?.razaoSocial ?? cobranca.cliente}
               </p>
               <p className="text-xs text-gray-600">
-                CNPJ: {nf?.tomador.cnpj ?? franqueado?.cnpj ?? "—"}
+                CNPJ: {franqueado?.cnpj ?? "—"}
               </p>
-              <p className="text-xs text-gray-600">
-                {nf?.tomador.endereco ?? (franqueado ? `${franqueado.bairro}, ${franqueado.cidade}/${franqueado.estado}` : "")}
-              </p>
+              {franqueado?.bairro && franqueado?.cidade && (
+                <p className="text-xs text-gray-600">
+                  {franqueado.bairro}, {franqueado.cidade}/{franqueado.estado}
+                </p>
+              )}
             </div>
           </div>
 
@@ -151,22 +136,6 @@ export function NotaFiscalViewerDialog({
               <p>
                 <strong>Competência:</strong> {cobranca.competencia}
               </p>
-              {detalhe && (
-                <>
-                  <div className="border-t border-gray-200 pt-2 mt-2" />
-                  <p>
-                    <strong>Faturamento apurado:</strong>{" "}
-                    {fmt(detalhe.faturamento)}
-                  </p>
-                  <p>
-                    <strong>Royalties (5%):</strong> {fmt(detalhe.royalties)}
-                  </p>
-                  <p>
-                    <strong>Taxa de Marketing (2%):</strong>{" "}
-                    {fmt(detalhe.marketing)}
-                  </p>
-                </>
-              )}
             </div>
           </div>
 

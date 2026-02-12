@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
+import type { Cobranca } from "@/lib/types";
 
 const exportHeaders: { label: string; key: keyof Cobranca | "_valorOriginalReais" | "_valorPagoReais" | "_valorAbertoReais" | "_nfEmitida" }[] = [
   { label: "ID", key: "id" },

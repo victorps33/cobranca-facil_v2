@@ -9,8 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { INTERACTION_TYPE_LABELS } from "@/lib/data/crm-interactions-dummy";
-import type { CrmInteraction } from "@/lib/data/crm-interactions-dummy";
+import { INTERACTION_TYPE_LABELS } from "@/lib/crm-constants";
+import type { CrmInteraction } from "@/lib/types/crm";
 
 interface AddInteractionDialogProps {
   open: boolean;

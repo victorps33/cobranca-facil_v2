@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -12,15 +12,28 @@ import {
   Mail,
   MessageSquare,
   Phone,
-  UserPlus,
-  UserCheck,
-  AlertTriangle,
-  ShieldAlert,
-  Users,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 
 /* ── Types ── */
+
+interface ApiDunningStep {
+  id: string;
+  trigger: "BEFORE_DUE" | "ON_DUE" | "AFTER_DUE";
+  offsetDays: number;
+  channel: "EMAIL" | "SMS" | "WHATSAPP";
+  template: string;
+  enabled: boolean;
+}
+
+interface ApiDunningRule {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  steps: ApiDunningStep[];
+}
 
 interface ReguaStep {
   id: string;
@@ -29,95 +42,20 @@ interface ReguaStep {
   description: string;
 }
 
-type ProfileIcon = "new" | "good" | "risky" | "bad";
-
 interface Regua {
   id: string;
   name: string;
   description: string;
   active: boolean;
-  clientCount: number;
-  profileIcon: ProfileIcon;
   steps: ReguaStep[];
 }
 
-/* ── Data ── */
-
-const REGUAS_DATA: Regua[] = [
-  {
-    id: "R1",
-    name: "Novo Cliente",
-    description: "Régua principal de cobrança para novos franqueados",
-    active: true,
-    clientCount: 3,
-    profileIcon: "new",
-    steps: [
-      { id: "s1", offset: "D-5", channel: "Email", description: "Lembrete de vencimento próximo" },
-      { id: "s2", offset: "D-1", channel: "WhatsApp", description: "Aviso de vencimento amanhã" },
-      { id: "s3", offset: "D0", channel: "Email", description: "Cobrança no dia do vencimento" },
-      { id: "s4", offset: "D+3", channel: "SMS", description: "Notificação de atraso" },
-      { id: "s5", offset: "D+7", channel: "Telefone", description: "Contato direto por telefone" },
-    ],
-  },
-  {
-    id: "R2",
-    name: "Bom Pagador",
-    description: "Régua suave para franqueados prioritários",
-    active: false,
-    clientCount: 25,
-    profileIcon: "good",
-    steps: [
-      { id: "s1", offset: "D-3", channel: "Email", description: "Lembrete gentil" },
-      { id: "s2", offset: "D+5", channel: "WhatsApp", description: "Follow-up educado" },
-    ],
-  },
-  {
-    id: "R3",
-    name: "Pagador Duvidoso",
-    description: "Régua agressiva para inadimplentes recorrentes",
-    active: true,
-    clientCount: 8,
-    profileIcon: "risky",
-    steps: [
-      { id: "s1", offset: "D-7", channel: "Email", description: "Alerta antecipado" },
-      { id: "s2", offset: "D-1", channel: "SMS", description: "Urgência de pagamento" },
-      { id: "s3", offset: "D0", channel: "WhatsApp", description: "Cobrança imediata" },
-      { id: "s4", offset: "D+1", channel: "Telefone", description: "Ligação no dia seguinte" },
-      { id: "s5", offset: "D+3", channel: "Email", description: "Aviso de protesto" },
-      { id: "s6", offset: "D+7", channel: "Telefone", description: "Última tentativa antes de protesto" },
-    ],
-  },
-  {
-    id: "R4",
-    name: "Mau Pagador",
-    description: "Régua intensiva para clientes com alto índice de inadimplência",
-    active: true,
-    clientCount: 2,
-    profileIcon: "bad",
-    steps: [
-      { id: "s1", offset: "D-7", channel: "Email", description: "Aviso antecipado formal" },
-      { id: "s2", offset: "D-3", channel: "WhatsApp", description: "Lembrete urgente" },
-      { id: "s3", offset: "D-1", channel: "SMS", description: "Último aviso antes do vencimento" },
-      { id: "s4", offset: "D0", channel: "Telefone", description: "Cobrança imediata por telefone" },
-      { id: "s5", offset: "D+1", channel: "Email", description: "Notificação de inadimplência" },
-      { id: "s6", offset: "D+3", channel: "Telefone", description: "Ligação de cobrança" },
-      { id: "s7", offset: "D+5", channel: "WhatsApp", description: "Aviso de negativação" },
-      { id: "s8", offset: "D+7", channel: "Email", description: "Notificação de protesto" },
-      { id: "s9", offset: "D+15", channel: "Telefone", description: "Última tentativa — encaminhamento jurídico" },
-    ],
-  },
-];
-
 /* ── Config ── */
 
-const PROFILE_CONFIG: Record<
-  ProfileIcon,
-  { icon: typeof UserPlus; color: string; bg: string; accent: string }
-> = {
-  new: { icon: UserPlus, color: "text-violet-600", bg: "bg-violet-100", accent: "#8b5cf6" },
-  good: { icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-100", accent: "#10b981" },
-  risky: { icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-100", accent: "#f59e0b" },
-  bad: { icon: ShieldAlert, color: "text-rose-600", bg: "bg-rose-100", accent: "#f43f5e" },
+const CHANNEL_MAP: Record<string, "Email" | "SMS" | "WhatsApp"> = {
+  EMAIL: "Email",
+  SMS: "SMS",
+  WHATSAPP: "WhatsApp",
 };
 
 const CHANNEL_META: Record<string, { icon: typeof Mail; label: string }> = {
@@ -128,6 +66,42 @@ const CHANNEL_META: Record<string, { icon: typeof Mail; label: string }> = {
 };
 
 /* ── Helpers ── */
+
+function formatOffset(trigger: string, offsetDays: number): string {
+  if (trigger === "ON_DUE" || offsetDays === 0) return "D0";
+  if (trigger === "BEFORE_DUE") return `D-${offsetDays}`;
+  return `D+${offsetDays}`;
+}
+
+function stepDescription(trigger: string, offsetDays: number, channel: string): string {
+  const channelLabel = CHANNEL_MAP[channel] || channel;
+  if (trigger === "BEFORE_DUE") {
+    return offsetDays === 1
+      ? `Aviso véspera via ${channelLabel}`
+      : `Lembrete ${offsetDays} dias antes via ${channelLabel}`;
+  }
+  if (trigger === "ON_DUE") return `Cobrança no vencimento via ${channelLabel}`;
+  return offsetDays <= 3
+    ? `Cobrança vencida via ${channelLabel}`
+    : `Último aviso via ${channelLabel}`;
+}
+
+function mapApiToRegua(rule: ApiDunningRule): Regua {
+  const steps: ReguaStep[] = rule.steps.map((s) => ({
+    id: s.id,
+    offset: formatOffset(s.trigger, s.offsetDays),
+    channel: CHANNEL_MAP[s.channel] || "Email",
+    description: stepDescription(s.trigger, s.offsetDays, s.channel),
+  }));
+
+  return {
+    id: rule.id,
+    name: rule.name,
+    description: `${rule.steps.length} etapas de cobrança automática`,
+    active: rule.active,
+    steps,
+  };
+}
 
 function parseOffset(offset: string): number {
   if (offset === "D0") return 0;
@@ -164,9 +138,20 @@ const KEYFRAMES = `
 /* ── Page ── */
 
 export default function ReguasPage() {
-  const [reguas, setReguas] = useState(REGUAS_DATA);
+  const [reguas, setReguas] = useState<Regua[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [confirmToggle, setConfirmToggle] = useState<{ id: string; name: string; active: boolean } | null>(null);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/dunning-rules")
+      .then((r) => r.json())
+      .then((rules: ApiDunningRule[]) => {
+        setReguas(rules.map(mapApiToRegua));
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredReguas =
     activeFilter === "all"
@@ -180,12 +165,40 @@ export default function ReguasPage() {
     if (regua) setConfirmToggle({ id, name: regua.name, active: regua.active });
   }
 
-  function executeToggle() {
+  async function executeToggle() {
     if (!confirmToggle) return;
-    setReguas((prev) =>
-      prev.map((r) => (r.id === confirmToggle.id ? { ...r, active: !r.active } : r))
+    setToggling(true);
+    try {
+      const res = await fetch(`/api/dunning-rules/${confirmToggle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !confirmToggle.active }),
+      });
+      if (res.ok) {
+        setReguas((prev) =>
+          prev.map((r) => (r.id === confirmToggle.id ? { ...r, active: !r.active } : r))
+        );
+      }
+    } finally {
+      setToggling(false);
+      setConfirmToggle(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Réguas de Cobrança"
+          subtitle="Configure fluxos automáticos de notificação"
+        />
+        <div className="space-y-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 h-40 animate-pulse" />
+          ))}
+        </div>
+      </div>
     );
-    setConfirmToggle(null);
   }
 
   return (
@@ -257,9 +270,6 @@ export default function ReguasPage() {
 /* ── Card ── */
 
 function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) {
-  const profile = PROFILE_CONFIG[regua.profileIcon];
-  const Icon = profile.icon;
-
   const sorted = [...regua.steps]
     .map((s) => ({ ...s, days: parseOffset(s.offset) }))
     .sort((a, b) => a.days - b.days);
@@ -274,27 +284,32 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
           ? "border-gray-100 shadow-soft hover:shadow-medium hover:border-gray-200"
           : "border-gray-100 opacity-60 hover:opacity-80"
       )}
-      style={{ borderLeftWidth: 3, borderLeftColor: profile.accent }}
+      style={{ borderLeftWidth: 3, borderLeftColor: regua.active ? "#10b981" : "#d1d5db" }}
     >
       {/* Header */}
       <Link
         href={`/reguas/${regua.id}`}
         className="flex items-center gap-4 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary/50"
       >
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", profile.bg)}>
-          <Icon className={cn("h-[18px] w-[18px]", profile.color)} aria-hidden="true" />
+        <div className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          regua.active ? "bg-emerald-100" : "bg-gray-100"
+        )}>
+          <Bell className={cn("h-[18px] w-[18px]", regua.active ? "text-emerald-600" : "text-gray-400")} aria-hidden="true" />
         </div>
 
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-gray-900 truncate">{regua.name}</h3>
           <p className="text-xs text-gray-500 truncate mt-0.5">{regua.description}</p>
           <div className="flex items-center gap-3 mt-1">
-            <span className="flex items-center gap-1 text-xs text-gray-500">
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              {regua.clientCount} {regua.clientCount === 1 ? "cliente" : "clientes"}
-            </span>
-            <span className="text-gray-300" aria-hidden="true">·</span>
             <span className="text-xs text-gray-500">{regua.steps.length} etapas</span>
+            <span className="text-gray-300" aria-hidden="true">·</span>
+            <span className={cn(
+              "text-xs font-medium",
+              regua.active ? "text-emerald-600" : "text-gray-400"
+            )}>
+              {regua.active ? "Ativa" : "Inativa"}
+            </span>
           </div>
         </div>
 
@@ -345,7 +360,9 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
                   <div
                     className="h-full rounded-full"
                     style={{
-                      background: `linear-gradient(to right, #e5e7eb 0%, #e5e7eb ${d0Index >= 0 ? ((d0Index / Math.max(sorted.length - 1, 1)) * 100 - 5) : 50}%, var(--menlo-orange) ${d0Index >= 0 ? (d0Index / Math.max(sorted.length - 1, 1)) * 100 : 50}%, #fcd34d ${d0Index >= 0 ? ((d0Index / Math.max(sorted.length - 1, 1)) * 100 + 5) : 50}%, #fcd34d 100%)`,
+                      background: d0Index >= 0
+                        ? `linear-gradient(to right, #e5e7eb 0%, #e5e7eb ${((d0Index / Math.max(sorted.length - 1, 1)) * 100 - 5)}%, var(--menlo-orange) ${(d0Index / Math.max(sorted.length - 1, 1)) * 100}%, #fcd34d ${((d0Index / Math.max(sorted.length - 1, 1)) * 100 + 5)}%, #fcd34d 100%)`
+                        : "linear-gradient(to right, #e5e7eb, #fcd34d)",
                       animation: "regua-track-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both",
                       transformOrigin: "left center",
                     }}
@@ -356,8 +373,8 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
               {/* Nodes */}
               <div className="relative flex items-start">
                 {sorted.map((step, i) => {
-                  const ChannelIcon = CHANNEL_META[step.channel].icon;
-                  const channelLabel = CHANNEL_META[step.channel].label;
+                  const ChannelIcon = CHANNEL_META[step.channel]?.icon || Mail;
+                  const channelLabel = CHANNEL_META[step.channel]?.label || step.channel;
                   const isDue = step.days === 0;
                   const isAfter = step.days > 0;
 

@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
+import type { Cobranca } from "@/lib/types";
 
 interface EmitirNfDialogProps {
   open: boolean;

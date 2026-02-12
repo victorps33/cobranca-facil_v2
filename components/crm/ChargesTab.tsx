@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
+import type { Cobranca } from "@/lib/types";
 
 const fmtBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(

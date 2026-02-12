@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FranqueadoraCard } from "@/components/franqueadora-card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,8 @@ import {
   EyeOff,
   Mail,
   Shield,
+  Phone,
+  Loader2,
 } from "lucide-react";
 
 /* ───────────────────── Nav items ───────────────────── */
@@ -280,6 +282,110 @@ function ApuracaoContent() {
 
 /* ───────────────────── Seção: Integrações ───────────────────── */
 
+function TwilioNumbersSection() {
+  const [whatsappFrom, setWhatsappFrom] = useState("");
+  const [smsFrom, setSmsFrom] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/agent-config/twilio")
+      .then((res) => res.json())
+      .then((data) => {
+        setWhatsappFrom(data.whatsappFrom || "");
+        setSmsFrom(data.smsFrom || "");
+      })
+      .catch(() => {
+        toast({ title: "Erro", description: "Não foi possível carregar os números Twilio.", variant: "destructive" });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/agent-config/twilio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsappFrom, smsFrom }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao salvar");
+      }
+      const data = await res.json();
+      setWhatsappFrom(data.whatsappFrom || "");
+      setSmsFrom(data.smsFrom || "");
+      toast({ title: "Salvo", description: "Números Twilio atualizados com sucesso." });
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível salvar.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Carregando...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">
+          Twilio — Números de envio
+        </p>
+        <p className="text-sm text-gray-500 mb-4">
+          Configure os números de WhatsApp e SMS desta franqueadora. Se não configurados, serão usados os números padrão do sistema.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="twilio-whatsapp" className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-gray-400" />
+            Número WhatsApp
+          </Label>
+          <Input
+            id="twilio-whatsapp"
+            value={whatsappFrom}
+            onChange={(e) => setWhatsappFrom(e.target.value)}
+            placeholder="whatsapp:+5511999999999"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="twilio-sms" className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-gray-400" />
+            Número SMS
+          </Label>
+          <Input
+            id="twilio-sms"
+            value={smsFrom}
+            onChange={(e) => setSmsFrom(e.target.value)}
+            placeholder="+5511999999999"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          Salvar números
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function IntegracoesContent() {
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -305,6 +411,10 @@ function IntegracoesContent() {
         <h2 className="text-lg font-semibold text-gray-900">Integrações</h2>
         <p className="text-sm text-gray-500 mt-1">Conecte APIs e fontes de dados externas.</p>
       </div>
+
+      <TwilioNumbersSection />
+
+      <hr className="border-gray-100" />
 
       <div className="space-y-2">
         <Label htmlFor="api-key">Chave API Anthropic</Label>

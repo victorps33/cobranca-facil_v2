@@ -10,13 +10,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CheckCircle2, QrCode, Copy, Check, Printer } from "lucide-react";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
-import type { Franqueado } from "@/lib/data/clientes-dummy";
-import {
-  getInvoicePixByCobranca,
-  getComprovantePixByCobranca,
-} from "@/lib/data/documentos-dummy";
-import { FRANQUEADORA, fmt, fmtDate } from "@/lib/constants";
+import type { Cobranca, Franqueado } from "@/lib/types";
+import { fmt, fmtDate } from "@/lib/constants";
 
 interface PixComprovanteDialogProps {
   open: boolean;
@@ -35,18 +30,9 @@ export function PixComprovanteDialog({
 
   if (!cobranca) return null;
 
-  // Use centralized dummy data
-  const invoice = getInvoicePixByCobranca(cobranca.id);
-  const comprovante = getComprovantePixByCobranca(cobranca.id);
-
-  const pixCode = invoice?.qrCodePayload
-    ?? `00020101021226840014br.gov.bcb.pix2562qrcode.cobrancafacil.com/v2/cobv/${cobranca.id}`;
-  const txId = invoice?.txId
-    ?? cobranca.id.replace(/-/g, "").slice(0, 25).toUpperCase();
-  const dataPagamento = comprovante?.dataPagamento ?? cobranca.dataPagamento ?? cobranca.dataVencimento;
-  const horaPagamento = comprovante?.horaPagamento ?? "14:32:18";
-  const endToEndId = comprovante?.endToEndId ?? invoice?.endToEndId ?? null;
-  const chavePix = invoice?.chavePix ?? FRANQUEADORA.cnpj;
+  const pixCode = `00020101021226840014br.gov.bcb.pix2562qrcode.cobrancafacil.com/v2/cobv/${cobranca.id}`;
+  const txId = cobranca.id.replace(/-/g, "").slice(0, 25).toUpperCase();
+  const dataPagamento = cobranca.dataPagamento ?? cobranca.dataVencimento;
   const isPago = cobranca.status === "Paga";
 
   function copy(text: string) {
@@ -78,14 +64,13 @@ export function PixComprovanteDialog({
             </h2>
             <p className="text-sm text-gray-500">
               {fmtDate(dataPagamento)}
-              {comprovante && ` às ${horaPagamento}`}
             </p>
           </div>
 
           {/* ── Valor ── */}
           <div className="text-center">
             <p className="text-3xl font-bold text-gray-900 tabular-nums">
-              {fmt(isPago ? (comprovante?.valorPago ?? cobranca.valorPago) : cobranca.valorOriginal)}
+              {fmt(isPago ? cobranca.valorPago : cobranca.valorOriginal)}
             </p>
             {isPago && (
               <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">
@@ -108,61 +93,18 @@ export function PixComprovanteDialog({
           {/* ── Detalhes ── */}
           <div className="bg-gray-50 rounded-xl p-5 space-y-3">
             <Row
-              label="Beneficiário"
-              value={comprovante?.recebedor.nome ?? invoice?.beneficiario.razaoSocial ?? FRANQUEADORA.razaoSocial}
-            />
-            <Row
-              label="CNPJ Beneficiário"
-              value={comprovante?.recebedor.cnpj ?? invoice?.beneficiario.cnpj ?? FRANQUEADORA.cnpj}
-            />
-            {comprovante && (
-              <>
-                <Row label="Banco recebedor" value={comprovante.recebedor.banco} />
-                <Row label="Agência / Conta" value={`${comprovante.recebedor.agencia} / ${comprovante.recebedor.conta}`} />
-              </>
-            )}
-            <div className="border-t border-gray-200" />
-            <Row
               label="Pagador"
-              value={comprovante?.pagador.nome ?? invoice?.pagador.razaoSocial ?? franqueado?.razaoSocial ?? cobranca.cliente}
+              value={franqueado?.razaoSocial ?? cobranca.cliente}
             />
             <Row
               label="CNPJ Pagador"
-              value={comprovante?.pagador.cnpj ?? invoice?.pagador.cnpj ?? franqueado?.cnpj ?? "—"}
+              value={franqueado?.cnpj ?? "—"}
             />
-            {comprovante && (
-              <>
-                <Row label="Banco pagador" value={comprovante.pagador.banco} />
-                <Row label="Agência / Conta" value={`${comprovante.pagador.agencia} / ${comprovante.pagador.conta}`} />
-              </>
-            )}
             <div className="border-t border-gray-200" />
-            <Row label="Chave Pix" value={chavePix} />
             <Row label={isPago ? "Data do pagamento" : "Data de criação"} value={fmtDate(dataPagamento)} />
-            {endToEndId && <Row label="End-to-End ID" value={endToEndId} mono />}
             <Row label="ID da transação" value={txId} mono />
             <Row label="Descrição" value={cobranca.descricao} />
-            {invoice?.infoAdicionais && invoice.infoAdicionais.length > 0 && (
-              <>
-                <div className="border-t border-gray-200" />
-                {invoice.infoAdicionais.map((info, i) => (
-                  <Row key={i} label={info.nome} value={info.valor} />
-                ))}
-              </>
-            )}
           </div>
-
-          {/* ── Autenticação (se comprovante) ── */}
-          {comprovante && (
-            <div className="bg-emerald-50 rounded-xl p-4 space-y-1">
-              <p className="text-[10px] text-emerald-600 uppercase tracking-wide font-semibold">
-                Código de autenticação
-              </p>
-              <p className="font-mono text-xs text-emerald-700 tracking-wider">
-                {comprovante.autenticacao}
-              </p>
-            </div>
-          )}
 
           {/* ── Código Pix ── */}
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">

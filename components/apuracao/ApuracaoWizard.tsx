@@ -51,12 +51,11 @@ import {
   type NfConfig,
   type ExcecaoApuracao,
   type DescontoApuracao,
-  fontesDummy,
-  franqueadosDummy,
+  fontesDefault,
   regrasDefault,
   nfConfigDefault,
   calcularApuracao,
-} from "@/lib/data/apuracao-dummy";
+} from "@/lib/apuracao-calc";
 import {
   Select,
   SelectContent,
@@ -102,8 +101,8 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
-  const [fontes] = useState<FonteDados[]>(fontesDummy);
-  const [franqueados] = useState<ApuracaoFranqueado[]>(franqueadosDummy);
+  const [fontes] = useState<FonteDados[]>(fontesDefault);
+  const [franqueados] = useState<ApuracaoFranqueado[]>([]);
   const [regras, setRegras] = useState<RegraApuracao>({ ...regrasDefault });
   const [resultados, setResultados] = useState<ResultadoFranqueado[]>([]);
   const [aprovacao, setAprovacao] = useState({ revisou: false, verificou: false, confirmou: false });

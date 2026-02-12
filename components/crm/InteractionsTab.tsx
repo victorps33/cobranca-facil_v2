@@ -10,8 +10,8 @@ import {
   INTERACTION_TYPE_LABELS,
   INTERACTION_TYPE_COLORS,
   DIRECTION_LABELS,
-} from "@/lib/data/crm-interactions-dummy";
-import type { CrmInteraction } from "@/lib/data/crm-interactions-dummy";
+} from "@/lib/crm-constants";
+import type { CrmInteraction } from "@/lib/types/crm";
 
 const typeIcons: Record<CrmInteraction["type"], typeof Mail> = {
   EMAIL: Mail,

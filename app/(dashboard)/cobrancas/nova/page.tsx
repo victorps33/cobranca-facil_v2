@@ -39,8 +39,8 @@ import { cn } from "@/lib/cn";
 
 interface Customer {
   id: string;
-  name: string;
-  doc: string;
+  nome: string;
+  cnpj: string;
   email: string;
 }
 
@@ -147,8 +147,8 @@ export default function NovaCobrancaPage() {
   const selectCustomer = (customer: Customer) => {
     updateFormData({
       customerId: customer.id,
-      customerName: customer.name,
-      customerDoc: customer.doc,
+      customerName: customer.nome,
+      customerDoc: customer.cnpj,
       customerEmail: customer.email,
       isNewCustomer: false,
     });
@@ -620,10 +620,10 @@ export default function NovaCobrancaPage() {
                         )}
                       >
                         <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center text-sm font-semibold text-gray-600">
-                          {customer.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                          {customer.nome.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{customer.name}</p>
+                          <p className="font-medium text-gray-900">{customer.nome}</p>
                           <p className="text-sm text-gray-500">{customer.email}</p>
                         </div>
                         {formData.customerId === customer.id && (

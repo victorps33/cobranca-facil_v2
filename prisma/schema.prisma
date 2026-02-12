@@ -38,6 +38,8 @@ model User {
   conversationsAssigned Conversation[] @relation("ConversationAssignee")
   messagesSent        Message[]
   conversationReads   ConversationRead[]
+  onboardingCompletedAt DateTime?
+  checklistDismissedAt  DateTime?
 
   @@index([franqueadoraId])
 }
@@ -85,6 +87,13 @@ model Customer {
   email           String
   phone           String
   whatsappPhone   String?
+  razaoSocial     String?
+  cidade          String?
+  estado          String?
+  bairro          String?
+  responsavel     String?
+  statusLoja      String?   @default("Aberta")
+  dataAbertura    DateTime?
   franqueadoraId  String?
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
   createdAt       DateTime  @default(now())
@@ -106,6 +115,11 @@ model Charge {
   amountCents      Int
   dueDate          DateTime
   status           ChargeStatus      @default(PENDING)
+  categoria        String?
+  formaPagamento   String?
+  nfEmitida        Boolean           @default(false)
+  competencia      String?
+  paidAt           DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   boleto           Boleto?

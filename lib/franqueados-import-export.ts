@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { Franqueado } from "@/lib/data/clientes-dummy";
+import type { Franqueado } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Header mapping: PT-BR (with/without accents, spaces, camelCase) → field key

@@ -1,3 +1,6 @@
+// Apuração calculation logic — types, defaults, and calculation function
+// Extracted from lib/data/apuracao-dummy.ts
+
 // ============================================
 // INTERFACES
 // ============================================
@@ -84,37 +87,7 @@ export interface ApuracaoState {
 }
 
 // ============================================
-// DADOS DUMMY — FONTES DE DADOS
-// ============================================
-
-export const fontesDummy: FonteDados[] = [
-  { id: "pdv", nome: "PDV", unidades: 45, conectado: true },
-  { id: "ifood", nome: "iFood", unidades: 42, conectado: true },
-  { id: "rappi", nome: "Rappi", unidades: 0, conectado: false },
-  { id: "outras", nome: "Outras fontes", unidades: 0, conectado: false },
-];
-
-// ============================================
-// DADOS DUMMY — FRANQUEADOS
-// ============================================
-
-export const franqueadosDummy: ApuracaoFranqueado[] = [
-  { id: "f1", nome: "Franquia Morumbi",        pdv: 18500000, ifood: 4200000, rappiw: 0, total: 22700000, mesAnterior: 21500000, status: "ok" },
-  { id: "f2", nome: "Franquia Vila Mariana",    pdv: 14200000, ifood: 3800000, rappiw: 0, total: 18000000, mesAnterior: 17200000, status: "ok" },
-  { id: "f3", nome: "Franquia Santo Amaro",     pdv: 11800000, ifood: 2900000, rappiw: 0, total: 14700000, mesAnterior: 14000000, status: "ok" },
-  { id: "f4", nome: "Franquia Campo Belo",      pdv: 9500000,  ifood: 2100000, rappiw: 0, total: 11600000, mesAnterior: 11200000, status: "ok" },
-  { id: "f5", nome: "Franquia Itaim Bibi",      pdv: 21000000, ifood: 5500000, rappiw: 0, total: 26500000, mesAnterior: 20000000, status: "alerta" },
-  { id: "f6", nome: "Franquia Moema",           pdv: 7800000,  ifood: 1900000, rappiw: 0, total: 9700000,  mesAnterior: 13000000, status: "alerta" },
-  { id: "f7", nome: "Franquia Brooklin",        pdv: 15600000, ifood: 4100000, rappiw: 0, total: 19700000, mesAnterior: 18800000, status: "ok" },
-  { id: "f8", nome: "Franquia Saude",           pdv: 6200000,  ifood: 1500000, rappiw: 0, total: 7700000,  mesAnterior: 7400000,  status: "ok" },
-  { id: "f9", nome: "Franquia Recife",          pdv: 8900000,  ifood: 2200000, rappiw: 0, total: 11100000, mesAnterior: 10800000, status: "ok" },
-  { id: "f10", nome: "Franquia Fortaleza",      pdv: 7600000,  ifood: 1800000, rappiw: 0, total: 9400000,  mesAnterior: 9100000,  status: "ok" },
-  { id: "f11", nome: "Franquia Salvador",       pdv: 6800000,  ifood: 1600000, rappiw: 0, total: 8400000,  mesAnterior: 8100000,  status: "ok" },
-  { id: "f12", nome: "Franquia Curitiba",       pdv: 9350000,  ifood: 2400000, rappiw: 0, total: 11750000, mesAnterior: 11200000, status: "ok" },
-];
-
-// ============================================
-// REGRAS DEFAULT
+// DEFAULTS
 // ============================================
 
 export const regrasDefault: RegraApuracao = {
@@ -132,6 +105,13 @@ export const nfConfigDefault: NfConfig = {
   exceçõesMarketing: [],
 };
 
+export const fontesDefault: FonteDados[] = [
+  { id: "pdv", nome: "PDV", unidades: 0, conectado: false },
+  { id: "ifood", nome: "iFood", unidades: 0, conectado: false },
+  { id: "rappi", nome: "Rappi", unidades: 0, conectado: false },
+  { id: "outras", nome: "Outras fontes", unidades: 0, conectado: false },
+];
+
 // ============================================
 // CÁLCULO DE APURAÇÃO
 // ============================================
@@ -145,7 +125,7 @@ export function calcularApuracao(
     const faturamento = f.total;
     const royalty = Math.round(faturamento * (regras.royaltyPercent / 100));
     const marketing = Math.round(faturamento * (regras.marketingPercent / 100));
-    let subtotal = royalty + marketing;
+    const subtotal = royalty + marketing;
 
     const variacao = f.mesAnterior > 0
       ? ((faturamento - f.mesAnterior) / f.mesAnterior) * 100

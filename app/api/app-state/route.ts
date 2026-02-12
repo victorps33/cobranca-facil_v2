@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-helpers";
-import { cobrancasDummy, getCobrancasStats } from "@/lib/data/cobrancas-dummy";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
+import { requireTenant } from "@/lib/auth-helpers";
 
-// GET /api/app-state — Retorna estado atual da aplicação (data simulada, stats)
+// GET /api/app-state — Retorna estado atual da aplicação
 export async function GET() {
-  const { error } = await requireAuth();
+  const { session, error } = await requireTenant();
   if (error) return error;
 
-  // Tenta buscar do banco, fallback para dados dummy derivados das cobranças
+  const franqueadoraId = session!.user.franqueadoraId as string;
+  const tenantFilter = { customer: { franqueadoraId } };
+
   try {
     const appState = await prisma.appState.findFirst({ where: { id: 1 } });
     const now = appState?.simulatedNow || new Date();
     const isSimulated = !!appState?.simulatedNow;
 
     const [total, pending, paid, overdue] = await Promise.all([
-      prisma.charge.count(),
-      prisma.charge.count({ where: { status: "PENDING" } }),
-      prisma.charge.count({ where: { status: "PAID" } }),
-      prisma.charge.count({ where: { status: "OVERDUE" } }),
+      prisma.charge.count({ where: tenantFilter }),
+      prisma.charge.count({ where: { ...tenantFilter, status: "PENDING" } }),
+      prisma.charge.count({ where: { ...tenantFilter, status: "PAID" } }),
+      prisma.charge.count({ where: { ...tenantFilter, status: "OVERDUE" } }),
     ]);
 
-    const totalAmountResult = await prisma.charge.aggregate({ _sum: { amountCents: true } });
+    const totalAmountResult = await prisma.charge.aggregate({
+      where: tenantFilter,
+      _sum: { amountCents: true },
+    });
     const paidAmountResult = await prisma.charge.aggregate({
-      where: { status: "PAID" },
+      where: { ...tenantFilter, status: "PAID" },
       _sum: { amountCents: true },
     });
 
@@ -42,22 +45,18 @@ export async function GET() {
       },
     });
   } catch {
-    // Fallback: dados derivados do ciclo mais recente (Jan/2026)
-    const latestCiclo = ciclosHistorico[0];
-    const cobsDoMes = cobrancasDummy.filter((c) => c.competencia === latestCiclo.competencia);
-    const stats = getCobrancasStats(cobsDoMes);
-
+    // Return zeros if DB is empty or unavailable
     return NextResponse.json({
       date: new Date().toISOString(),
       isSimulated: false,
       demoDate: null,
       stats: {
-        total: stats.total,
-        pending: stats.byStatus.aberta,
-        paid: stats.byStatus.paga,
-        overdue: stats.byStatus.vencida,
-        totalAmount: stats.totalEmitido,
-        paidAmount: stats.totalPago,
+        total: 0,
+        pending: 0,
+        paid: 0,
+        overdue: 0,
+        totalAmount: 0,
+        paidAmount: 0,
       },
     });
   }

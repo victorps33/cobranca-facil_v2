@@ -16,9 +16,7 @@ import { CreateTaskDialog } from "@/components/crm/CreateTaskDialog";
 import { cn } from "@/lib/cn";
 import { toast } from "@/components/ui/use-toast";
 import type { CrmCustomer, CrmCharge, CrmInteraction, CrmTask } from "@/lib/types/crm";
-import type { CrmInteraction as DummyInteraction } from "@/lib/data/crm-interactions-dummy";
-import type { CrmTask as DummyTask } from "@/lib/data/crm-tasks-dummy";
-import type { Cobranca } from "@/lib/data/cobrancas-dummy";
+import type { Cobranca } from "@/lib/types";
 import { AlertTriangle, Loader2, Mail, Phone, MessageCircle, Plus } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -69,43 +67,6 @@ function mapChargeToCobranca(ch: CrmCharge, customerName: string): Cobranca {
   };
 }
 
-// Map API types to dummy types for sub-components
-function mapInteraction(i: CrmInteraction): DummyInteraction {
-  return {
-    id: i.id,
-    customerId: i.customerId,
-    customerName: i.customerName,
-    chargeId: i.chargeId ?? undefined,
-    type: i.type,
-    direction: i.direction,
-    content: i.content,
-    createdBy: i.createdBy,
-    createdById: i.createdById,
-    createdAt: i.createdAt,
-    isAutomatic: i.isAutomatic,
-  };
-}
-
-function mapTask(t: CrmTask): DummyTask {
-  return {
-    id: t.id,
-    customerId: t.customerId,
-    customerName: t.customerName,
-    chargeId: t.chargeId ?? undefined,
-    title: t.title,
-    description: t.description ?? undefined,
-    status: t.status,
-    priority: t.priority,
-    dueDate: t.dueDate ?? undefined,
-    assignedTo: t.assignedTo ?? undefined,
-    assignedToId: t.assignedToId ?? undefined,
-    completedAt: t.completedAt ?? undefined,
-    createdBy: t.createdBy,
-    createdById: t.createdById,
-    createdAt: t.createdAt,
-  };
-}
-
 export default function CrmClienteDetalhePage() {
   const params = useParams();
   const { data: session } = useSession();
@@ -150,16 +111,6 @@ export default function CrmClienteDetalhePage() {
     () =>
       charges.map((ch) => mapChargeToCobranca(ch, customer?.name ?? "")),
     [charges, customer?.name]
-  );
-
-  const mappedInteractions = useMemo(
-    () => interactions.map(mapInteraction),
-    [interactions]
-  );
-
-  const mappedTasks = useMemo(
-    () => tasks.map(mapTask),
-    [tasks]
   );
 
   const stats = useMemo(() => {
@@ -221,7 +172,7 @@ export default function CrmClienteDetalhePage() {
   }
 
   const handleAddInteraction = async (
-    data: Omit<DummyInteraction, "id" | "customerId" | "customerName" | "createdBy" | "createdById" | "createdAt">
+    data: Omit<CrmInteraction, "id" | "customerId" | "customerName" | "createdBy" | "createdById" | "createdAt">
   ) => {
     try {
       const res = await fetch("/api/crm/interactions", {
@@ -257,7 +208,7 @@ export default function CrmClienteDetalhePage() {
   };
 
   const handleAddTask = async (
-    data: Pick<DummyTask, "title" | "description" | "priority" | "dueDate" | "assignedTo" | "assignedToId">
+    data: Pick<CrmTask, "title" | "description" | "priority" | "dueDate" | "assignedTo" | "assignedToId">
   ) => {
     try {
       const res = await fetch("/api/crm/tasks", {
@@ -430,15 +381,15 @@ export default function CrmClienteDetalhePage() {
       {/* Tab content */}
       {activeTab === "timeline" && (
         <TimelineTab
-          interactions={mappedInteractions}
-          tasks={mappedTasks}
+          interactions={interactions}
+          tasks={tasks}
           cobrancas={cobrancas}
         />
       )}
       {activeTab === "cobrancas" && <ChargesTab cobrancas={cobrancas} />}
       {activeTab === "interacoes" && (
         <InteractionsTab
-          interactions={mappedInteractions}
+          interactions={interactions}
           onAdd={() => setInteractionDialogOpen(true)}
           onDelete={isReadOnly ? undefined : handleDeleteInteraction}
           hideAddButton={isReadOnly}
@@ -447,7 +398,7 @@ export default function CrmClienteDetalhePage() {
       )}
       {activeTab === "tarefas" && (
         <TasksTab
-          tasks={mappedTasks}
+          tasks={tasks}
           onAdd={() => setTaskDialogOpen(true)}
           onComplete={isReadOnly ? undefined : handleCompleteTask}
           onDelete={isReadOnly ? undefined : handleDeleteTask}

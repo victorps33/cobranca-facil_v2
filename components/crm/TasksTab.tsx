@@ -10,8 +10,8 @@ import {
   TASK_STATUS_COLORS,
   TASK_PRIORITY_LABELS,
   TASK_PRIORITY_COLORS,
-} from "@/lib/data/crm-tasks-dummy";
-import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
+} from "@/lib/crm-constants";
+import type { CrmTask } from "@/lib/types/crm";
 
 const fmtDate = (dateStr: string) =>
   new Intl.DateTimeFormat("pt-BR").format(new Date(dateStr));

@@ -113,16 +113,17 @@ function getMockResponse(message: string): string {
   return mockResponses.default;
 }
 
-async function getContextData() {
+async function getContextData(franqueadoraId: string) {
   try {
-    // Get basic stats from database
+    // Get basic stats from database (filtered by tenant)
     const [charges, customers] = await Promise.all([
       prisma.charge.findMany({
+        where: { customer: { franqueadoraId } },
         take: 100,
         orderBy: { createdAt: "desc" },
         include: { customer: true },
       }),
-      prisma.customer.count(),
+      prisma.customer.count({ where: { franqueadoraId } }),
     ]);
 
     const totalRevenue = charges
@@ -147,8 +148,10 @@ async function getContextData() {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireTenant();
+  const { session, error } = await requireTenant();
   if (error) return error;
+
+  const franqueadoraId = session!.user.franqueadoraId as string;
 
   try {
     const { message, timeframe, page } = await request.json();
@@ -160,8 +163,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get context data
-    const context = await getContextData();
+    // Get context data (filtered by tenant)
+    const context = await getContextData(franqueadoraId);
 
     // For now, use mock responses
     // In production, this would call an LLM API with the context and system prompt

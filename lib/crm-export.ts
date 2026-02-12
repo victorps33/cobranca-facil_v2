@@ -1,14 +1,11 @@
 import * as XLSX from "xlsx";
-import type { CrmInteraction } from "@/lib/data/crm-interactions-dummy";
-import type { CrmTask } from "@/lib/data/crm-tasks-dummy";
+import type { CrmInteraction, CrmTask } from "@/lib/types/crm";
 import {
   INTERACTION_TYPE_LABELS,
   DIRECTION_LABELS,
-} from "@/lib/data/crm-interactions-dummy";
-import {
   TASK_STATUS_LABELS,
   TASK_PRIORITY_LABELS,
-} from "@/lib/data/crm-tasks-dummy";
+} from "@/lib/crm-constants";
 
 function centsToReais(cents: number): number {
   return cents / 100;

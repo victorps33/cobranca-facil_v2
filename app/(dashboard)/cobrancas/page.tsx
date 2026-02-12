@@ -4,11 +4,11 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
+import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import { StatCard } from "@/components/layout/StatCard";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
-import { cobrancasDummy, getCobrancasStats, type Cobranca } from "@/lib/data/cobrancas-dummy";
-import { ciclosHistorico } from "@/lib/data/apuracao-historico-dummy";
+import type { Cobranca } from "@/lib/types";
 import { EmitirNfDialog } from "@/components/cobrancas/EmitirNfDialog";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -25,34 +25,31 @@ import {
   MoreHorizontal,
   CreditCard,
   QrCode,
+  Receipt,
 } from "lucide-react";
 
-const STATUS_COLORS: Record<Cobranca["status"], string> = {
+const STATUS_COLORS: Record<string, string> = {
   Aberta: "bg-blue-50 text-blue-700",
   Vencida: "bg-red-50 text-red-700",
   Paga: "bg-emerald-50 text-emerald-700",
   Cancelada: "bg-gray-100 text-gray-500",
 };
 
-const PAYMENT_ICONS: Record<Cobranca["formaPagamento"], React.ReactNode> = {
+const PAYMENT_ICONS: Record<string, React.ReactNode> = {
   Boleto: <FileText className="h-3.5 w-3.5" />,
   Pix: <QrCode className="h-3.5 w-3.5" />,
   Cartão: <CreditCard className="h-3.5 w-3.5" />,
 };
 
-const NF_CATEGORIES: Cobranca["categoria"][] = ["Royalties", "FNP"];
-
-// Competências derivadas dos ciclos de apuração
-const competencias = ciclosHistorico.map((c) => ({
-  label: c.competenciaShort,
-  value: c.competencia,
-}));
+const NF_CATEGORIES = ["Royalties", "FNP"];
 
 type SortKey = "dataVencimento" | "valorOriginal" | "cliente";
 type SortDir = "asc" | "desc";
 
 export default function CobrancasPage() {
   const router = useRouter();
+  const [allCobrancas, setAllCobrancas] = useState<Cobranca[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCompetencia, setSelectedCompetencia] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -60,18 +57,21 @@ export default function CobrancasPage() {
   const [sortKey, setSortKey] = useState<SortKey>("dataVencimento");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Local state for NF overrides
   const [nfOverrides, setNfOverrides] = useState<Record<string, boolean>>({});
-
-  // NF dialog state
   const [nfDialogOpen, setNfDialogOpen] = useState(false);
   const [nfDialogCobranca, setNfDialogCobranca] = useState<Cobranca | null>(null);
-
-  // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  useEffect(() => {
+    fetch("/api/charges")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAllCobrancas(data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -84,20 +84,33 @@ export default function CobrancasPage() {
     }
   }, [openMenuId]);
 
-  // Cobranças filtradas por competência (ou todas) com NF overrides
+  // Derive competências from data
+  const competencias = useMemo(() => {
+    const set = new Set<string>();
+    allCobrancas.forEach((c) => { if (c.competencia) set.add(c.competencia); });
+    const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    return Array.from(set).sort((a, b) => {
+      const [mesA, anoA] = a.split("/");
+      const [mesB, anoB] = b.split("/");
+      return (parseInt(anoB) * 12 + meses.indexOf(mesB)) - (parseInt(anoA) * 12 + meses.indexOf(mesA));
+    }).map((c) => {
+      const [mes, ano] = c.split("/");
+      return { label: `${mes}/${ano.slice(2)}`, value: c };
+    });
+  }, [allCobrancas]);
+
   const cobrancasFiltradas = useMemo(() => {
     const base = selectedCompetencia === "all"
-      ? cobrancasDummy
-      : cobrancasDummy.filter((c) => c.competencia === selectedCompetencia);
+      ? allCobrancas
+      : allCobrancas.filter((c) => c.competencia === selectedCompetencia);
     return base.map((c) => ({
       ...c,
       nfEmitida: nfOverrides[c.id] ?? c.nfEmitida,
     }));
-  }, [selectedCompetencia, nfOverrides]);
+  }, [selectedCompetencia, nfOverrides, allCobrancas]);
 
   const filtered = useMemo(() => {
     let list = [...cobrancasFiltradas];
-
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -157,8 +170,25 @@ export default function CobrancasPage() {
     ? "Todas as competências"
     : `Competência: ${selectedLabel}`;
 
-  // Stats da competência selecionada
-  const stats = getCobrancasStats(cobrancasFiltradas);
+  // Stats
+  const stats = useMemo(() => {
+    const totalEmitido = cobrancasFiltradas.reduce((s, c) => s + c.valorOriginal, 0);
+    const totalPago = cobrancasFiltradas.filter((c) => c.status === "Paga").reduce((s, c) => s + c.valorOriginal, 0);
+    const abertas = cobrancasFiltradas.filter((c) => c.status === "Aberta");
+    const vencidas = cobrancasFiltradas.filter((c) => c.status === "Vencida");
+    const valorAberto = abertas.reduce((s, c) => s + c.valorAberto, 0);
+    const valorVencido = vencidas.reduce((s, c) => s + c.valorAberto, 0);
+    return {
+      total: cobrancasFiltradas.length,
+      totalEmitido,
+      totalPago,
+      valorAberto,
+      valorVencido,
+      aberta: abertas.length,
+      paga: cobrancasFiltradas.filter((c) => c.status === "Paga").length,
+      vencida: vencidas.length,
+    };
+  }, [cobrancasFiltradas]);
 
   const SortIcon = ({ k }: { k: SortKey }) =>
     sortKey === k ? (
@@ -176,11 +206,41 @@ export default function CobrancasPage() {
     return !c.nfEmitida && NF_CATEGORIES.includes(c.categoria);
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Cobranças" subtitle="Carregando..." />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-20 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (allCobrancas.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Cobranças"
+          subtitle="Gerencie suas cobranças"
+          primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
+        />
+        <DataEmptyState
+          title="Nenhuma cobrança encontrada"
+          description="Crie sua primeira cobrança para começar a gerenciar seus recebimentos."
+          actionLabel="Nova Cobrança"
+          actionHref="/cobrancas/nova"
+          icon={<Receipt className="h-6 w-6 text-gray-400" />}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
-      {/* ── Fixed top section ── */}
       <div className="flex-shrink-0 space-y-4">
-        {/* ── Page Header ── */}
         <PageHeader
           title="Cobranças"
           subtitle={`${cobrancasFiltradas.length} cobranças no período`}
@@ -188,7 +248,6 @@ export default function CobrancasPage() {
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
         />
 
-        {/* ── Filtros de competência ── */}
         <FilterPillGroup
           options={[
             { key: "all", label: "Todas" },
@@ -198,7 +257,6 @@ export default function CobrancasPage() {
           onChange={setSelectedCompetencia}
         />
 
-        {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={<DollarSign className="h-4 w-4 text-gray-400" />}
@@ -210,24 +268,23 @@ export default function CobrancasPage() {
             icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
             label="Total Recebido"
             value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.byStatus.paga} pagas`}
+            caption={`${selectedLabel} · ${stats.paga} pagas`}
           />
           <StatCard
             icon={<Clock className="h-4 w-4 text-gray-400" />}
             label="Em Aberto"
-            value={`R$ ${(cobrancasFiltradas.filter((c) => c.status === "Aberta").reduce((s, c) => s + c.valorAberto, 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.byStatus.aberta} a vencer`}
+            value={`R$ ${(stats.valorAberto / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            caption={`${selectedLabel} · ${stats.aberta} a vencer`}
           />
           <StatCard
             icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
             label="Vencido"
             value={`R$ ${(stats.valorVencido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.byStatus.vencida} vencidas`}
+            caption={`${selectedLabel} · ${stats.vencida} vencidas`}
             danger={stats.valorVencido > 0}
           />
         </div>
 
-        {/* ── Filters ── */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
@@ -241,7 +298,6 @@ export default function CobrancasPage() {
               className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
             />
           </div>
-          {/* Status pills */}
           <FilterPillGroup
             options={[
               { key: "all", label: "Todos" },
@@ -253,7 +309,6 @@ export default function CobrancasPage() {
             value={statusFilter}
             onChange={setStatusFilter}
           />
-          {/* Category pills */}
           <FilterPillGroup
             options={[
               { key: "all", label: "Todas" },
@@ -267,7 +322,6 @@ export default function CobrancasPage() {
         </div>
       </div>
 
-      {/* ── Table or Empty State (fills remaining space) ── */}
       <div className="flex-1 min-h-0 mt-4">
         {filtered.length === 0 ? (
           <FilterEmptyState
@@ -318,7 +372,7 @@ export default function CobrancasPage() {
                   {filtered.map((c) => (
                     <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900 text-sm">{c.id}</p>
+                        <p className="font-medium text-gray-900 text-sm">{c.id.slice(0, 8)}</p>
                         <p className="text-xs text-gray-400">{c.categoria}</p>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{c.cliente}</td>
@@ -342,12 +396,12 @@ export default function CobrancasPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
-                          {PAYMENT_ICONS[c.formaPagamento]}
+                          {PAYMENT_ICONS[c.formaPagamento] || null}
                           {c.formaPagamento}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full", STATUS_COLORS[c.status])}>
+                        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full", STATUS_COLORS[c.status] || "")}>
                           {c.status}
                         </span>
                       </td>
@@ -383,7 +437,6 @@ export default function CobrancasPage() {
                             <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
 
-                          {/* Dropdown menu */}
                           {openMenuId === c.id && (
                             <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
                               {canEmitNf(c) && (
@@ -419,7 +472,6 @@ export default function CobrancasPage() {
         )}
       </div>
 
-      {/* NF Dialog */}
       <EmitirNfDialog
         open={nfDialogOpen}
         onOpenChange={setNfDialogOpen}

@@ -14,14 +14,15 @@ Formato de resposta:
 - Sugira 2-3 ações concretas
 - Finalize com próximo passo ou pergunta`;
 
-async function getDashboardContext() {
+async function getDashboardContext(franqueadoraId: string) {
   try {
     const [charges, customers] = await Promise.all([
       prisma.charge.findMany({
+        where: { customer: { franqueadoraId } },
         take: 500,
         orderBy: { createdAt: "desc" },
       }),
-      prisma.customer.count(),
+      prisma.customer.count({ where: { franqueadoraId } }),
     ]);
 
     const totalEmitted = charges.reduce((acc, c) => acc + c.amountCents, 0) / 100;
@@ -68,13 +69,15 @@ function generateDashboardInsights(context: any) {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireTenant();
+  const { session, error } = await requireTenant();
   if (error) return error;
+
+  const franqueadoraId = session!.user.franqueadoraId as string;
 
   try {
     const { type, filters } = await request.json();
 
-    const context = await getDashboardContext();
+    const context = await getDashboardContext(franqueadoraId);
     const insights = generateDashboardInsights(context);
 
     // Generate recommendations based on context
@@ -120,11 +123,13 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const { error: authError } = await requireTenant();
+  const { session: getSession, error: authError } = await requireTenant();
   if (authError) return authError;
 
+  const franqueadoraId = getSession!.user.franqueadoraId as string;
+
   try {
-    const context = await getDashboardContext();
+    const context = await getDashboardContext(franqueadoraId);
     
     return NextResponse.json({
       success: true,

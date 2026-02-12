@@ -27,10 +27,14 @@ export async function dispatchMessage(
 
   let result: DispatchResult;
 
-  // Route by channel
-  const customer = await prisma.customer.findUnique({
-    where: { id: queueItem.customerId },
-  });
+  // Route by channel — fetch customer and tenant config in parallel
+  const [customer, agentConfig] = await Promise.all([
+    prisma.customer.findUnique({ where: { id: queueItem.customerId } }),
+    prisma.agentConfig.findUnique({
+      where: { franqueadoraId: queueItem.franqueadoraId },
+      select: { whatsappFrom: true, smsFrom: true },
+    }),
+  ]);
 
   if (!customer) {
     result = { success: false, error: "Cliente não encontrado" };
@@ -39,11 +43,16 @@ export async function dispatchMessage(
       case "WHATSAPP":
         result = await sendWhatsApp(
           customer.whatsappPhone || customer.phone,
-          queueItem.content
+          queueItem.content,
+          agentConfig?.whatsappFrom ?? undefined
         );
         break;
       case "SMS":
-        result = await sendSms(customer.phone, queueItem.content);
+        result = await sendSms(
+          customer.phone,
+          queueItem.content,
+          agentConfig?.smsFrom ?? undefined
+        );
         break;
       case "EMAIL":
         result = await sendRawEmail(
