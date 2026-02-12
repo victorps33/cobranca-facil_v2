@@ -143,10 +143,10 @@ function StepWelcome({ empresaNome }: { empresaNome?: string }) {
       </div>
       <DialogHeader className="items-center">
         <DialogTitle className="text-xl">
-          Bem-vindo{empresaNome ? `, ${empresaNome}` : ""}!
+          Bem-vindo à Menlo{empresaNome ? `, ${empresaNome}` : ""}!
         </DialogTitle>
         <DialogDescription className="text-sm text-gray-500 mt-2 max-w-sm">
-          O Menlo vai ajudar voc&ecirc; a gerenciar cobran&ccedil;as da sua rede de forma
+          A Menlo vai ajudar você a gerenciar cobranças da sua rede de forma
           inteligente e automatizada. Vamos configurar tudo em poucos passos.
         </DialogDescription>
       </DialogHeader>
