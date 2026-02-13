@@ -59,7 +59,7 @@ const interactionIcons: Record<CrmInteraction["type"], typeof Mail> = {
 
 const kindStyles = {
   interaction: { bg: "bg-blue-50", text: "text-blue-600", line: "bg-blue-200" },
-  task: { bg: "bg-violet-50", text: "text-violet-600", line: "bg-violet-200" },
+  task: { bg: "bg-blue-50", text: "text-blue-600", line: "bg-blue-200" },
   charge: { bg: "bg-amber-50", text: "text-amber-600", line: "bg-amber-200" },
 };
 
@@ -186,7 +186,7 @@ function TimelineContent({ entry }: { entry: TimelineEntry }) {
     return (
       <>
         <div className="flex flex-wrap items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-violet-700 bg-violet-50 rounded-full px-2 py-0.5">
+          <span className="text-xs font-medium text-blue-700 bg-blue-50 rounded-full px-2 py-0.5">
             Tarefa
           </span>
           <span

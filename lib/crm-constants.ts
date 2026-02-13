@@ -16,7 +16,7 @@ export const INTERACTION_TYPE_LABELS: Record<CrmInteraction["type"], string> = {
 export const INTERACTION_TYPE_COLORS: Record<CrmInteraction["type"], string> = {
   EMAIL: "bg-blue-50 text-blue-700",
   WHATSAPP: "bg-green-50 text-green-700",
-  SMS: "bg-purple-50 text-purple-700",
+  SMS: "bg-blue-50 text-blue-700",
   TELEFONE: "bg-amber-50 text-amber-700",
   NOTA_INTERNA: "bg-gray-100 text-gray-700",
 };

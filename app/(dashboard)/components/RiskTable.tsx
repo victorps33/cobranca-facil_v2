@@ -19,7 +19,7 @@ const defaultData: RiskCategory[] = [
   { name: "Controlado", count: 12, value: 45000, color: "text-blue-600", bgColor: "bg-blue-50" },
   { name: "Exige Atenção", count: 8, value: 127000, color: "text-amber-600", bgColor: "bg-amber-50" },
   { name: "Crítico", count: 5, value: 285000, color: "text-red-600", bgColor: "bg-red-50" },
-  { name: "Em Negociação", count: 2, value: 92000, color: "text-purple-600", bgColor: "bg-purple-50" },
+  { name: "Em Negociação", count: 2, value: 92000, color: "text-blue-600", bgColor: "bg-blue-50" },
 ];
 
 export function RiskTable({ data = defaultData }: RiskTableProps) {

@@ -57,7 +57,7 @@ export function PixComprovanteDialog({
             {isPago ? (
               <CheckCircle2 className="h-12 w-12 text-emerald-500" />
             ) : (
-              <QrCode className="h-12 w-12 text-violet-500" />
+              <QrCode className="h-12 w-12 text-blue-500" />
             )}
             <h2 className="text-xl font-bold text-gray-900">
               {isPago ? "Comprovante de Pagamento Pix" : "Cobrança Pix"}

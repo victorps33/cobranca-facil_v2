@@ -9,6 +9,7 @@ import { FranqueadoraCard } from "@/components/franqueadora-card";
 import { ImportDialog } from "@/components/franqueados/ImportDialog";
 import type { Franqueado } from "@/lib/types";
 import { exportFranqueadosToXlsx } from "@/lib/franqueados-import-export";
+import { Pagination } from "@/components/ui/pagination";
 import { MapPin, Upload, Download, AlertTriangle, X, Search, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -55,6 +56,8 @@ export default function ClientesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [dupBannerDismissed, setDupBannerDismissed] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   useEffect(() => {
     fetch("/api/customers")
@@ -92,6 +95,13 @@ export default function ClientesPage() {
     }
     return result;
   }, [statusFilter, searchQuery, franqueados]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginatedRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery]);
 
   // Detect duplicate CNPJs within the full list
   const duplicateCnpjs = useMemo(() => {
@@ -300,7 +310,7 @@ export default function ClientesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((c) => {
+                      {paginatedRows.map((c) => {
                         const config = statusLojaConfig[c.statusLoja] || statusLojaConfig.Aberta;
                         return (
                           <tr
@@ -382,19 +392,13 @@ export default function ClientesPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-400">
-                    {filtered.length} de {counts.Todos} franqueados
-                  </span>
-                  {statusFilter !== "Todos" && (
-                    <button
-                      onClick={() => setStatusFilter("Todos")}
-                      className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                      Limpar filtros
-                    </button>
-                  )}
-                </div>
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={filtered.length}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                />
               </>
             )}
           </div>

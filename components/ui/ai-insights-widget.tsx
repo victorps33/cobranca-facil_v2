@@ -86,10 +86,10 @@ const typeStyles = {
     metric: "text-blue-600",
   },
   action: {
-    bg: "bg-violet-50",
-    border: "border-violet-100",
-    icon: "text-violet-600",
-    metric: "text-violet-600",
+    bg: "bg-blue-50",
+    border: "border-blue-100",
+    icon: "text-blue-600",
+    metric: "text-blue-600",
   },
 };
 
@@ -110,7 +110,7 @@ export function AIInsightsWidget() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div>

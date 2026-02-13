@@ -46,7 +46,7 @@ export function AlertCard({
   if (!visible || dismissed) return null;
 
   return (
-    <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-5 text-white relative overflow-hidden">
+    <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-5 text-white relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Stepper } from "@/components/ui/stepper";
-import { StatCard } from "@/components/layout/StatCard";
+import { MetricCard } from "@/components/ui/metric-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
@@ -822,23 +822,26 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
         <div className="space-y-6">
           {/* Metricas resumo */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              icon={<Users className="h-4 w-4 text-gray-400" />}
-              label="Franqueados"
+            <MetricCard
+              icon={<Users className="h-4 w-4" />}
+              title="Franqueados"
               value={String(resultados.length)}
-              caption="ativos neste ciclo"
+              subtitle="ativos neste ciclo"
+              className="animate-in stagger-1"
             />
-            <StatCard
-              icon={<DollarSign className="h-4 w-4 text-gray-400" />}
-              label="Faturamento total"
+            <MetricCard
+              icon={<DollarSign className="h-4 w-4" />}
+              title="Faturamento total"
               value={formatCurrency(totalFaturamento)}
-              caption={competencia}
+              subtitle={competencia}
+              className="animate-in stagger-2"
             />
-            <StatCard
-              icon={<Calculator className="h-4 w-4 text-gray-400" />}
-              label="A cobrar"
+            <MetricCard
+              icon={<Calculator className="h-4 w-4" />}
+              title="A cobrar"
               value={formatCurrency(totalCobrar)}
-              caption={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              subtitle={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              className="animate-in stagger-3"
             />
           </div>
 
@@ -887,7 +890,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                             <span className="font-medium text-gray-900">{r.nome}</span>
                             <div className="flex gap-1 mt-1">
                               {r.temExcecao && (
-                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-purple-50 text-purple-700" title={r.excecaoDescricao}>
+                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700" title={r.excecaoDescricao}>
                                   Exceção
                                 </span>
                               )}
@@ -949,23 +952,26 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
         <div className="space-y-6">
           {/* Metricas (same as step 4) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              icon={<Users className="h-4 w-4 text-gray-400" />}
-              label="Franqueados"
+            <MetricCard
+              icon={<Users className="h-4 w-4" />}
+              title="Franqueados"
               value={String(resultados.length)}
-              caption="ativos neste ciclo"
+              subtitle="ativos neste ciclo"
+              className="animate-in stagger-1"
             />
-            <StatCard
-              icon={<DollarSign className="h-4 w-4 text-gray-400" />}
-              label="Faturamento total"
+            <MetricCard
+              icon={<DollarSign className="h-4 w-4" />}
+              title="Faturamento total"
               value={formatCurrency(totalFaturamento)}
-              caption={competencia}
+              subtitle={competencia}
+              className="animate-in stagger-2"
             />
-            <StatCard
-              icon={<Calculator className="h-4 w-4 text-gray-400" />}
-              label="A cobrar"
+            <MetricCard
+              icon={<Calculator className="h-4 w-4" />}
+              title="A cobrar"
               value={formatCurrency(totalCobrar)}
-              caption={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              subtitle={`royalties ${regras.royaltyPercent}% + mkt ${regras.marketingPercent}%`}
+              className="animate-in stagger-3"
             />
           </div>
 
@@ -1473,7 +1479,7 @@ function ExcecoesEditor({
           {excecoes.map((exc, idx) => {
             const fq = franqueados.find((f) => f.id === exc.franqueadoId);
             return (
-              <div key={idx} className="flex items-center justify-between p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+              <div key={idx} className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{fq?.nome ?? exc.franqueadoId}</p>
                   <p className="text-xs text-gray-500">{exc.descricao}</p>

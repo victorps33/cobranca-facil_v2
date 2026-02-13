@@ -45,11 +45,11 @@ export function ActionPlan({ actions, onExecute }: ActionPlanProps) {
   }
 
   return (
-    <div className="rounded-2xl border-2 border-violet-100 bg-white p-5">
+    <div className="rounded-2xl border-2 border-blue-100 bg-white p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-violet-500" />
+          <Sparkles className="h-4 w-4 text-blue-500" />
           <span className="text-sm font-semibold text-gray-900">
             Plano de Ação
           </span>
@@ -62,7 +62,7 @@ export function ActionPlan({ actions, onExecute }: ActionPlanProps) {
       {/* Progress bar */}
       <div className="h-1.5 bg-gray-100 rounded-full mb-4 overflow-hidden">
         <div
-          className="h-full bg-violet-500 rounded-full transition-all duration-500"
+          className="h-full bg-blue-500 rounded-full transition-all duration-500"
           style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
         />
       </div>
@@ -79,7 +79,7 @@ export function ActionPlan({ actions, onExecute }: ActionPlanProps) {
               className={
                 isDone
                   ? "flex items-center gap-3 p-3 bg-emerald-50 rounded-xl"
-                  : "flex items-center gap-3 p-3 rounded-xl hover:bg-violet-50 transition-colors"
+                  : "flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors"
               }
             >
               {/* Icon */}
@@ -137,7 +137,7 @@ export function ActionPlan({ actions, onExecute }: ActionPlanProps) {
       {!allDone && pendingActions.length > 1 && (
         <button
           onClick={executeAll}
-          className="w-full mt-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl hover:from-violet-600 hover:to-purple-700 transition-all"
+          className="w-full mt-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all"
         >
           Executar todas pendentes
         </button>

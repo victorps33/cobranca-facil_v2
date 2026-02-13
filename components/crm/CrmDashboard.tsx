@@ -58,9 +58,10 @@ const fmtBRL = (cents: number) =>
 
 interface CrmDashboardProps {
   customers: CrmCustomer[];
+  onNavigateToTasks?: () => void;
 }
 
-export function CrmDashboard({ customers }: CrmDashboardProps) {
+export function CrmDashboard({ customers, onNavigateToTasks }: CrmDashboardProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -233,12 +234,12 @@ export function CrmDashboard({ customers }: CrmDashboardProps) {
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Tarefas</h3>
-            <Link
-              href="/crm/tarefas"
+            <button
+              onClick={onNavigateToTasks}
               className="text-xs text-primary hover:text-primary-hover font-medium inline-flex items-center gap-1"
             >
               Ver todas <ArrowRight className="h-3 w-3" />
-            </Link>
+            </button>
           </div>
           <div className="space-y-3">
             {[

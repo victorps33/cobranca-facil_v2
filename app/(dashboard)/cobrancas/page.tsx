@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
 import { DataEmptyState } from "@/components/layout/DataEmptyState";
-import { StatCard } from "@/components/layout/StatCard";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Pagination } from "@/components/ui/pagination";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
 import type { Cobranca } from "@/lib/types";
@@ -29,10 +30,10 @@ import {
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
-  Aberta: "bg-blue-50 text-blue-700",
-  Vencida: "bg-red-50 text-red-700",
-  Paga: "bg-emerald-50 text-emerald-700",
-  Cancelada: "bg-gray-100 text-gray-500",
+  Aberta: "bg-info-bg text-info-text border border-info-border",
+  Vencida: "bg-danger-bg text-danger-text border border-danger-border",
+  Paga: "bg-success-bg text-success-text border border-success-border",
+  Cancelada: "bg-gray-100 text-gray-500 border border-gray-200",
 };
 
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
@@ -62,6 +63,8 @@ export default function CobrancasPage() {
   const [nfDialogCobranca, setNfDialogCobranca] = useState<Cobranca | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   useEffect(() => {
     fetch("/api/charges")
@@ -134,6 +137,13 @@ export default function CobrancasPage() {
 
     return list;
   }, [search, statusFilter, categoriaFilter, sortKey, sortDir, cobrancasFiltradas]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginatedRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, categoriaFilter, selectedCompetencia]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -258,30 +268,34 @@ export default function CobrancasPage() {
         />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={<DollarSign className="h-4 w-4 text-gray-400" />}
-            label="Total Emitido"
+          <MetricCard
+            className="animate-in stagger-1"
+            icon={<DollarSign className="h-4 w-4" />}
+            title="Total Emitido"
             value={`R$ ${(stats.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.total} cobranças`}
+            subtitle={`${selectedLabel} · ${stats.total} cobranças`}
           />
-          <StatCard
-            icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
-            label="Total Recebido"
+          <MetricCard
+            className="animate-in stagger-2"
+            icon={<TrendingUp className="h-4 w-4" />}
+            title="Total Recebido"
             value={`R$ ${(stats.totalPago / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.paga} pagas`}
+            subtitle={`${selectedLabel} · ${stats.paga} pagas`}
           />
-          <StatCard
-            icon={<Clock className="h-4 w-4 text-gray-400" />}
-            label="Em Aberto"
+          <MetricCard
+            className="animate-in stagger-3"
+            icon={<Clock className="h-4 w-4" />}
+            title="Em Aberto"
             value={`R$ ${(stats.valorAberto / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.aberta} a vencer`}
+            subtitle={`${selectedLabel} · ${stats.aberta} a vencer`}
           />
-          <StatCard
-            icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
-            label="Vencido"
+          <MetricCard
+            className="animate-in stagger-4"
+            icon={<AlertTriangle className="h-4 w-4" />}
+            title="Vencido"
             value={`R$ ${(stats.valorVencido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-            caption={`${selectedLabel} · ${stats.vencida} vencidas`}
-            danger={stats.valorVencido > 0}
+            subtitle={`${selectedLabel} · ${stats.vencida} vencidas`}
+            variant={stats.valorVencido > 0 ? "danger" : "default"}
           />
         </div>
 
@@ -369,7 +383,7 @@ export default function CobrancasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
+                  {paginatedRows.map((c) => (
                     <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900 text-sm">{c.id.slice(0, 8)}</p>
@@ -465,9 +479,13 @@ export default function CobrancasPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex-shrink-0 px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-              {filtered.length} de {cobrancasFiltradas.length} cobranças · {periodLabel}
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>

@@ -53,7 +53,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           className="absolute -right-[10%] -top-[20%] h-[120%] w-[60%] opacity-30"
           style={{
             background:
-              "linear-gradient(135deg, #85ace6 0%, #a8c4f0 20%, #F85B00 45%, #ff8c47 65%, #ff6b9d 80%, #85ace6 100%)",
+              "linear-gradient(135deg, var(--menlo-blue) 0%, #a8c4f0 20%, var(--menlo-orange) 45%, #ff8c47 65%, #ff6b9d 80%, var(--menlo-blue) 100%)",
             borderRadius: "30% 70% 70% 30% / 30% 30% 70% 70%",
             transform: "rotate(-12deg)",
             filter: "blur(40px)",
@@ -64,7 +64,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           className="absolute -bottom-[10%] -right-[5%] h-[60%] w-[35%] opacity-20"
           style={{
             background:
-              "linear-gradient(180deg, #F85B00 0%, #ff8c47 40%, #85ace6 100%)",
+              "linear-gradient(180deg, var(--menlo-orange) 0%, #ff8c47 40%, var(--menlo-blue) 100%)",
             borderRadius: "60% 40% 30% 70% / 60% 30% 70% 40%",
             transform: "rotate(15deg)",
             filter: "blur(50px)",
@@ -75,7 +75,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           className="absolute -left-[5%] -top-[5%] h-[40%] w-[30%] opacity-10"
           style={{
             background:
-              "linear-gradient(225deg, #85ace6 0%, #a8c4f0 100%)",
+              "linear-gradient(225deg, var(--menlo-blue) 0%, #a8c4f0 100%)",
             borderRadius: "30% 70% 70% 30% / 30% 30% 70% 70%",
             filter: "blur(60px)",
           }}
@@ -129,7 +129,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-[#85ace6] focus:outline-none focus:ring-2 focus:ring-[#85ace6]/30"
+                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/30"
                   />
                 </div>
 
@@ -143,7 +143,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                     </label>
                     <button
                       type="button"
-                      className="text-sm font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+                      className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
                       tabIndex={-1}
                     >
                       Esqueceu sua senha?
@@ -156,14 +156,14 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-[#85ace6] focus:outline-none focus:ring-2 focus:ring-[#85ace6]/30"
+                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/30"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center rounded-xl bg-[#F85B00] px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-[#e05200] focus:outline-none focus:ring-2 focus:ring-[#F85B00]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
             Não tem conta?{" "}
             <a
               href="/auth/registro"
-              className="font-medium text-[#F85B00] hover:text-[#e05200] transition-colors"
+              className="font-medium text-primary hover:text-primary-hover transition-colors"
             >
               Cadastre-se
             </a>

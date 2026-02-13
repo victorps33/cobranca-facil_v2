@@ -119,8 +119,8 @@ const promptPresets = [
     label: "Efetividade da cobrança",
     question: "Qual a efetividade das minhas cobranças? Analise o PMR médio por perfil de risco.",
     icon: Shield,
-    color: "text-violet-500",
-    bgColor: "bg-violet-50",
+    color: "text-blue-500",
+    bgColor: "bg-blue-50",
   },
 ];
 
@@ -256,7 +256,7 @@ function renderMarkdown(text: string): string {
     const regex = new RegExp(`(Franquia |Franqueado )?\\b${name}\\b`, "g");
     html = html.replace(
       regex,
-      `<span class="inline-flex items-baseline gap-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded font-medium text-[0.8em] border border-violet-100 whitespace-nowrap">$&</span>`
+      `<span class="inline-flex items-baseline gap-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium text-[0.8em] border border-blue-100 whitespace-nowrap">$&</span>`
     );
   });
 
@@ -369,7 +369,7 @@ function ChartArtifact({ chartKey }: { chartKey: string }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5">
       <div className="flex items-center gap-2 mb-4">
-        <BarChart3 className="h-4 w-4 text-violet-500" />
+        <BarChart3 className="h-4 w-4 text-blue-500" />
         <h4 className="text-sm font-semibold text-gray-900">{config.title}</h4>
       </div>
       <ResponsiveContainer width="100%" height={220}>
@@ -653,7 +653,7 @@ export default function InsightsPage() {
           <div className="px-5 py-3 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className={cn(
-                "h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center",
+                "h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center",
                 loading && "animate-pulse"
               )}>
                 <Sparkles className="h-4 w-4 text-white" />
@@ -663,8 +663,8 @@ export default function InsightsPage() {
                 <div className="flex items-center gap-1.5">
                   {loading ? (
                     <>
-                      <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                      <span className="text-[11px] text-violet-600 font-medium">Analisando...</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-[11px] text-blue-600 font-medium">Analisando...</span>
                     </>
                   ) : (
                     <>
@@ -702,7 +702,7 @@ export default function InsightsPage() {
                   {message.role === "assistant" && (
                     <div className="flex items-center gap-2 mb-2">
                       <div className={cn(
-                        "h-5 w-5 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center",
+                        "h-5 w-5 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center",
                         loading && message.content === "" && "animate-pulse"
                       )}>
                         <Sparkles className="h-2.5 w-2.5 text-white" />
@@ -710,9 +710,9 @@ export default function InsightsPage() {
                       <span className="text-[11px] font-medium text-gray-400">Júlia</span>
                       {loading && message.content !== "" && message.id === messages[messages.length - 1]?.id && (
                         <span className="flex gap-0.5 ml-1">
-                          <span className="h-1 w-1 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
-                          <span className="h-1 w-1 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
-                          <span className="h-1 w-1 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+                          <span className="h-1 w-1 rounded-full bg-blue-400 animate-bounce [animation-delay:0ms]" />
+                          <span className="h-1 w-1 rounded-full bg-blue-400 animate-bounce [animation-delay:150ms]" />
+                          <span className="h-1 w-1 rounded-full bg-blue-400 animate-bounce [animation-delay:300ms]" />
                         </span>
                       )}
                     </div>
@@ -720,9 +720,9 @@ export default function InsightsPage() {
                   {message.role === "assistant" && message.content === "" && loading ? (
                     <div className="flex items-center gap-2 py-1">
                       <div className="flex gap-1">
-                        <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
-                        <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
-                        <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+                        <span className="h-2 w-2 rounded-full bg-blue-400 animate-bounce [animation-delay:0ms]" />
+                        <span className="h-2 w-2 rounded-full bg-blue-400 animate-bounce [animation-delay:150ms]" />
+                        <span className="h-2 w-2 rounded-full bg-blue-400 animate-bounce [animation-delay:300ms]" />
                       </div>
                       <span className="text-xs text-gray-400">Pensando...</span>
                     </div>
@@ -746,7 +746,7 @@ export default function InsightsPage() {
                   <button
                     key={i}
                     onClick={() => sendMessage(s)}
-                    className="px-3 py-1.5 text-xs font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-full transition-colors border border-violet-100"
+                    className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors border border-blue-100"
                   >
                     {s}
                   </button>
@@ -765,12 +765,12 @@ export default function InsightsPage() {
                       <button
                         key={preset.id}
                         onClick={() => sendMessage(preset.question)}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 transition-all text-left group"
+                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all text-left group"
                       >
                         <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0", preset.bgColor)}>
                           <Icon className={cn("h-4 w-4", preset.color)} />
                         </div>
-                        <span className="text-xs font-medium text-gray-700 group-hover:text-violet-700 line-clamp-2">
+                        <span className="text-xs font-medium text-gray-700 group-hover:text-blue-700 line-clamp-2">
                           {preset.label}
                         </span>
                       </button>
@@ -816,7 +816,7 @@ export default function InsightsPage() {
                       key={p.id}
                       onClick={() => sendMessage(p.question)}
                       disabled={loading}
-                      className="whitespace-nowrap px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors border border-gray-100 flex-shrink-0 disabled:opacity-50"
+                      className="whitespace-nowrap px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors border border-gray-100 flex-shrink-0 disabled:opacity-50"
                     >
                       {p.label}
                     </button>
@@ -834,12 +834,12 @@ export default function InsightsPage() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Pergunte sobre sua rede…"
                   disabled={loading}
-                  className="flex-1 h-11 px-4 bg-gray-50 border border-gray-100 rounded-xl text-sm focus-visible:border-violet-300 focus-visible:ring-2 focus-visible:ring-violet-100 outline-none transition-colors"
+                  className="flex-1 h-11 px-4 bg-gray-50 border border-gray-100 rounded-xl text-sm focus-visible:border-blue-300 focus-visible:ring-2 focus-visible:ring-blue-100 outline-none transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || loading}
-                  className="h-11 w-11 flex items-center justify-center bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-xl hover:from-violet-600 hover:to-purple-700 disabled:opacity-50 transition-all"
+                  className="h-11 w-11 flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 transition-all"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
@@ -858,7 +858,7 @@ export default function InsightsPage() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
                   activeTab === "artifacts"
-                    ? "bg-violet-100 text-violet-700"
+                    ? "bg-blue-100 text-blue-700"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -866,7 +866,7 @@ export default function InsightsPage() {
                   <Sparkles className="h-3 w-3" />
                   Painel
                   {hasArtifacts && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                   )}
                 </span>
               </button>
@@ -875,7 +875,7 @@ export default function InsightsPage() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
                   activeTab === "history"
-                    ? "bg-violet-100 text-violet-700"
+                    ? "bg-blue-100 text-blue-700"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -967,12 +967,12 @@ export default function InsightsPage() {
                       <button
                         key={conv.id}
                         onClick={() => loadConversation(conv)}
-                        className="w-full p-3 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50/30 transition-all text-left group"
+                        className="w-full p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all text-left group"
                       >
                         <div className="flex items-start gap-3">
-                          <MessageSquare className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0 group-hover:text-violet-500" />
+                          <MessageSquare className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0 group-hover:text-blue-500" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-violet-700">
+                            <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-blue-700">
                               {conv.title}
                             </p>
                             <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">

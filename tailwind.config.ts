@@ -101,6 +101,15 @@ const config: Config = {
         "18": "4.5rem",
         "22": "5.5rem",
       },
+      keyframes: {
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(12px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Bell, Clock, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/cn";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,7 +100,7 @@ export function TopBar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 pl-3 border-l border-gray-100 outline-none">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold">
+                <div className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-white text-sm font-semibold">
                   {initials}
                 </div>
                 <div className="hidden lg:block text-left">

@@ -504,7 +504,7 @@ function UsuariosContent() {
                 <td className="py-3 pr-4 text-gray-900 font-medium">{u.nome}</td>
                 <td className="py-3 pr-4 text-gray-600">{u.email}</td>
                 <td className="py-3 pr-4">
-                  <Badge className="bg-purple-50 text-purple-700 border-transparent gap-1">
+                  <Badge className="bg-blue-50 text-blue-700 border-transparent gap-1">
                     <Shield className="h-3 w-3" />{u.perfil}
                   </Badge>
                 </td>

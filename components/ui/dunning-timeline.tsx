@@ -29,7 +29,7 @@ interface DunningStep {
 const channelConfig = {
   email: { icon: Mail, label: "E-mail", color: "bg-blue-500" },
   whatsapp: { icon: MessageSquare, label: "WhatsApp", color: "bg-green-500" },
-  sms: { icon: MessageSquare, label: "SMS", color: "bg-purple-500" },
+  sms: { icon: MessageSquare, label: "SMS", color: "bg-blue-500" },
   phone: { icon: Phone, label: "Ligação", color: "bg-orange-500" },
   letter: { icon: FileText, label: "Carta", color: "bg-gray-500" },
 };

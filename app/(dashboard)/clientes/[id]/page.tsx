@@ -88,7 +88,7 @@ export default function ClienteDetalhePage() {
           </p>
           <Link
             href="/clientes"
-            className="mt-4 inline-block text-sm font-medium text-violet-600 hover:text-violet-700"
+            className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
           >
             Voltar para cadastro
           </Link>

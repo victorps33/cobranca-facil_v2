@@ -68,7 +68,15 @@
     --space-10: 40px;
     --space-12: 48px;
     
-    /* Border Radius */
+    /* Border Radius
+       Usage rules:
+       - 2xl (20px): Cards, modals, dialogs
+       - xl  (16px): Inputs, dropdowns, large buttons
+       - lg  (12px): Small cards, inner containers
+       - md  (10px): Buttons, tags
+       - sm  (8px):  Small elements, tooltips
+       - full (9999px): Badges, pills, avatars
+    */
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
@@ -601,6 +609,56 @@
   .link-subtle {
     @apply text-gray-500 hover:text-gray-700;
   }
+}
+
+/* ===== ANIMATION SYSTEM ===== */
+
+/* Keyframes */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Stagger delays (60ms intervals) */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 60ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 180ms; }
+.stagger-5 { animation-delay: 240ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 360ms; }
+.stagger-8 { animation-delay: 420ms; }
+
+/* Animation classes */
+.animate-in {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ===== Accessibility: Reduced Motion ===== */

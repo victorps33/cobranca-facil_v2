@@ -121,7 +121,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 px-5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-[transform,box-shadow] flex items-center gap-3 z-50"
+        className="fixed bottom-6 right-6 h-14 px-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-[transform,box-shadow] flex items-center gap-3 z-50"
       >
         <Sparkles className="h-5 w-5" />
         <span className="font-medium">Pergunte à Júlia</span>
@@ -132,7 +132,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
   return (
     <div className="fixed bottom-6 right-6 w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-3 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-white/20 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-white" />
@@ -157,8 +157,8 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="h-12 w-12 rounded-2xl bg-violet-50 flex items-center justify-center mb-3">
-              <MessageSquare className="h-6 w-6 text-violet-500" />
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-3">
+              <MessageSquare className="h-6 w-6 text-blue-500" />
             </div>
             <p className="text-gray-900 font-medium text-sm mb-1">Como posso ajudar?</p>
             <p className="text-xs text-gray-500 mb-4">
@@ -210,7 +210,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
         {loading && (
           <div className="flex justify-start">
             <div className="bg-gray-50 rounded-2xl px-3 py-2 flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin text-violet-500" />
+              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
               <span className="text-xs text-gray-500">Analisando...</span>
             </div>
           </div>
@@ -227,7 +227,7 @@ export function PageAssistant({ pageContext, pageName, suggestions }: PageAssist
             placeholder="Pergunte algo…"
             aria-label="Perguntar ao assistente"
             disabled={loading}
-            className="flex-1 h-10 px-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:border-violet-300 focus:ring-2 focus:ring-violet-100 outline-none transition-colors"
+            className="flex-1 h-10 px-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-colors"
           />
           <button
             type="submit"

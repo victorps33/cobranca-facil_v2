@@ -250,7 +250,7 @@ export const CHANNEL_LABELS: Record<string, string> = {
 
 export const CHANNEL_COLORS: Record<string, string> = {
   EMAIL: "bg-blue-100 text-blue-800",
-  SMS: "bg-purple-100 text-purple-800",
+  SMS: "bg-blue-100 text-blue-800",
   WHATSAPP: "bg-green-100 text-green-800",
 };
 
@@ -287,7 +287,7 @@ export const INTERACTION_TYPE_LABELS: Record<string, string> = {
 export const INTERACTION_TYPE_COLORS: Record<string, string> = {
   EMAIL: "bg-blue-50 text-blue-700",
   WHATSAPP: "bg-green-50 text-green-700",
-  SMS: "bg-purple-50 text-purple-700",
+  SMS: "bg-blue-50 text-blue-700",
   TELEFONE: "bg-amber-50 text-amber-700",
   NOTA_INTERNA: "bg-gray-100 text-gray-700",
 };

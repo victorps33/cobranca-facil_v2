@@ -16,9 +16,7 @@ import {
   Calculator,
   Sparkles,
   Contact,
-  ListTodo,
   Inbox,
-  Bot,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import type { UserRole } from "@prisma/client";
@@ -42,8 +40,6 @@ const baseNavigation: Omit<NavItem, "badge">[] = [
   { name: "Réguas", href: "/reguas", icon: Bell, roles: allRoles },
   { name: "CRM", href: "/crm", icon: Contact, roles: allRoles },
   { name: "Inbox", href: "/inbox", icon: Inbox, roles: allRoles },
-  { name: "Tarefas", href: "/crm/tarefas", icon: ListTodo, roles: allRoles },
-  { name: "Agente AI", href: "/agent", icon: Bot, roles: allRoles },
 ];
 
 const secondaryNav: NavItem[] = [
@@ -94,7 +90,7 @@ export function Sidebar() {
       baseNavigation.map((item) => ({
         ...item,
         badge:
-          item.name === "Tarefas" && atrasadas > 0
+          item.name === "CRM" && atrasadas > 0
             ? atrasadas
             : item.name === "Inbox" && inboxUnread > 0
               ? inboxUnread

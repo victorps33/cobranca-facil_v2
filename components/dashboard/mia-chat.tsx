@@ -91,7 +91,7 @@ export function MiaChat() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -120,8 +120,8 @@ export function MiaChat() {
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <div className="h-12 w-12 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">
-              <MessageSquare className="h-6 w-6 text-violet-500" />
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+              <MessageSquare className="h-6 w-6 text-blue-500" />
             </div>
             <p className="text-gray-900 font-medium mb-1">Pergunte à Mia</p>
             <p className="text-sm text-gray-500 max-w-[240px]">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { KpiTile } from "@/components/ui/kpi-tile";
+import { MetricCard } from "@/components/ui/metric-card";
 import { HeatmapTile } from "@/components/ui/heatmap-tile";
 import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import {
@@ -183,21 +183,24 @@ export default function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiTile
+        <MetricCard
+          className="animate-in stagger-1"
           title="Total Emitido"
           value={`R$ ${(currentKpi.totalEmitido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
           subtitle={`${currentKpi.total} cobranças · ${selectedLabel}`}
           trend={{ value: Math.abs(trendEmitido), direction: trendEmitido >= 0 ? "up" : "down" }}
           icon={<DollarSign className="h-4 w-4" />}
         />
-        <KpiTile
+        <MetricCard
+          className="animate-in stagger-2"
           title="Total Recebido"
           value={`R$ ${(currentKpi.totalRecebido / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
           subtitle={`${currentKpi.pagas} pagas · ${selectedLabel}`}
           trend={{ value: Math.abs(trendRecebido), direction: trendRecebido >= 0 ? "up" : "down" }}
           icon={<TrendingUp className="h-4 w-4" />}
         />
-        <KpiTile
+        <MetricCard
+          className="animate-in stagger-3"
           title="Taxa de Inadimplência"
           value={`${inadRate}%`}
           subtitle={`${currentKpi.vencidas} vencidas · ${selectedLabel}`}
@@ -206,7 +209,8 @@ export default function DashboardPage() {
           icon={<AlertTriangle className="h-4 w-4" />}
           variant={Number(inadRate) > 15 ? "danger" : "default"}
         />
-        <KpiTile
+        <MetricCard
+          className="animate-in stagger-4"
           title="Cobranças Pendentes"
           value={String(currentKpi.abertas + currentKpi.vencidas)}
           subtitle={`De ${currentKpi.total} emitidas · ${selectedLabel}`}
@@ -217,15 +221,21 @@ export default function DashboardPage() {
 
       {data.charts && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Recebido vs. Emitido" subtitle="Últimos períodos">
-            <StripeRevenueChart data={data.charts.revenueData} />
-          </ChartCard>
-          <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
-            <StripeChargesStatusChart data={data.charts.chargesStatusData} />
-          </ChartCard>
-          <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
-            <StripePaymentMethodsChart data={data.charts.paymentMethodsData} />
-          </ChartCard>
+          <div className="animate-in stagger-5">
+            <ChartCard title="Recebido vs. Emitido" subtitle="Últimos períodos">
+              <StripeRevenueChart data={data.charts.revenueData} />
+            </ChartCard>
+          </div>
+          <div className="animate-in stagger-6">
+            <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
+              <StripeChargesStatusChart data={data.charts.chargesStatusData} />
+            </ChartCard>
+          </div>
+          <div className="animate-in stagger-7">
+            <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
+              <StripePaymentMethodsChart data={data.charts.paymentMethodsData} />
+            </ChartCard>
+          </div>
         </div>
       )}
 

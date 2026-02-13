@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StatCard } from "@/components/layout/StatCard";
+import { MetricCard } from "@/components/ui/metric-card";
 import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import { ApuracaoWizard } from "@/components/apuracao/ApuracaoWizard";
 import { cn } from "@/lib/cn";
@@ -246,23 +246,26 @@ export default function ApuracaoPage() {
             <>
               {/* KPI cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard
-                  icon={<DollarSign className="h-4 w-4 text-gray-400" />}
-                  label="Total apurado"
+                <MetricCard
+                  icon={<DollarSign className="h-4 w-4" />}
+                  title="Total apurado"
                   value={formatCurrency(totalApurado)}
-                  caption={`${totalCiclos} ciclos concluídos`}
+                  subtitle={`${totalCiclos} ciclos concluídos`}
+                  className="animate-in stagger-1"
                 />
-                <StatCard
-                  icon={<CheckCircle2 className="h-4 w-4 text-gray-400" />}
-                  label="Ciclos concluídos"
+                <MetricCard
+                  icon={<CheckCircle2 className="h-4 w-4" />}
+                  title="Ciclos concluídos"
                   value={String(totalCiclos)}
-                  caption="Histórico completo"
+                  subtitle="Histórico completo"
+                  className="animate-in stagger-2"
                 />
-                <StatCard
-                  icon={<Users className="h-4 w-4 text-gray-400" />}
-                  label="Média / franqueado"
+                <MetricCard
+                  icon={<Users className="h-4 w-4" />}
+                  title="Média / franqueado"
                   value={formatCurrency(mediaFranqueado)}
-                  caption="por ciclo"
+                  subtitle="por ciclo"
+                  className="animate-in stagger-3"
                 />
               </div>
 
