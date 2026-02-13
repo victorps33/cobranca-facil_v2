@@ -13,11 +13,13 @@ import { TasksTab } from "@/components/crm/TasksTab";
 import { TimelineTab } from "@/components/crm/TimelineTab";
 import { AddInteractionDialog } from "@/components/crm/AddInteractionDialog";
 import { CreateTaskDialog } from "@/components/crm/CreateTaskDialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/cn";
 import { toast } from "@/components/ui/use-toast";
 import type { CrmCustomer, CrmCharge, CrmInteraction, CrmTask } from "@/lib/types/crm";
 import type { Cobranca } from "@/lib/types";
-import { AlertTriangle, Loader2, Mail, Phone, MessageCircle, Plus } from "lucide-react";
+import { KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { AlertTriangle, Mail, Phone, MessageCircle, Plus } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
 type TabKey = "timeline" | "cobrancas" | "interacoes" | "tarefas";
@@ -139,9 +141,10 @@ export default function CrmClienteDetalhePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Carregando cliente...</span>
+      <div className="space-y-6">
+        <Breadcrumbs items={[{ label: "CRM", href: "/crm" }, { label: "Carregando..." }]} />
+        <KpiSkeleton count={4} />
+        <TableSkeleton rows={5} cols={5} />
       </div>
     );
   }
@@ -313,21 +316,21 @@ export default function CrmClienteDetalhePage() {
         <div className="flex flex-wrap items-center gap-2">
           <a
             href={`mailto:${customer.email}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
           >
             <Mail className="h-4 w-4" />
             Enviar E-mail
           </a>
           <a
             href={`tel:${customer.phone.replace(/\D/g, "")}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
           >
             <Phone className="h-4 w-4" />
             Ligar
           </a>
           <button
             onClick={() => setInteractionDialogOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
           >
             <MessageCircle className="h-4 w-4" />
             Registrar Interação
@@ -345,38 +348,23 @@ export default function CrmClienteDetalhePage() {
       <CustomerSummaryCards stats={stats} />
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                "pb-3 text-sm font-medium border-b-2 transition-colors",
-                activeTab === tab.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              )}
-            >
-              {tab.label}
-              {tab.key === "timeline" && (
-                <span className="ml-1.5 text-xs text-gray-400">
-                  ({interactions.length + tasks.length + charges.length})
-                </span>
-              )}
-              {tab.key === "cobrancas" && (
-                <span className="ml-1.5 text-xs text-gray-400">({charges.length})</span>
-              )}
-              {tab.key === "interacoes" && (
-                <span className="ml-1.5 text-xs text-gray-400">({interactions.length})</span>
-              )}
-              {tab.key === "tarefas" && (
-                <span className="ml-1.5 text-xs text-gray-400">({tasks.length})</span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+        <TabsList>
+          {tabs.map((tab) => {
+            const count =
+              tab.key === "timeline" ? interactions.length + tasks.length + charges.length :
+              tab.key === "cobrancas" ? charges.length :
+              tab.key === "interacoes" ? interactions.length :
+              tasks.length;
+            return (
+              <TabsTrigger key={tab.key} value={tab.key}>
+                {tab.label}
+                <span className="ml-1.5 text-xs text-gray-400">({count})</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
 
       {/* Tab content */}
       {activeTab === "timeline" && (

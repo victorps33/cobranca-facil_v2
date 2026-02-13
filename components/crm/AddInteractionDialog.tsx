@@ -9,6 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { INTERACTION_TYPE_LABELS } from "@/lib/crm-constants";
 import type { CrmInteraction } from "@/lib/types/crm";
 
@@ -60,12 +62,11 @@ export function AddInteractionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Tipo</label>
+          <FormField label="Tipo">
             <select
               value={type}
               onChange={(e) => setType(e.target.value as CrmInteraction["type"])}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+              className="w-full h-11 px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none"
             >
               {typeOptions.map(([value, label]) => (
                 <option key={value} value={value}>
@@ -73,46 +74,37 @@ export function AddInteractionDialog({
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Direção</label>
+          <FormField label="Direção">
             <select
               value={direction}
               onChange={(e) => setDirection(e.target.value as CrmInteraction["direction"])}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+              className="w-full h-11 px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none"
             >
               <option value="OUTBOUND">Enviado</option>
               <option value="INBOUND">Recebido</option>
             </select>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Conteúdo</label>
+          <FormField label="Conteúdo">
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Descreva a interação..."
               rows={4}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary resize-none"
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none resize-none"
             />
-          </div>
+          </FormField>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <button
-            onClick={() => handleClose(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
-          >
+          <Button variant="outline" onClick={() => handleClose(false)}>
             Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!content.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          </Button>
+          <Button onClick={handleSave} disabled={!content.trim()}>
             Salvar
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

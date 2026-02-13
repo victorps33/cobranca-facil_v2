@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { TooltipHint } from "@/components/ui/tooltip-hint";
 import type { Franqueado, Cobranca } from "@/lib/types";
+import { KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import { MetricCard } from "@/components/ui/metric-card";
 import {
   MapPin,
   Phone,
@@ -16,6 +17,9 @@ import {
   User,
   AlertTriangle,
   Contact,
+  DollarSign,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 
 const fmtBRL = (cents: number) =>
@@ -69,7 +73,8 @@ export default function ClienteDetalhePage() {
     return (
       <div className="space-y-6">
         <Breadcrumbs items={[{ label: "Franqueados", href: "/clientes" }, { label: "Carregando..." }]} />
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 h-64 animate-pulse" />
+        <KpiSkeleton count={4} />
+        <TableSkeleton rows={5} cols={6} />
       </div>
     );
   }
@@ -143,50 +148,37 @@ export default function ClienteDetalhePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        {[
-          {
-            label: "Emitido",
-            value: fmtBRL(franqueado.valorEmitido),
-            sub: `${stats.total} cobranças`,
-            color: "text-gray-900",
-          },
-          {
-            label: "Recebido",
-            value: fmtBRL(franqueado.valorRecebido),
-            sub: `${stats.pagas} pagas`,
-            color: "text-emerald-600",
-          },
-          {
-            label: "Em aberto",
-            value: fmtBRL(franqueado.valorAberto),
-            sub: `${stats.vencidas} vencidas (${fmtBRL(stats.valorVencido)})`,
-            color: franqueado.valorAberto > 0 ? "text-red-600" : "text-gray-900",
-          },
-          {
-            label: "PMR",
-            value: `${franqueado.pmr} dias`,
-            sub: `Inadimplência ${(franqueado.inadimplencia * 100).toFixed(1)}%`,
-            color: franqueado.pmr > 20 ? "text-amber-600" : "text-gray-900",
-            tooltip: "Prazo Médio de Recebimento — tempo médio entre emissão e pagamento",
-          },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            className="bg-white rounded-2xl border border-gray-100 p-5"
-          >
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-              {kpi.label}
-              {"tooltip" in kpi && kpi.tooltip && (
-                <TooltipHint text={kpi.tooltip as string} />
-              )}
-            </p>
-            <p className={cn("text-lg font-semibold mt-1 tabular-nums", kpi.color)}>
-              {kpi.value}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">{kpi.sub}</p>
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          icon={<DollarSign className="h-4 w-4" />}
+          title="Emitido"
+          value={fmtBRL(franqueado.valorEmitido)}
+          subtitle={`${stats.total} cobranças`}
+          className="animate-in stagger-1"
+        />
+        <MetricCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          title="Recebido"
+          value={fmtBRL(franqueado.valorRecebido)}
+          subtitle={`${stats.pagas} pagas`}
+          className="animate-in stagger-2"
+        />
+        <MetricCard
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title="Em Aberto"
+          value={fmtBRL(franqueado.valorAberto)}
+          subtitle={`${stats.vencidas} vencidas (${fmtBRL(stats.valorVencido)})`}
+          variant={franqueado.valorAberto > 0 ? "danger" : "default"}
+          className="animate-in stagger-3"
+        />
+        <MetricCard
+          icon={<Clock className="h-4 w-4" />}
+          title="PMR"
+          value={`${franqueado.pmr} dias`}
+          subtitle={`Inadimplência ${(franqueado.inadimplencia * 100).toFixed(1)}%`}
+          tooltip="Prazo Médio de Recebimento — tempo médio entre emissão e pagamento"
+          className="animate-in stagger-4"
+        />
       </div>
 
       {/* Informações */}
@@ -260,7 +252,7 @@ export default function ClienteDetalhePage() {
                   return (
                     <tr
                       key={c.id}
-                      className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
+                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3">
                         <p className="font-medium text-gray-900 truncate max-w-[200px]">{c.descricao}</p>

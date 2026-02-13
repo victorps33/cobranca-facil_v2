@@ -85,7 +85,7 @@ export function DunningTimeline({ steps, onStepsChange, editable = false }: Dunn
               {/* Timeline dot */}
               <div
                 className={cn(
-                  "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-sm flex items-center justify-center transition-colors",
+                  "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-soft flex items-center justify-center transition-colors",
                   step.enabled ? channel.color : "bg-gray-300"
                 )}
               >

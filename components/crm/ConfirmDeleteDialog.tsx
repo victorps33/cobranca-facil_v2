@@ -37,7 +37,7 @@ export function ConfirmDeleteDialog({
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            className="bg-red-600 hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-500/30"
           >
             Excluir
           </AlertDialogAction>

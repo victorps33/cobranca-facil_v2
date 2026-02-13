@@ -29,7 +29,6 @@ function CrmPageContent() {
         <TabsContent value="clientes">
           <CrmClientsTab
             onSwitchToTarefas={() => setActiveTab("tarefas")}
-            onNavigateToTasks={() => setActiveTab("tarefas")}
           />
         </TabsContent>
 

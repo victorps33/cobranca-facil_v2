@@ -91,7 +91,7 @@ export function ConversationHeader({
             {transitions.length > 0 && <ChevronDown className="h-3 w-3" />}
           </button>
           {openMenu && transitions.length > 0 && (
-            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-large py-1 min-w-[160px]">
               {transitions.map((status) => (
                 <button
                   key={status}

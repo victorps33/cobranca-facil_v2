@@ -32,7 +32,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white px-4 py-3 shadow-lg rounded-xl border border-gray-100">
+      <div className="bg-white px-4 py-3 shadow-large rounded-xl border border-gray-100">
         <p className="text-sm font-semibold text-gray-900">{data.name}</p>
         <p className="text-lg font-bold text-gray-900 mt-1">
           {new Intl.NumberFormat("pt-BR", {

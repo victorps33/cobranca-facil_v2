@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import { ApuracaoWizard } from "@/components/apuracao/ApuracaoWizard";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import {
   DollarSign,
@@ -121,8 +123,9 @@ export default function ApuracaoPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Apuração" subtitle="Carregando..." />
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 h-64 animate-pulse" />
+        <PageHeader title="Apuração" subtitle="Ciclo completo de apuração de franqueados" />
+        <Skeleton className="h-10 w-48 rounded-xl" />
+        <TableSkeleton rows={5} cols={6} />
       </div>
     );
   }
@@ -169,25 +172,12 @@ export default function ApuracaoPage() {
       })()}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {([
-          { id: "novo" as Tab, label: "Novo Ciclo" },
-          { id: "historico" as Tab, label: "Histórico" },
-        ]).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "px-5 py-2 text-sm font-medium rounded-lg transition-colors",
-              activeTab === tab.id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
+        <TabsList>
+          <TabsTrigger value="novo">Novo Ciclo</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* ════════════════════════════════════════════ */}
       {/* TAB: NOVO CICLO                             */}
@@ -278,14 +268,14 @@ export default function ApuracaoPage() {
                   <table className="w-full text-sm" aria-label="Histórico de ciclos de apuração">
                     <thead>
                       <tr className="border-b border-gray-100 text-left">
-                        <th className="px-5 py-3 font-medium text-gray-500">Competência</th>
-                        <th className="px-5 py-3 font-medium text-gray-500">Data</th>
-                        <th className="px-5 py-3 font-medium text-gray-500 text-right">Franqueados</th>
-                        <th className="px-5 py-3 font-medium text-gray-500 text-right">Faturamento</th>
-                        <th className="px-5 py-3 font-medium text-gray-500 text-right">Total cobrado</th>
-                        <th className="px-5 py-3 font-medium text-gray-500 text-right">NFs</th>
-                        <th className="px-5 py-3 font-medium text-gray-500">Status</th>
-                        <th className="px-5 py-3 font-medium text-gray-500 text-center">Exportar</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Competência</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Data</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Franqueados</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Faturamento</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Total cobrado</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">NFs</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
+                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-center">Exportar</th>
                       </tr>
                     </thead>
                     <tbody>

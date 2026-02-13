@@ -9,6 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { TASK_PRIORITY_LABELS } from "@/lib/crm-constants";
 import type { CrmTask, TenantUser } from "@/lib/types/crm";
 
@@ -21,6 +23,9 @@ interface CreateTaskDialogProps {
 }
 
 const priorityOptions = Object.entries(TASK_PRIORITY_LABELS) as [CrmTask["priority"], string][];
+
+const selectClasses = "w-full h-11 px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none";
+const inputClasses = "w-full h-11 px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none";
 
 export function CreateTaskDialog({
   open,
@@ -101,12 +106,11 @@ export function CreateTaskDialog({
 
         <div className="space-y-4 py-4">
           {showCustomerSelect && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Cliente</label>
+            <FormField label="Cliente">
               <select
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+                className={selectClasses}
               >
                 <option value="">Selecione o cliente...</option>
                 {customersList.map((c) => (
@@ -115,38 +119,35 @@ export function CreateTaskDialog({
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Título</label>
+          <FormField label="Título">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Ligar para cobrar Royalties"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+              className={inputClasses}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Descrição</label>
+          <FormField label="Descrição">
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Detalhes da tarefa (opcional)"
               rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary resize-none"
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary focus-visible:outline-none resize-none"
             />
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Prioridade</label>
+            <FormField label="Prioridade">
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as CrmTask["priority"])}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+                className={selectClasses}
               >
                 {priorityOptions.map(([value, label]) => (
                   <option key={value} value={value}>
@@ -154,25 +155,23 @@ export function CreateTaskDialog({
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Vencimento</label>
+            <FormField label="Vencimento">
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+                className={inputClasses}
               />
-            </div>
+            </FormField>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Responsável</label>
+          <FormField label="Responsável">
             <select
               value={assignedToId}
               onChange={(e) => setAssignedToId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
+              className={selectClasses}
             >
               <option value="">Selecione...</option>
               {users.map((user) => (
@@ -181,23 +180,19 @@ export function CreateTaskDialog({
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <button
-            onClick={() => handleClose(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
-          >
+          <Button variant="outline" onClick={() => handleClose(false)}>
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={!title.trim() || (showCustomerSelect && !customerId)}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Criar Tarefa
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

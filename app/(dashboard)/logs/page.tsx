@@ -157,14 +157,14 @@ export default function LogsPage() {
             <table className="w-full text-sm" aria-label="Logs de notificações">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="px-4 py-3 font-medium text-gray-500">Data</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Canal</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Cliente</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Cobrança</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Régua</th>
-                  <th className="px-4 py-3 font-medium text-gray-500">Gatilho</th>
-                  <th className="px-4 py-3 font-medium text-gray-500 text-right">Ação</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Data</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Canal</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Cliente</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Cobrança</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Régua</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Gatilho</th>
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Ação</th>
                 </tr>
               </thead>
               <tbody>

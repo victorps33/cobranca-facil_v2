@@ -21,19 +21,21 @@ interface ChartCardProps {
   subtitle?: string;
   children: React.ReactNode;
   action?: React.ReactNode;
+  compact?: boolean;
+  className?: string;
 }
 
-export function ChartCard({ title, subtitle, children, action }: ChartCardProps) {
+export function ChartCard({ title, subtitle, children, action, compact, className }: ChartCardProps) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
+    <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden h-full flex flex-col ${className ?? ""}`}>
+      <div className={`${compact ? "px-5 py-3" : "px-6 py-5"} border-b border-gray-50 flex items-center justify-between`}>
         <div>
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-          {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+          <h3 className={`font-semibold text-gray-900 ${compact ? "text-sm" : ""}`}>{title}</h3>
+          {subtitle && <p className={`text-gray-500 mt-0.5 ${compact ? "text-xs" : "text-sm"}`}>{subtitle}</p>}
         </div>
         {action}
       </div>
-      <div className="p-6">{children}</div>
+      <div className={`${compact ? "p-5" : "p-6"} flex-1`}>{children}</div>
     </div>
   );
 }
@@ -50,12 +52,12 @@ const formatCurrency = (value: number) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-large text-sm">
         <p className="text-gray-400 text-xs mb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="font-medium">
-            {entry.name}: {typeof entry.value === "number" && entry.value > 100 
-              ? formatCurrency(entry.value) 
+            {entry.name}: {typeof entry.value === "number" && entry.value > 100
+              ? formatCurrency(entry.value)
               : entry.value}
           </p>
         ))}
@@ -265,7 +267,7 @@ const SafraCurveTooltip = ({ active, payload, label }: any) => {
     const entries = payload.filter((e: any) => e.value != null);
     if (entries.length === 0) return null;
     return (
-      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-large text-sm">
         <p className="text-gray-400 text-xs mb-1">{label}</p>
         {entries.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2">
@@ -358,7 +360,7 @@ interface AgingListChartProps {
 const AgingTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-large text-sm">
         <p className="text-gray-400 text-xs mb-1">{label}</p>
         <p className="font-medium">{formatCurrency(payload[0].value)}</p>
         <p className="text-gray-400 text-xs">{payload[0].payload.count} cobranças</p>

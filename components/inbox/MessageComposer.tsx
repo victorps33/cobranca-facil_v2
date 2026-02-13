@@ -61,7 +61,7 @@ export function MessageComposer({ onSend, disabled }: MessageComposerProps) {
           rows={1}
           disabled={disabled}
           className={cn(
-            "flex-1 resize-none border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
+            "flex-1 resize-none border rounded-xl px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary",
             isInternal ? "border-amber-200 bg-amber-50" : "border-gray-200"
           )}
           style={{ minHeight: "40px", maxHeight: "120px" }}

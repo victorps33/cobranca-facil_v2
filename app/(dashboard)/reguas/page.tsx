@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import {
   Bell,
@@ -194,7 +195,16 @@ export default function ReguasPage() {
         />
         <div className="space-y-4">
           {[1, 2].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 h-40 animate-pulse" />
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+              </div>
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
           ))}
         </div>
       </div>
@@ -289,7 +299,7 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
       {/* Header */}
       <Link
         href={`/reguas/${regua.id}`}
-        className="flex items-center gap-4 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary/50"
+        className="flex items-center gap-4 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary/30"
       >
         <div className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -320,13 +330,13 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
             aria-checked={regua.active}
             aria-label={regua.active ? `Desativar ${regua.name}` : `Ativar ${regua.name}`}
             className={cn(
-              "relative h-[26px] w-[46px] rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2",
+              "relative h-[26px] w-[46px] rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2",
               regua.active ? "bg-emerald-500" : "bg-gray-200"
             )}
           >
             <span
               className={cn(
-                "absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-200",
+                "absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-soft transition-all duration-200",
                 regua.active ? "left-[23px]" : "left-[3px]"
               )}
             />

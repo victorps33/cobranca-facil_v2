@@ -4,7 +4,8 @@ import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { InboxShell } from "@/components/inbox/InboxShell";
 import { AgentDashboardTab } from "@/components/agent/AgentDashboardTab";
-import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function InboxPageContent() {
   const searchParams = useSearchParams();
@@ -18,45 +19,28 @@ function InboxPageContent() {
   };
 
   return (
-    <div
-      className="-m-6 lg:-m-8 flex flex-col overflow-hidden"
-      style={{ height: "calc(100vh - 4rem)" }}
-    >
-      {/* Tab bar */}
-      <div className="flex items-center gap-6 border-b border-gray-200 px-6 lg:px-8 shrink-0">
-        <button
-          onClick={() => setActiveTab("conversas")}
-          className={cn(
-            "pb-3 pt-4 text-sm font-medium transition-colors border-b-2",
-            activeTab === "conversas"
-              ? "border-primary text-primary"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          )}
-        >
-          Conversas
-        </button>
-        <button
-          onClick={() => setActiveTab("agente")}
-          className={cn(
-            "pb-3 pt-4 text-sm font-medium transition-colors border-b-2",
-            activeTab === "agente"
-              ? "border-primary text-primary"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          )}
-        >
-          Agente AI
-        </button>
+    <div className="flex flex-col" style={{ height: "calc(100vh - 5rem)" }}>
+      <div className="shrink-0">
+        <PageHeader title="Inbox" subtitle="Conversas e agente AI" />
       </div>
 
-      {/* Tab content */}
+      <div className="shrink-0 mt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="conversas">Conversas</TabsTrigger>
+            <TabsTrigger value="agente">Agente AI</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {activeTab === "conversas" && (
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 -mx-6 lg:-mx-8 -mb-6 lg:-mb-8 mt-4">
           <InboxShell />
         </div>
       )}
 
       {activeTab === "agente" && (
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 lg:px-8 py-6">
+        <div className="flex-1 min-h-0 overflow-y-auto mt-6">
           <AgentDashboardTab onOpenConversation={handleOpenConversation} />
         </div>
       )}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import type { Cobranca, Franqueado } from "@/lib/types";
 import {
@@ -121,8 +122,16 @@ export default function CobrancaDetalhePage() {
   if (loading) {
     return (
       <div className="space-y-5">
-        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 h-96 animate-pulse" />
+        <Skeleton className="h-4 w-32" />
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-3 gap-6">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+          <Skeleton className="h-24 w-full" />
+        </div>
       </div>
     );
   }
@@ -180,7 +189,7 @@ export default function CobrancaDetalhePage() {
         {/* ================================================ */}
         <div className="space-y-6">
           {/* ── Card único: Detalhes + Franqueado + Financeiro ── */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-soft">
             {/* — Header — */}
             <div className="px-8 pt-8 pb-0">
               <div className="flex items-start justify-between mb-1">
@@ -331,7 +340,7 @@ export default function CobrancaDetalhePage() {
           {/* ── Seção Cálculo ── */}
           <div
             id="secao-calculo"
-            className="bg-white rounded-2xl border border-gray-200/60 shadow-sm"
+            className="bg-white rounded-2xl border border-gray-200/60 shadow-soft"
           >
             {/* Header colapsável */}
             <button
@@ -407,7 +416,7 @@ export default function CobrancaDetalhePage() {
                 className={cn(
                   "inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-full border transition-colors",
                   paymentTab === "pix"
-                    ? "bg-white text-gray-900 border-gray-200 shadow-sm"
+                    ? "bg-white text-gray-900 border-gray-200 shadow-soft"
                     : "bg-transparent text-gray-500 border-transparent hover:bg-white/50",
                 )}
               >
@@ -419,7 +428,7 @@ export default function CobrancaDetalhePage() {
                 className={cn(
                   "inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-full border transition-colors",
                   paymentTab === "boleto"
-                    ? "bg-white text-gray-900 border-gray-200 shadow-sm"
+                    ? "bg-white text-gray-900 border-gray-200 shadow-soft"
                     : "bg-transparent text-gray-500 border-transparent hover:bg-white/50",
                 )}
               >

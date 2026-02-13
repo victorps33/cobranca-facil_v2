@@ -514,8 +514,8 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
             <div className="border-t border-gray-100 shrink-0">
               <div className="px-4 pt-2 flex items-center justify-between">
                 <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
-                  <button onClick={() => setDetailLevel("resumido")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "resumido" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}>Resumido</button>
-                  <button onClick={() => setDetailLevel("detalhado")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "detalhado" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}>Detalhado</button>
+                  <button onClick={() => setDetailLevel("resumido")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "resumido" ? "bg-white text-gray-900 shadow-soft" : "text-gray-500 hover:text-gray-700")}>Resumido</button>
+                  <button onClick={() => setDetailLevel("detalhado")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "detalhado" ? "bg-white text-gray-900 shadow-soft" : "text-gray-500 hover:text-gray-700")}>Detalhado</button>
                 </div>
                 {!isInitialState && (
                   <div className="flex gap-1 overflow-x-auto">

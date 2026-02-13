@@ -272,7 +272,7 @@ export function AgentDashboardTab({ onOpenConversation }: AgentDashboardTabProps
                 {paginatedDecisions.map((dec) => (
                   <div
                     key={dec.id}
-                    className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-shadow"
+                    className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-medium transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
@@ -357,7 +357,7 @@ export function AgentDashboardTab({ onOpenConversation }: AgentDashboardTabProps
               escalations.map((esc) => (
                 <div
                   key={esc.id}
-                  className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-medium transition-shadow"
                 >
                   <div className="flex items-start justify-between">
                     <div>

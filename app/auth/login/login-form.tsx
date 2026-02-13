@@ -86,11 +86,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-12">
         <div className="w-full max-w-[480px]">
           <div
-            className="rounded-2xl bg-white shadow-lg"
-            style={{
-              boxShadow:
-                "0 2px 4px rgba(0,0,0,0.02), 0 8px 24px rgba(0,0,0,0.06), 0 24px 48px rgba(0,0,0,0.04)",
-            }}
+            className="rounded-2xl bg-white shadow-large"
           >
             {/* Logo inside card */}
             <div className="flex justify-center pt-10 pb-6">
@@ -129,7 +125,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
                   />
                 </div>
 
@@ -156,14 +152,14 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                    className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -203,7 +199,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
-                    className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                    className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
                   >
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
                       <path

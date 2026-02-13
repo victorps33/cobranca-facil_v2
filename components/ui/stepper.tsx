@@ -49,7 +49,7 @@ export function Stepper({ steps, currentStep, onStepClick, allCompleted }: Stepp
                       : isCurrent
                       ? "border-secondary bg-secondary/10 text-secondary"
                       : "border-gray-300 bg-white text-gray-400",
-                    isClickable && "cursor-pointer hover:shadow-md"
+                    isClickable && "cursor-pointer hover:shadow-medium"
                   )}
                 >
                   {isCompleted ? (

@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import type { Cobranca } from "@/lib/types";
 import { EmitirNfDialog } from "@/components/cobrancas/EmitirNfDialog";
 import { toast } from "@/components/ui/use-toast";
+import { KpiSkeleton } from "@/components/ui/skeleton";
 import {
   Search,
   ChevronDown,
@@ -219,12 +220,8 @@ export default function CobrancasPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Cobranças" subtitle="Carregando..." />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-20 animate-pulse" />
-          ))}
-        </div>
+        <PageHeader title="Cobranças" subtitle="Gerencie suas cobranças" />
+        <KpiSkeleton count={4} />
       </div>
     );
   }
@@ -359,27 +356,27 @@ export default function CobrancasPage() {
               <table className="w-full text-sm" aria-label="Lista de cobranças">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-gray-100 text-left">
-                    <th className="px-4 py-3 font-medium text-gray-500">Cobrança</th>
-                    <th className="px-4 py-3 font-medium text-gray-500">
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Cobrança</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
                       <button onClick={() => toggleSort("cliente")} className="inline-flex items-center gap-1">
                         Cliente <SortIcon k="cliente" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-gray-500">
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
                       <button onClick={() => toggleSort("dataVencimento")} className="inline-flex items-center gap-1">
                         Vencimento <SortIcon k="dataVencimento" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-gray-500">Pagamento</th>
-                    <th className="px-4 py-3 font-medium text-gray-500 text-right">
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Pagamento</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">
                       <button onClick={() => toggleSort("valorOriginal")} className="inline-flex items-center gap-1">
                         Valor <SortIcon k="valorOriginal" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-gray-500">Forma</th>
-                    <th className="px-4 py-3 font-medium text-gray-500">Status</th>
-                    <th className="px-4 py-3 font-medium text-gray-500 text-center">NF</th>
-                    <th className="px-4 py-3 font-medium text-gray-500 text-right">Ações</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Forma</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-center">NF</th>
+                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,7 +449,7 @@ export default function CobrancasPage() {
                           </button>
 
                           {openMenuId === c.id && (
-                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-large py-1 min-w-[160px]">
                               {canEmitNf(c) && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openNfDialog(c); }}

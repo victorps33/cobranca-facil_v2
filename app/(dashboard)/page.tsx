@@ -13,6 +13,7 @@ import {
   StripeChargesStatusChart,
   SafraCurveChart,
 } from "@/components/charts/stripe-charts";
+import { KpiSkeleton } from "@/components/ui/skeleton";
 import {
   DollarSign,
   TrendingUp,
@@ -82,12 +83,8 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Dashboard" subtitle="Carregando..." />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-28 animate-pulse" />
-          ))}
-        </div>
+        <PageHeader title="Dashboard" subtitle="Visão consolidada de cobranças e recebimentos" />
+        <KpiSkeleton count={4} />
       </div>
     );
   }

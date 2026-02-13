@@ -45,7 +45,7 @@ export function InboxFilters({
           placeholder="Buscar conversas..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-colors"
+          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
         />
         {search && (
           <button

@@ -984,7 +984,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.revisou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, revisou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-primary"
               />
               <span className="text-sm text-gray-700">Revisei os valores por franqueado</span>
             </label>
@@ -994,7 +994,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.verificou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, verificou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-primary"
               />
               <span className="text-sm text-gray-700">Verifiquei as divergencias sinalizadas</span>
             </label>
@@ -1004,7 +1004,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
                 type="checkbox"
                 checked={aprovacao.confirmou}
                 onChange={(e) => setAprovacao((prev) => ({ ...prev, confirmou: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus-visible:ring-primary"
               />
               <span className="text-sm text-gray-700">Confirmo que os dados estao corretos</span>
             </label>
@@ -1408,7 +1408,7 @@ function NfExceçãoSelector({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar franqueado..."
-              className="w-full pl-9 pr-8 py-2 text-sm border-b border-gray-200 focus:outline-none focus:border-secondary"
+              className="w-full pl-9 pr-8 py-2 text-sm border-b border-gray-200 focus-visible:outline-none focus-visible:border-secondary"
               autoFocus
             />
             <button

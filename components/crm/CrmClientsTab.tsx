@@ -8,11 +8,10 @@ import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/cn";
 import { toast } from "@/components/ui/use-toast";
-import { CrmDashboard } from "@/components/crm/CrmDashboard";
 import { exportCrmClientsToXlsx } from "@/lib/crm-export";
 import type { CrmCustomer } from "@/lib/types/crm";
-import { Skeleton, KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
-import { Search, Users, AlertTriangle, DollarSign, ListTodo, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
+import { KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { Search, AlertTriangle, DollarSign, Clock, PhoneMissed, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 type SortKey = "nome" | "status" | "valorAberto" | "totalVencido" | "qtdTarefasAbertas" | "ultimaInteracao";
 type SortDir = "asc" | "desc";
@@ -47,10 +46,9 @@ const fmtDateTime = (dateStr: string) =>
 
 interface CrmClientsTabProps {
   onSwitchToTarefas?: () => void;
-  onNavigateToTasks?: () => void;
 }
 
-export function CrmClientsTab({ onSwitchToTarefas, onNavigateToTasks }: CrmClientsTabProps) {
+export function CrmClientsTab({ onSwitchToTarefas }: CrmClientsTabProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -98,7 +96,15 @@ export function CrmClientsTab({ onSwitchToTarefas, onNavigateToTasks }: CrmClien
       );
     }
     if (statusFilter !== "all") {
-      list = list.filter((c) => c.healthStatus === statusFilter);
+      if (statusFilter === "sem_contato_7d") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        list = list.filter(
+          (c) => !c.ultimaInteracao || new Date(c.ultimaInteracao) < sevenDaysAgo
+        );
+      } else {
+        list = list.filter((c) => c.healthStatus === statusFilter);
+      }
     }
 
     const dir = sortDir === "asc" ? 1 : -1;
@@ -134,42 +140,39 @@ export function CrmClientsTab({ onSwitchToTarefas, onNavigateToTasks }: CrmClien
     safeCurrentPage * PAGE_SIZE
   );
 
-  const totalClientes = customers.length;
+  // ── Actionable KPIs ──
   const criticos = customers.filter((c) => c.healthStatus === "Crítico").length;
+  const exigeAtencao = customers.filter((c) => c.healthStatus === "Exige Atenção").length;
   const totalValorVencido = customers.reduce((s, c) => s + c.totalVencido, 0);
+  const clientesComVencido = customers.filter((c) => c.totalVencido > 0).length;
   const totalTarefasAbertas = customers.reduce((s, c) => s + c.qtdTarefasAbertas, 0);
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const semContato7d = customers.filter(
+    (c) => !c.ultimaInteracao || new Date(c.ultimaInteracao) < sevenDaysAgo
+  ).length;
 
   const hasActiveFilters = search !== "" || statusFilter !== "all";
 
-  const exportData = filtered.map((c) => ({
-    nome: c.name,
-    razaoSocial: c.doc,
-    cnpj: c.doc,
-    status: c.healthStatus,
-    valorAberto: c.totalAberto,
-    totalVencido: c.totalVencido,
-    qtdTarefasAbertas: c.qtdTarefasAbertas,
-    ultimaInteracao: c.ultimaInteracao,
-  }));
+  const handleExport = () => {
+    const exportData = filtered.map((c) => ({
+      nome: c.name,
+      razaoSocial: c.doc,
+      cnpj: c.doc,
+      status: c.healthStatus,
+      valorAberto: c.totalAberto,
+      totalVencido: c.totalVencido,
+      qtdTarefasAbertas: c.qtdTarefasAbertas,
+      ultimaInteracao: c.ultimaInteracao,
+    }));
+    exportCrmClientsToXlsx(exportData);
+  };
 
   if (loading) {
     return (
       <div className="space-y-6">
         <KpiSkeleton count={4} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-28 w-full rounded-xl" />
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-48 rounded-xl" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
-        </div>
         <TableSkeleton rows={8} cols={6} />
       </div>
     );
@@ -177,53 +180,45 @@ export function CrmClientsTab({ onSwitchToTarefas, onNavigateToTasks }: CrmClien
 
   return (
     <div className="space-y-6">
-      {/* Export button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => exportCrmClientsToXlsx(exportData)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          <Download className="h-4 w-4" />
-          Exportar
-        </button>
-      </div>
-
-      {/* Stats */}
+      {/* Actionable KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          icon={<Users className="h-4 w-4" />}
-          title="Total Clientes"
-          value={String(totalClientes)}
-          onClick={() => { setStatusFilter("all"); setPage(1); }}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title="Clientes Críticos"
+          value={String(criticos)}
+          subtitle={`${exigeAtencao} exigem atenção · de ${customers.length}`}
+          variant={criticos > 0 ? "danger" : "default"}
+          onClick={() => { setStatusFilter("Crítico"); setPage(1); }}
           className="animate-in stagger-1"
         />
         <MetricCard
-          icon={<AlertTriangle className="h-4 w-4" />}
-          title="Críticos"
-          value={String(criticos)}
-          variant={criticos > 0 ? "danger" : "default"}
-          onClick={() => { setStatusFilter("Crítico"); setPage(1); }}
+          icon={<DollarSign className="h-4 w-4" />}
+          title="Valor Vencido"
+          value={fmtBRL(totalValorVencido)}
+          subtitle={`${clientesComVencido} clientes inadimplentes`}
+          variant={totalValorVencido > 0 ? "danger" : "default"}
+          onClick={() => { setStatusFilter("Exige Atenção"); setPage(1); }}
           className="animate-in stagger-2"
         />
         <MetricCard
-          icon={<DollarSign className="h-4 w-4" />}
-          title="Valor Total Vencido"
-          value={fmtBRL(totalValorVencido)}
-          variant={totalValorVencido > 0 ? "danger" : "default"}
-          onClick={() => { setStatusFilter("Exige Atenção"); setPage(1); }}
+          icon={<Clock className="h-4 w-4" />}
+          title="Tarefas Atrasadas"
+          value={String(totalTarefasAbertas)}
+          subtitle="pendentes + em andamento"
+          variant={totalTarefasAbertas > 0 ? "danger" : "default"}
+          onClick={onSwitchToTarefas}
           className="animate-in stagger-3"
         />
         <MetricCard
-          icon={<ListTodo className="h-4 w-4" />}
-          title="Tarefas Abertas"
-          value={String(totalTarefasAbertas)}
-          onClick={onSwitchToTarefas}
+          icon={<PhoneMissed className="h-4 w-4" />}
+          title="Sem Contato 7d+"
+          value={String(semContato7d)}
+          subtitle="sem interação na última semana"
+          variant={semContato7d > 0 ? "danger" : "default"}
+          onClick={() => { setStatusFilter("sem_contato_7d"); setPage(1); }}
           className="animate-in stagger-4"
         />
       </div>
-
-      {/* Dashboard */}
-      <CrmDashboard customers={customers} onNavigateToTasks={onNavigateToTasks} />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

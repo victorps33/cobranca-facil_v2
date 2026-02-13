@@ -24,7 +24,7 @@ const safraData = [
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white px-4 py-3 shadow-lg rounded-xl border border-gray-100">
+      <div className="bg-white px-4 py-3 shadow-large rounded-xl border border-gray-100">
         <p className="text-sm font-medium text-gray-900 mb-2">{label}</p>
         {payload.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2 text-sm">

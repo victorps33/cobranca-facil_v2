@@ -38,7 +38,7 @@ export function MetricCard({
     <div
       onClick={onClick}
       className={cn(
-        "w-full bg-white rounded-2xl border p-5 hover:shadow-md transition-all hover:translate-y-[-1px]",
+        "w-full bg-white rounded-2xl border p-5 hover:shadow-medium transition-all hover:translate-y-[-1px]",
         variant === "danger" ? "border-red-100" : "border-gray-100",
         onClick && "cursor-pointer",
         className

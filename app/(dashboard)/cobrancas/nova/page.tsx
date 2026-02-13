@@ -282,7 +282,7 @@ export default function NovaCobrancaPage() {
                   value={formData.description}
                   onChange={(e) => updateFormData({ description: e.target.value })}
                   placeholder="Ex: Mensalidade Janeiro, Consultoria, Produto XYZ…"
-                  className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl resize-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/20 outline-none transition-colors"
+                  className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl resize-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 outline-none transition-colors"
                 />
               </div>
 

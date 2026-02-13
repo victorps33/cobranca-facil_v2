@@ -10,6 +10,7 @@ import { ImportDialog } from "@/components/franqueados/ImportDialog";
 import type { Franqueado } from "@/lib/types";
 import { exportFranqueadosToXlsx } from "@/lib/franqueados-import-export";
 import { Pagination } from "@/components/ui/pagination";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { MapPin, Upload, Download, AlertTriangle, X, Search, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -132,8 +133,8 @@ export default function ClientesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Cadastro" subtitle="Carregando..." />
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 h-64 animate-pulse" />
+        <PageHeader title="Cadastro" subtitle="Gerencie os dados da franqueadora e seus franqueados" />
+        <TableSkeleton rows={8} cols={5} />
       </div>
     );
   }
@@ -227,7 +228,7 @@ export default function ClientesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-colors"
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus-visible:outline-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 transition-colors"
                 />
                 {searchQuery && (
                   <button
@@ -241,8 +242,8 @@ export default function ClientesPage() {
             </div>
 
             <div className="border-b border-gray-100">
-              <div className="flex items-center justify-between px-4">
-                <nav className="flex gap-0" aria-label="Filtrar por status">
+              <div className="px-4">
+                <nav className="flex items-center gap-6" aria-label="Filtrar por status">
                   {tabs.map((tab) => {
                     const isActive = statusFilter === tab.value;
                     return (
@@ -250,25 +251,17 @@ export default function ClientesPage() {
                         key={tab.value}
                         onClick={() => setStatusFilter(tab.value)}
                         className={cn(
-                          "relative px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap",
+                          "pb-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
                           isActive
-                            ? "text-gray-900"
-                            : "text-gray-400 hover:text-gray-600"
+                            ? "border-gray-900 text-gray-900"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
                         )}
                         aria-current={isActive ? "page" : undefined}
                       >
                         {tab.label}
-                        <span
-                          className={cn(
-                            "ml-1.5 text-xs tabular-nums",
-                            isActive ? "text-gray-500" : "text-gray-300"
-                          )}
-                        >
+                        <span className="ml-1.5 text-xs text-gray-400 tabular-nums">
                           {counts[tab.value]}
                         </span>
-                        {isActive && (
-                          <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gray-900 rounded-full" />
-                        )}
                       </button>
                     );
                   })}
@@ -315,7 +308,7 @@ export default function ClientesPage() {
                         return (
                           <tr
                             key={c.id}
-                            className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
+                            className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                           >
                             <td className="px-5 py-3.5">
                               <Link
