@@ -15,8 +15,6 @@ const routeLabels: Record<string, string> = {
   crm: "CRM",
   tarefas: "Tarefas",
   inbox: "Inbox",
-  agent: "Agente AI",
-  insights: "Insights",
   configuracoes: "Configurações",
   logs: "Logs",
 };

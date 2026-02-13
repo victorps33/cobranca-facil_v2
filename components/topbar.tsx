@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Bell, Clock, LogOut, User } from "lucide-react";
+import { Bell, Clock, LogOut, User, Sparkles, Search, AlertTriangle, Receipt, ListTodo } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useAppData } from "@/components/providers/AppDataProvider";
 
 import {
   DropdownMenu,
@@ -15,11 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-interface AppNowInfo {
-  date: string;
-  isSimulated: boolean;
-}
 
 function getUserInitials(name?: string | null): string {
   if (!name) return "?";
@@ -35,34 +30,42 @@ const roleLabels: Record<string, string> = {
   VISUALIZADOR: "Visualizador",
 };
 
-export function TopBar() {
+interface TopBarProps {
+  onOpenJulia?: () => void;
+  onOpenCommandPalette?: () => void;
+}
+
+export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
   const { data: session } = useSession();
-  const [appNowInfo, setAppNowInfo] = useState<AppNowInfo | null>(null);
-
-  const fetchAppNow = async () => {
-    try {
-      const res = await fetch("/api/app-state");
-      const data = await res.json();
-      setAppNowInfo(data);
-    } catch (error) {
-      // Silently fail - not critical
-    }
-  };
-
-  useEffect(() => {
-    fetchAppNow();
-    const interval = setInterval(fetchAppNow, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { notifications, appNow: appNowInfo } = useAppData();
 
   const userName = session?.user?.name || "Usuário";
   const userRole = session?.user?.role ? roleLabels[session.user.role] || session.user.role : "";
   const initials = getUserInitials(session?.user?.name);
 
+  const notifIcons: Record<string, typeof AlertTriangle> = {
+    overdue_task: ListTodo,
+    overdue_charge: Receipt,
+    escalation: AlertTriangle,
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-      <div className="flex h-16 items-center justify-end px-6">
-        <div className="flex items-center gap-4">
+      <div className="flex h-16 items-center justify-between px-6">
+        {/* Left: Search trigger */}
+        <button
+          onClick={onOpenCommandPalette}
+          className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:text-gray-500 transition-colors w-64"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left">Buscar...</span>
+          <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-gray-400 bg-white rounded border border-gray-200">
+            ⌘K
+          </kbd>
+        </button>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 ml-auto">
           {/* Date Badge */}
           {appNowInfo && (
             <div
@@ -90,11 +93,62 @@ export function TopBar() {
             </div>
           )}
 
-          {/* Notifications */}
-          <button aria-label="Notificações" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <Bell className="h-5 w-5 text-gray-500" strokeWidth={1.5} />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
+          {/* Julia AI Button */}
+          <button
+            onClick={onOpenJulia}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+            title="Abrir Júlia AI"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden lg:inline">Júlia</span>
           </button>
+
+          {/* Notifications */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button aria-label="Notificações" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <Bell className="h-5 w-5 text-gray-500" strokeWidth={1.5} />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 rounded-xl">
+              <DropdownMenuLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Notificações
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <Bell className="h-6 w-6 text-gray-200 mx-auto mb-2" />
+                  <p className="text-sm text-gray-400">Tudo em dia!</p>
+                </div>
+              ) : (
+                notifications.map((notif) => {
+                  const Icon = notifIcons[notif.type] || AlertTriangle;
+                  return (
+                    <DropdownMenuItem key={notif.id} className="flex items-start gap-3 p-3 cursor-pointer rounded-lg" asChild>
+                      <a href={notif.href}>
+                        <div className={cn(
+                          "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                          notif.type === "overdue_task" ? "bg-amber-50" : notif.type === "overdue_charge" ? "bg-red-50" : "bg-blue-50"
+                        )}>
+                          <Icon className={cn(
+                            "h-4 w-4",
+                            notif.type === "overdue_task" ? "text-amber-500" : notif.type === "overdue_charge" ? "text-red-500" : "text-blue-500"
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900">{notif.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{notif.description}</p>
+                        </div>
+                      </a>
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Dropdown */}
           <DropdownMenu>

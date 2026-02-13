@@ -18,7 +18,6 @@ import {
   TrendingUp,
   AlertTriangle,
   FileText,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
@@ -163,9 +162,6 @@ export default function DashboardPage() {
         subtitle="Visão consolidada de cobranças e recebimentos"
         period={periodLabel}
         primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
-        secondaryActions={[
-          { label: "Insights", href: "/insights", icon: <Sparkles className="h-4 w-4" /> },
-        ]}
       />
 
       {onboarding && (

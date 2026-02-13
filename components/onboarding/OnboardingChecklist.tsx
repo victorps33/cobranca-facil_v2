@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import {
@@ -18,7 +18,7 @@ interface ChecklistData {
   hasCustomer: boolean;
   hasCharge: boolean;
   hasDunningRule: boolean;
-  hasVisitedInsights: boolean;
+  hasVisitedInsights?: boolean;
 }
 
 interface OnboardingChecklistProps {
@@ -26,8 +26,6 @@ interface OnboardingChecklistProps {
   show: boolean;
   onDismiss: () => void;
 }
-
-const INSIGHTS_KEY = "menlo_visited_insights";
 
 const CHECKLIST_ITEMS = [
   {
@@ -48,30 +46,14 @@ const CHECKLIST_ITEMS = [
     href: "/reguas",
     icon: Bell,
   },
-  {
-    key: "hasVisitedInsights" as const,
-    label: "Ver insights da Júlia",
-    href: "/insights",
-    icon: Sparkles,
-  },
 ];
 
 export function OnboardingChecklist({ checklist, show, onDismiss }: OnboardingChecklistProps) {
   const [dismissed, setDismissed] = useState(false);
-  const [visitedInsights, setVisitedInsights] = useState(false);
-
-  useEffect(() => {
-    setVisitedInsights(localStorage.getItem(INSIGHTS_KEY) === "true");
-  }, []);
 
   if (dismissed || !show) return null;
 
-  const mergedChecklist = {
-    ...checklist,
-    hasVisitedInsights: checklist.hasVisitedInsights || visitedInsights,
-  };
-
-  const completed = CHECKLIST_ITEMS.filter((item) => mergedChecklist[item.key]).length;
+  const completed = CHECKLIST_ITEMS.filter((item) => checklist[item.key]).length;
   const total = CHECKLIST_ITEMS.length;
   const allDone = completed === total;
 
@@ -83,11 +65,6 @@ export function OnboardingChecklist({ checklist, show, onDismiss }: OnboardingCh
     setDismissed(true);
     await fetch("/api/onboarding/dismiss-checklist", { method: "POST" });
     onDismiss();
-  }
-
-  function handleInsightsClick() {
-    localStorage.setItem(INSIGHTS_KEY, "true");
-    setVisitedInsights(true);
   }
 
   return (
@@ -127,14 +104,13 @@ export function OnboardingChecklist({ checklist, show, onDismiss }: OnboardingCh
       {/* Items */}
       <div className="px-5 py-3 space-y-1">
         {CHECKLIST_ITEMS.map((item, i) => {
-          const done = mergedChecklist[item.key];
+          const done = checklist[item.key];
           const Icon = item.icon;
 
           return (
             <Link
               key={item.key}
               href={item.href}
-              onClick={item.key === "hasVisitedInsights" ? handleInsightsClick : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group",
                 done

@@ -14,12 +14,12 @@ import {
   ChevronLeft,
   Plus,
   Calculator,
-  Sparkles,
   Contact,
   Inbox,
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { UserRole } from "@prisma/client";
+import { useAppData } from "@/components/providers/AppDataProvider";
 
 type NavItem = {
   name: string;
@@ -33,7 +33,6 @@ const allRoles: UserRole[] = ["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL", "VIS
 
 const baseNavigation: Omit<NavItem, "badge">[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: allRoles },
-  { name: "Insights", href: "/insights", icon: Sparkles, roles: allRoles },
   { name: "Cadastro", href: "/clientes", icon: Users, roles: allRoles },
   { name: "Apuração", href: "/apuracao", icon: Calculator, roles: allRoles },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
@@ -53,37 +52,7 @@ export function Sidebar() {
 
   const userRole = session?.user?.role as UserRole | undefined;
 
-  // Fetch overdue tasks count from API
-  const [atrasadas, setAtrasadas] = useState(0);
-  const [inboxUnread, setInboxUnread] = useState(0);
-
-  useEffect(() => {
-    fetch("/api/crm/tasks")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const hoje = new Date();
-          const count = data.filter(
-            (t: { dueDate?: string | null; status: string }) =>
-              t.dueDate &&
-              new Date(t.dueDate) < hoje &&
-              (t.status === "PENDENTE" || t.status === "EM_ANDAMENTO")
-          ).length;
-          setAtrasadas(count);
-        }
-      })
-      .catch(() => {});
-
-    const fetchInboxUnread = () => {
-      fetch("/api/inbox/unread-count")
-        .then((res) => res.json())
-        .then((data) => setInboxUnread(data.unreadCount || 0))
-        .catch(() => {});
-    };
-    fetchInboxUnread();
-    const inboxInterval = setInterval(fetchInboxUnread, 10000);
-    return () => clearInterval(inboxInterval);
-  }, []);
+  const { overdueTasks: atrasadas, inboxUnread } = useAppData();
 
   const navigation: NavItem[] = useMemo(
     () =>
