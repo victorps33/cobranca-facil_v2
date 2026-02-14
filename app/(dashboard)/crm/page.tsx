@@ -14,11 +14,8 @@ function CrmPageContent() {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="CRM"
-        subtitle="Gestão de clientes e tarefas"
-      />
+    <div className="space-y-5">
+      <PageHeader title="CRM" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

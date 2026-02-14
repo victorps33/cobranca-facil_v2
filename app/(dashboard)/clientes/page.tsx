@@ -132,19 +132,16 @@ export default function ClientesPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Cadastro" subtitle="Gerencie os dados da franqueadora e seus franqueados" />
+      <div className="space-y-5">
+        <PageHeader title="Cadastro" />
         <TableSkeleton rows={8} cols={5} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Cadastro"
-        subtitle="Gerencie os dados da franqueadora e seus franqueados"
-      />
+    <div className="space-y-5">
+      <PageHeader title="Cadastro" />
 
       {/* Seção: Franqueadora */}
       <div className="space-y-3">

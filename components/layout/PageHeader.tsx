@@ -15,7 +15,6 @@ interface ActionConfig {
 
 interface PageHeaderProps {
   title: string;
-  subtitle?: string;
   period?: string; // e.g. "Competência: Fev/26"
   primaryAction?: ActionConfig;
   secondaryActions?: ActionConfig[];
@@ -25,7 +24,6 @@ interface PageHeaderProps {
 
 export function PageHeader({
   title,
-  subtitle,
   period,
   primaryAction,
   secondaryActions,
@@ -34,22 +32,15 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <div className={cn("flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between", className)}>
-      {/* Left: title + subtitle + period */}
-      <div className="min-w-0">
+      {/* Left: title + period */}
+      <div className="flex items-center gap-3 min-w-0">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
           {title}
         </h1>
-        {(subtitle || period) && (
-          <div className="flex items-center gap-3 mt-1">
-            {subtitle && (
-              <p className="text-sm text-gray-500">{subtitle}</p>
-            )}
-            {period && (
-              <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md">
-                {period}
-              </span>
-            )}
-          </div>
+        {period && (
+          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md">
+            {period}
+          </span>
         )}
       </div>
 

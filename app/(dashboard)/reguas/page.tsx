@@ -188,11 +188,8 @@ export default function ReguasPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Réguas de Cobrança"
-          subtitle="Configure fluxos automáticos de notificação"
-        />
+      <div className="space-y-5">
+        <PageHeader title="Réguas de Cobrança" />
         <div className="space-y-4">
           {[1, 2].map((i) => (
             <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
@@ -212,13 +209,12 @@ export default function ReguasPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Inject keyframes */}
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
 
       <PageHeader
         title="Réguas de Cobrança"
-        subtitle="Configure fluxos automáticos de notificação"
         primaryAction={{ label: "Nova Régua", onClick: () => {} }}
       />
 

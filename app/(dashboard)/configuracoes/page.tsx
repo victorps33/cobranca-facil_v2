@@ -640,11 +640,8 @@ export default function ConfiguracoesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Configurações"
-        subtitle="Gerencie preferências da sua operação"
-      />
+    <div className="space-y-5">
+      <PageHeader title="Configurações" />
 
       <div className="flex gap-6">
         {/* Sidebar navigation */}

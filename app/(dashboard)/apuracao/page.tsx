@@ -122,8 +122,8 @@ export default function ApuracaoPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Apuração" subtitle="Ciclo completo de apuração de franqueados" />
+      <div className="space-y-5">
+        <PageHeader title="Apuração" />
         <Skeleton className="h-10 w-48 rounded-xl" />
         <TableSkeleton rows={5} cols={6} />
       </div>
@@ -131,11 +131,10 @@ export default function ApuracaoPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page header */}
       <PageHeader
         title="Apuração"
-        subtitle="Ciclo completo de apuração de franqueados"
         period={competenciaLabel ? `Competência: ${competenciaLabel}` : undefined}
       />
 

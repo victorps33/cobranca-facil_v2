@@ -94,11 +94,8 @@ export default function LogsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
+      <div className="space-y-5">
+        <Skeleton className="h-8 w-48" />
         <div className="flex gap-2">
           <Skeleton className="h-8 w-24 rounded-full" />
           <Skeleton className="h-8 w-20 rounded-full" />
@@ -110,11 +107,8 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Logs de Notificações"
-        subtitle="Histórico de envios automáticos da régua"
-      />
+    <div className="space-y-5">
+      <PageHeader title="Logs de Notificações" />
 
       {/* ── Filters ── */}
       <div className="flex flex-wrap items-center gap-3">

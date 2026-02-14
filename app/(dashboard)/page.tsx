@@ -82,8 +82,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Dashboard" subtitle="Visão consolidada de cobranças e recebimentos" />
+      <div className="space-y-5">
+        <PageHeader title="Dashboard" />
         <KpiSkeleton count={4} />
       </div>
     );
@@ -91,10 +91,9 @@ export default function DashboardPage() {
 
   if (!data || data.empty) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <PageHeader
           title="Dashboard"
-          subtitle="Visão consolidada de cobranças e recebimentos"
           primaryAction={{ label: "Cadastrar Cliente", href: "/clientes/novo" }}
         />
         {onboarding && (
@@ -153,10 +152,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Dashboard"
-        subtitle="Visão consolidada de cobranças e recebimentos"
         period={periodLabel}
         primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
       />

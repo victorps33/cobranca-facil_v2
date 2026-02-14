@@ -219,8 +219,8 @@ export default function CobrancasPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Cobranças" subtitle="Gerencie suas cobranças" />
+      <div className="space-y-5">
+        <PageHeader title="Cobranças" />
         <KpiSkeleton count={4} />
       </div>
     );
@@ -228,10 +228,9 @@ export default function CobrancasPage() {
 
   if (allCobrancas.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <PageHeader
           title="Cobranças"
-          subtitle="Gerencie suas cobranças"
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
         />
         <DataEmptyState
@@ -250,7 +249,6 @@ export default function CobrancasPage() {
       <div className="flex-shrink-0 space-y-4">
         <PageHeader
           title="Cobranças"
-          subtitle={`${cobrancasFiltradas.length} cobranças no período`}
           period={periodLabel}
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
         />

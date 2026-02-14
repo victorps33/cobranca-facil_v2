@@ -21,10 +21,10 @@ function InboxPageContent() {
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 5rem)" }}>
       <div className="shrink-0">
-        <PageHeader title="Inbox" subtitle="Conversas e agente AI" />
+        <PageHeader title="Inbox" />
       </div>
 
-      <div className="shrink-0 mt-4">
+      <div className="shrink-0 mt-3">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="conversas">Conversas</TabsTrigger>
