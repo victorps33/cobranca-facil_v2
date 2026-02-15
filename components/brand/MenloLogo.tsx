@@ -21,11 +21,28 @@ export function MenloLogo({
   size = "md",
   priority = true,
 }: MenloLogoProps) {
-  const { w, h } = sizes[size];
   const src =
     variant === "sidebar"
       ? "/menlo-logo-sidebar.png"
       : "/menlo-logo.png";
+
+  const blendClass = "select-none mix-blend-multiply dark:mix-blend-screen dark:invert";
+
+  // When collapsed (sm), show only the icon mark
+  if (size === "sm") {
+    return (
+      <Image
+        src="/menlo-icon.png"
+        alt="Menlo"
+        width={44}
+        height={44}
+        priority={priority}
+        className={cn("select-none mix-blend-multiply dark:mix-blend-screen dark:invert", className)}
+      />
+    );
+  }
+
+  const { w, h } = sizes[size];
 
   return (
     <Image
@@ -34,7 +51,7 @@ export function MenloLogo({
       width={w}
       height={h}
       priority={priority}
-      className={cn("select-none mix-blend-multiply", className)}
+      className={cn(blendClass, className)}
     />
   );
 }

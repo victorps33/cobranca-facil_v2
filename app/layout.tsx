@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
+import { PreferencesProvider } from "@/components/providers/PreferencesProvider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -24,14 +25,16 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={`${poppins.variable} font-sans antialiased`}>
         <AuthSessionProvider>
-          <a
-            href="#main-content"
-            className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-gray-900 focus:rounded-lg focus:shadow-large focus:ring-2 focus:ring-secondary focus:outline-none"
-          >
-            Pular para o conteúdo principal
-          </a>
-          {children}
-          <Toaster />
+          <PreferencesProvider>
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-gray-900 focus:rounded-lg focus:shadow-large focus:ring-2 focus:ring-secondary focus:outline-none"
+            >
+              Pular para o conteúdo principal
+            </a>
+            {children}
+            <Toaster />
+          </PreferencesProvider>
         </AuthSessionProvider>
       </body>
     </html>

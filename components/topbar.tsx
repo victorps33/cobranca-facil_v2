@@ -50,12 +50,12 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
       <div className="flex h-16 items-center justify-between px-6">
         {/* Left: Search trigger */}
         <button
           onClick={onOpenCommandPalette}
-          className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:text-gray-500 transition-colors w-64"
+          className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-500 transition-colors w-64"
         >
           <Search className="h-4 w-4" />
           <span className="flex-1 text-left">Buscar...</span>
@@ -106,7 +106,7 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button aria-label="Notificações" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <button aria-label="Notificações" className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
                 <Bell className="h-5 w-5 text-gray-500" strokeWidth={1.5} />
                 {notifications.length > 0 && (
                   <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white" />
@@ -139,7 +139,7 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
                           )} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">{notif.title}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{notif.title}</p>
                           <p className="text-xs text-gray-500 mt-0.5">{notif.description}</p>
                         </div>
                       </a>
@@ -153,13 +153,13 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 pl-3 border-l border-gray-100 outline-none">
+              <button className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-gray-800 outline-none">
                 <div className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-white text-sm font-semibold">
                   {initials}
                 </div>
                 <div className="hidden lg:block text-left">
-                  <p className="text-sm font-medium text-gray-900">{userName}</p>
-                  <p className="text-xs text-gray-500">{userRole}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userName}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
                 </div>
               </button>
             </DropdownMenuTrigger>

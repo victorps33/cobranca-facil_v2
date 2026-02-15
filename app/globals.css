@@ -141,6 +141,37 @@
   h3 { font-size: var(--font-size-lg); line-height: 1.4; font-weight: 500; }
 }
 
+/* ===== DARK MODE ===== */
+
+.dark {
+  --menlo-offwhite: #0f1117;
+  --menlo-white: #1a1d27;
+  --color-surface: #1a1d27;
+  --color-background: #0f1117;
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-text-light: #6b7280;
+  --color-border: #2d3140;
+  --color-border-light: #232636;
+  /* shadcn/ui HSL overrides */
+  --background: 228 20% 7%;
+  --foreground: 220 13% 91%;
+  --card: 228 18% 13%;
+  --card-foreground: 220 13% 91%;
+  --popover: 228 18% 13%;
+  --popover-foreground: 220 13% 91%;
+  --muted: 228 15% 18%;
+  --muted-foreground: 220 9% 60%;
+  --border: 228 15% 20%;
+  --input: 228 15% 20%;
+}
+
+/* ===== COMPACT DENSITY ===== */
+
+[data-density="compact"] main#main-content {
+  padding: 1rem 1.25rem;
+}
+
 /* ===== COMPONENT STYLES ===== */
 
 @layer components {

@@ -33,6 +33,7 @@ import {
   Phone,
   Loader2,
 } from "lucide-react";
+import { usePreferences } from "@/components/providers/PreferencesProvider";
 
 /* ───────────────────── Nav items ───────────────────── */
 
@@ -546,42 +547,70 @@ function UsuariosContent() {
 
 /* ───────────────────── Seção: Aparência ───────────────────── */
 
-function AparenciaContent() {
-  const [tema, setTema] = useState<"claro" | "escuro" | "sistema">("claro");
-  const [densidade, setDensidade] = useState("confortavel");
-  const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
+const themeMap = { light: "claro", dark: "escuro", system: "sistema" } as const;
+const themeReverseMap = { claro: "light", escuro: "dark", sistema: "system" } as const;
+const densityMap = { comfortable: "confortavel", compact: "compacto" } as const;
+const densityReverseMap = { confortavel: "comfortable", compacto: "compact" } as const;
 
-  const temaOptions: { value: "claro" | "escuro" | "sistema"; label: string }[] = [
-    { value: "claro", label: "Claro" },
-    { value: "escuro", label: "Escuro" },
-    { value: "sistema", label: "Sistema" },
-  ];
+function AparenciaContent() {
+  const { theme, density, sidebarCollapsed, setPreferences, previewPreferences, revertPreview } = usePreferences();
+
+  const [tema, setTema] = useState<"claro" | "escuro" | "sistema">(themeMap[theme]);
+  const [sidebarRecolhida, setSidebarRecolhida] = useState(sidebarCollapsed);
+
+  // Sync local state on hydration
+  useEffect(() => {
+    setTema(themeMap[theme]);
+    setSidebarRecolhida(sidebarCollapsed);
+  }, [theme, sidebarCollapsed]);
+
+  // Revert preview when leaving without saving
+  useEffect(() => {
+    return () => revertPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTema = (value: "claro" | "escuro" | "sistema") => {
+    setTema(value);
+    previewPreferences({ theme: themeReverseMap[value] });
+  };
 
   const handleSave = () => {
+    setPreferences({
+      theme: themeReverseMap[tema],
+      sidebarCollapsed: sidebarRecolhida,
+    });
     toast({
       title: "Preferências salvas",
       description: "As configurações de aparência foram atualizadas.",
     });
   };
 
+  const temaOptions: { value: "claro" | "escuro"; label: string }[] = [
+    { value: "claro", label: "Claro" },
+    { value: "escuro", label: "Escuro" },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Aparência</h2>
-        <p className="text-sm text-gray-500 mt-1">Personalize o visual da plataforma.</p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Aparência</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Personalize o visual da plataforma.</p>
       </div>
 
       <div className="space-y-2">
-        <Label>Tema</Label>
-        <div className="inline-flex rounded-lg border border-gray-200 p-1">
+        <Label className="mr-3">Tema</Label>
+        <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-1">
           {temaOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
-              onClick={() => setTema(opt.value)}
+              onClick={() => handleTema(opt.value)}
               className={cn(
                 "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-                tema === opt.value ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:text-gray-700"
+                tema === opt.value
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               )}
             >
               {opt.label}
@@ -590,22 +619,12 @@ function AparenciaContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div className="space-y-2">
-          <Label htmlFor="densidade">Densidade da interface</Label>
-          <Select value={densidade} onValueChange={setDensidade}>
-            <SelectTrigger id="densidade"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="confortavel">Confortável</SelectItem>
-              <SelectItem value="compacto">Compacto</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 max-w-md">
+      <div className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 max-w-md">
         <Label htmlFor="switch-sidebar" className="cursor-pointer">Sidebar recolhida por padrão</Label>
-        <Switch id="switch-sidebar" checked={sidebarRecolhida} onCheckedChange={setSidebarRecolhida} />
+        <Switch id="switch-sidebar" checked={sidebarRecolhida} onCheckedChange={(v) => {
+          setSidebarRecolhida(v);
+          setPreferences({ sidebarCollapsed: v });
+        }} />
       </div>
 
       <div className="flex justify-end">
@@ -646,7 +665,7 @@ export default function ConfiguracoesPage() {
       <div className="flex gap-6">
         {/* Sidebar navigation */}
         <nav className="w-56 flex-shrink-0">
-          <div className="bg-white rounded-2xl border border-gray-100 p-2">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -657,14 +676,14 @@ export default function ConfiguracoesPage() {
                   className={cn(
                     "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left",
                     isActive
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                   )}
                 >
                   <Icon
                     className={cn(
                       "h-4 w-4 flex-shrink-0",
-                      isActive ? "text-gray-900" : "text-gray-400"
+                      isActive ? "text-gray-900 dark:text-gray-100" : "text-gray-400"
                     )}
                     strokeWidth={1.5}
                   />
@@ -677,7 +696,7 @@ export default function ConfiguracoesPage() {
 
         {/* Content area */}
         <div className="flex-1 min-w-0">
-          <div className="bg-white rounded-2xl border border-gray-100 p-8">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-8">
             {renderContent()}
           </div>
         </div>

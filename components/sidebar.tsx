@@ -17,9 +17,10 @@ import {
   Contact,
   Inbox,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { UserRole } from "@prisma/client";
 import { useAppData } from "@/components/providers/AppDataProvider";
+import { usePreferences } from "@/components/providers/PreferencesProvider";
 
 type NavItem = {
   name: string;
@@ -48,7 +49,12 @@ const secondaryNav: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [collapsed, setCollapsed] = useState(false);
+  const preferences = usePreferences();
+  const [collapsed, setCollapsed] = useState(preferences.sidebarCollapsed);
+
+  useEffect(() => {
+    setCollapsed(preferences.sidebarCollapsed);
+  }, [preferences.sidebarCollapsed]);
 
   const userRole = session?.user?.role as UserRole | undefined;
 
@@ -82,12 +88,12 @@ export function Sidebar() {
     <aside
       aria-label="Menu principal"
       className={cn(
-        "flex h-full flex-col bg-white border-r border-gray-100 transition-[width] duration-300",
+        "flex h-full flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-[width] duration-300",
         collapsed ? "w-20" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center px-5 border-b border-gray-100">
+      <div className="flex h-16 items-center px-5 border-b border-gray-100 dark:border-gray-800">
         <Link href="/">
           <MenloLogo size={collapsed ? "sm" : "md"} />
         </Link>
@@ -119,8 +125,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-secondary/20 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                  ? "bg-secondary/20 text-gray-900 dark:text-gray-100"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
                 collapsed && "justify-center px-2 relative"
               )}
               title={collapsed ? item.name : undefined}
@@ -129,7 +135,7 @@ export function Sidebar() {
               <item.icon
                 className={cn(
                   "h-5 w-5 flex-shrink-0",
-                  isActive ? "text-primary" : "text-gray-500"
+                  isActive ? "text-primary" : "text-gray-500 dark:text-gray-500"
                 )}
                 strokeWidth={1.5}
                 aria-hidden="true"
@@ -156,7 +162,7 @@ export function Sidebar() {
 
       {/* Secondary Navigation */}
       {visibleSecondaryNav.length > 0 && (
-        <div className="px-3 py-2 border-t border-gray-100">
+        <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-800">
           {visibleSecondaryNav.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -166,8 +172,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-secondary/20 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                    ? "bg-secondary/20 text-gray-900 dark:text-gray-100"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
                   collapsed && "justify-center px-2"
                 )}
                 title={collapsed ? item.name : undefined}
@@ -176,7 +182,7 @@ export function Sidebar() {
                 <item.icon
                   className={cn(
                     "h-5 w-5 flex-shrink-0",
-                    isActive ? "text-primary" : "text-gray-500"
+                    isActive ? "text-primary" : "text-gray-500 dark:text-gray-500"
                   )}
                   strokeWidth={1.5}
                   aria-hidden="true"
@@ -189,11 +195,15 @@ export function Sidebar() {
       )}
 
       {/* Collapse Toggle */}
-      <div className="border-t border-gray-100 p-3 flex justify-end">
+      <div className="border-t border-gray-100 dark:border-gray-800 p-3 flex justify-end">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            const next = !collapsed;
+            setCollapsed(next);
+            preferences.setPreferences({ sidebarCollapsed: next });
+          }}
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          className="flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          className="flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft
             className={cn(

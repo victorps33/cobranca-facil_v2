@@ -34,7 +34,7 @@ export function PageHeader({
     <div className={cn("flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between", className)}>
       {/* Left: title + period */}
       <div className="flex items-center gap-3 min-w-0">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight truncate">
           {title}
         </h1>
         {period && (
@@ -54,7 +54,7 @@ export function PageHeader({
             </>
           );
           const cls =
-            "inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors";
+            "inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
 
           return action.href ? (
             <Link key={i} href={action.href} className={cls}>

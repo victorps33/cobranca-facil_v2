@@ -38,8 +38,8 @@ export function MetricCard({
     <div
       onClick={onClick}
       className={cn(
-        "w-full bg-white rounded-2xl border p-5 hover:shadow-medium transition-all hover:translate-y-[-1px]",
-        variant === "danger" ? "border-red-100" : "border-gray-100",
+        "w-full bg-white dark:bg-gray-900 rounded-2xl border p-5 transition-colors hover:border-gray-200 dark:hover:border-gray-700",
+        variant === "danger" ? "border-red-100 dark:border-red-900" : "border-gray-100 dark:border-gray-800",
         onClick && "cursor-pointer",
         className
       )}
@@ -57,7 +57,7 @@ export function MetricCard({
             {icon}
           </div>
         )}
-        <span className="text-xs font-medium text-gray-500 tracking-wide flex items-center gap-1.5">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wide flex items-center gap-1.5">
           {title}
           {tooltip && <TooltipHint text={tooltip} />}
         </span>
@@ -66,7 +66,7 @@ export function MetricCard({
       <p
         className={cn(
           "text-2xl font-bold tracking-tight tabular-nums",
-          variant === "danger" ? "text-red-600" : "text-gray-900"
+          variant === "danger" ? "text-red-600" : "text-gray-900 dark:text-gray-100"
         )}
       >
         {value}
