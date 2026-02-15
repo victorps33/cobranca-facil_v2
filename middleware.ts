@@ -15,6 +15,6 @@ export const config = {
      * - favicon.ico, static assets (images, fonts, etc.)
      * - auth/* (login page)
      */
-    "/((?!api/auth|api/cron|api/webhooks|_next/static|_next/image|favicon\\.ico|auth|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.svg$|.*\\.gif$|.*\\.ico$|.*\\.webp$|.*\\.woff2?$).*)",
+    "/((?!api/auth|api/cron|api/webhooks|api/integrations|_next/static|_next/image|favicon\\.ico|auth|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.svg$|.*\\.gif$|.*\\.ico$|.*\\.webp$|.*\\.woff2?$).*)",
   ],
 };

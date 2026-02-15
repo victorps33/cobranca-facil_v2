@@ -59,7 +59,7 @@ export interface CrmCharge {
   description: string;
   amountCents: number;
   dueDate: string;
-  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELED";
+  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELED" | "PARTIAL";
   createdAt: string;
 }
 

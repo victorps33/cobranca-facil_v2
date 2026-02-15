@@ -23,11 +23,12 @@ export async function GET() {
       let displayStatus: string;
       if (c.status === "PAID") displayStatus = "Paga";
       else if (c.status === "CANCELED") displayStatus = "Cancelada";
+      else if (c.status === "PARTIAL") displayStatus = "Parcial";
       else if (c.status === "OVERDUE" || (c.status === "PENDING" && dueDate < today)) displayStatus = "Vencida";
       else displayStatus = "Aberta";
 
-      const valorPago = c.status === "PAID" ? c.amountCents : 0;
-      const valorAberto = c.status === "PAID" || c.status === "CANCELED" ? 0 : c.amountCents;
+      const valorPago = c.status === "PAID" ? c.amountCents : (c.amountPaidCents || 0);
+      const valorAberto = c.status === "PAID" || c.status === "CANCELED" ? 0 : c.amountCents - (c.amountPaidCents || 0);
 
       return {
         id: c.id,

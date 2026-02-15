@@ -22,8 +22,8 @@ export async function GET() {
         .filter((c) => c.status === "PAID")
         .reduce((s, c) => s + c.amountCents, 0);
       const valorAberto = charges
-        .filter((c) => c.status === "PENDING" || c.status === "OVERDUE")
-        .reduce((s, c) => s + c.amountCents, 0);
+        .filter((c) => c.status === "PENDING" || c.status === "OVERDUE" || c.status === "PARTIAL")
+        .reduce((s, c) => s + c.amountCents - (c.amountPaidCents || 0), 0);
       const inadimplencia = valorEmitido > 0 ? valorAberto / valorEmitido : 0;
 
       // PMR: average days between creation and payment for paid charges

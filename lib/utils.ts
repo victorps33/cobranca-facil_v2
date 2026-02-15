@@ -233,6 +233,7 @@ export const STATUS_LABELS: Record<string, string> = {
   PAID: "Pago",
   OVERDUE: "Vencido",
   CANCELED: "Cancelado",
+  PARTIAL: "Parcial",
 };
 
 export const STATUS_COLORS: Record<string, string> = {
@@ -240,6 +241,7 @@ export const STATUS_COLORS: Record<string, string> = {
   PAID: "bg-green-100 text-green-800",
   OVERDUE: "bg-red-100 text-red-800",
   CANCELED: "bg-gray-100 text-gray-800",
+  PARTIAL: "bg-orange-100 text-orange-800",
 };
 
 export const CHANNEL_LABELS: Record<string, string> = {

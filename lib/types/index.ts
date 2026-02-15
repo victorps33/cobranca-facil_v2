@@ -36,7 +36,7 @@ export interface Cobranca {
   valorPago: number;
   valorAberto: number;
   formaPagamento: "Boleto" | "Pix" | "Cartão";
-  status: "Aberta" | "Vencida" | "Paga" | "Cancelada";
+  status: "Aberta" | "Vencida" | "Paga" | "Cancelada" | "Parcial";
   nfEmitida: boolean;
   competencia: string;
 }

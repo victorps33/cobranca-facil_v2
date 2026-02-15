@@ -64,8 +64,8 @@ export async function GET(
       .filter((ch) => ch.status === "PAID")
       .reduce((sum, ch) => sum + ch.amountCents, 0);
     const totalAberto = customer.charges
-      .filter((ch) => ch.status === "PENDING" || ch.status === "OVERDUE")
-      .reduce((sum, ch) => sum + ch.amountCents, 0);
+      .filter((ch) => ch.status === "PENDING" || ch.status === "OVERDUE" || ch.status === "PARTIAL")
+      .reduce((sum, ch) => sum + ch.amountCents - (ch.amountPaidCents || 0), 0);
     const totalVencido = customer.charges
       .filter((ch) => ch.status === "OVERDUE")
       .reduce((sum, ch) => sum + ch.amountCents, 0);

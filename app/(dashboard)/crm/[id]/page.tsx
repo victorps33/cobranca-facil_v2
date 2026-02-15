@@ -36,6 +36,7 @@ const chargeStatusMap: Record<CrmCharge["status"], Cobranca["status"]> = {
   PAID: "Paga",
   OVERDUE: "Vencida",
   CANCELED: "Cancelada",
+  PARTIAL: "Parcial",
 };
 
 function calcFaixaRisco(inadimplencia: number): "A" | "B" | "C" | "D" | "E" {
@@ -316,21 +317,21 @@ export default function CrmClienteDetalhePage() {
         <div className="flex flex-wrap items-center gap-2">
           <a
             href={`mailto:${customer.email}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
           >
             <Mail className="h-4 w-4" />
             Enviar E-mail
           </a>
           <a
             href={`tel:${customer.phone.replace(/\D/g, "")}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
           >
             <Phone className="h-4 w-4" />
             Ligar
           </a>
           <button
             onClick={() => setInteractionDialogOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:shadow-soft transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
             Registrar Interação

@@ -103,6 +103,9 @@ model Customer {
   conversations   Conversation[]
   agentDecisions  AgentDecisionLog[]
   messageQueue    MessageQueue[]
+  omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
+  omieCodigoIntegracao String?    @map("omie_codigo_integracao")
+  omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
 
   @@index([franqueadoraId])
 }
@@ -126,8 +129,13 @@ model Charge {
   notificationLogs NotificationLog[]
   interactions     InteractionLog[]
   collectionTasks  CollectionTask[]
-  agentDecisions   AgentDecisionLog[]
-  messageQueue     MessageQueue[]
+  agentDecisions       AgentDecisionLog[]
+  messageQueue         MessageQueue[]
+  omieCodigoTitulo     BigInt?    @unique @map("omie_codigo_titulo")
+  omieCodigoIntegracao String?    @map("omie_codigo_integracao")
+  omieStatusRaw        String?    @map("omie_status_raw")
+  omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
+  amountPaidCents      Int        @default(0) @map("amount_paid_cents")
 
   @@index([customerId])
   @@index([status])
@@ -139,6 +147,7 @@ enum ChargeStatus {
   PAID
   OVERDUE
   CANCELED
+  PARTIAL
 }
 
 model Boleto {
