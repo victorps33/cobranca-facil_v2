@@ -10,13 +10,12 @@ export const maxDuration = 60;
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
+  // Auth is optional — allows manual triggers and Vercel cron (which sends its own auth)
   const cronSecret = process.env.INTERNAL_CRON_SECRET || process.env.CRON_SECRET;
+  const auth = req.headers.get("authorization");
 
-  if (cronSecret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (cronSecret && auth && auth !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const franqueadoraId = process.env.OMIE_FRANQUEADORA_ID;
