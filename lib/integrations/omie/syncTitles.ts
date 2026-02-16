@@ -116,15 +116,15 @@ export async function syncOmieTitles(
               barcodeValue,
             },
           });
-          result.boletosFound++;
+          result.boletosFound!++;
         } else {
           const msg = `Title ${titulo.codigo_lancamento_omie}: status=${boleto.cCodStatus} desc=${boleto.cDesStatus || "N/A"}`;
-          result.boletosErrorDetails.push(msg);
+          result.boletosErrorDetails!.push(msg);
         }
       } catch (boletoErr) {
-        result.boletosErrors++;
+        result.boletosErrors!++;
         const msg = `Title ${titulo.codigo_lancamento_omie}: ${boletoErr instanceof Error ? boletoErr.message : String(boletoErr)}`;
-        result.boletosErrorDetails.push(msg);
+        result.boletosErrorDetails!.push(msg);
         console.warn("[Omie Sync Titles] Boleto fetch failed:", msg);
       }
 

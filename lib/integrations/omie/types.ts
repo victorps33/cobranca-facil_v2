@@ -33,9 +33,9 @@ export interface OmieSyncResult {
   skipped: number;
   errors: number;
   errorDetails: string[];
-  boletosFound: number;
-  boletosErrors: number;
-  boletosErrorDetails: string[];
+  boletosFound?: number;
+  boletosErrors?: number;
+  boletosErrorDetails?: string[];
 }
 
 export interface OmieWebhookPayload {
