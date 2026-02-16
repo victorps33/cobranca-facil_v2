@@ -25,33 +25,25 @@ export function MenloLogo({
   const isCollapsed = size === "sm";
 
   return (
-    <div className={cn("relative overflow-hidden", isCollapsed ? "w-[44px] h-[44px]" : "w-[148px] h-[36px]", className)}>
-      {/* Icon (collapsed) — always rendered, toggled via opacity */}
+    <>
+      {/* Icon — always in DOM, toggled via hidden/block */}
       <Image
         src="/menlo-icon.png"
         alt="Menlo"
         width={44}
         height={44}
         priority={priority}
-        className={cn(
-          blendClass,
-          "absolute top-0 left-0 transition-opacity duration-150",
-          isCollapsed ? "opacity-100" : "opacity-0"
-        )}
+        className={cn(blendClass, isCollapsed ? "block" : "hidden", className)}
       />
-      {/* Full logo (expanded) — always rendered, toggled via opacity */}
+      {/* Full logo — always in DOM, toggled via hidden/block */}
       <Image
         src={src}
         alt="Menlo"
         width={148}
         height={36}
         priority={priority}
-        className={cn(
-          blendClass,
-          "absolute top-0 left-0 transition-opacity duration-150",
-          isCollapsed ? "opacity-0" : "opacity-100"
-        )}
+        className={cn(blendClass, isCollapsed ? "hidden" : "block", className)}
       />
-    </div>
+    </>
   );
 }

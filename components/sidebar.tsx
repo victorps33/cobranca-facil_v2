@@ -88,13 +88,16 @@ export function Sidebar() {
     <aside
       aria-label="Menu principal"
       className={cn(
-        "flex h-full flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transition-[width] duration-300",
+        "flex h-full flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800",
         collapsed ? "w-20" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center px-5 border-b border-gray-100 dark:border-gray-800 overflow-hidden">
-        <Link href="/">
+      <div className={cn(
+        "flex h-16 items-center border-b border-gray-100 dark:border-gray-800 overflow-hidden",
+        collapsed ? "justify-center px-2" : "px-5"
+      )}>
+        <Link href="/" className="shrink-0">
           <MenloLogo size={collapsed ? "sm" : "md"} />
         </Link>
       </div>
