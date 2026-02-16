@@ -23,6 +23,9 @@ export async function syncOmieTitles(
     skipped: 0,
     errors: 0,
     errorDetails: [],
+    boletosFound: 0,
+    boletosErrors: 0,
+    boletosErrorDetails: [],
   };
 
   console.log("[Omie Sync Titles] Starting sync for tenant", franqueadoraId);
@@ -113,13 +116,16 @@ export async function syncOmieTitles(
               barcodeValue,
             },
           });
+          result.boletosFound++;
+        } else {
+          const msg = `Title ${titulo.codigo_lancamento_omie}: status=${boleto.cCodStatus} desc=${boleto.cDesStatus || "N/A"}`;
+          result.boletosErrorDetails.push(msg);
         }
       } catch (boletoErr) {
-        // Boleto fetch failure should not break the sync
-        console.warn(
-          `[Omie Sync Titles] Boleto fetch failed for title ${titulo.codigo_lancamento_omie}:`,
-          boletoErr instanceof Error ? boletoErr.message : String(boletoErr)
-        );
+        result.boletosErrors++;
+        const msg = `Title ${titulo.codigo_lancamento_omie}: ${boletoErr instanceof Error ? boletoErr.message : String(boletoErr)}`;
+        result.boletosErrorDetails.push(msg);
+        console.warn("[Omie Sync Titles] Boleto fetch failed:", msg);
       }
 
       // Rate limiting for boleto API calls
