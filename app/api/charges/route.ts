@@ -46,6 +46,8 @@ export async function GET() {
         status: displayStatus,
         nfEmitida: c.nfEmitida,
         competencia: c.competencia || "",
+        linhaDigitavel: c.boleto?.linhaDigitavel || undefined,
+        boletoUrl: c.boleto?.publicUrl || undefined,
       };
     });
 

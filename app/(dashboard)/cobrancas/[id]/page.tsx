@@ -161,7 +161,8 @@ export default function CobrancaDetalhePage() {
   const pixCode = `00020101021226840014br.gov.bcb.pix2562qrcode.cobrancafacil.com/v2/cobv/${cobranca.id}`;
   const vencNum = cobranca.dataVencimento.replace(/-/g, "");
   const valorNum = String(cobranca.valorOriginal).padStart(10, "0");
-  const linhaDigitavel = `23793.38128 60000.000003 00000.000401 1 ${vencNum}${valorNum}`;
+  const linhaDigitavelFake = `23793.38128 60000.000003 00000.000401 1 ${vencNum}${valorNum}`;
+  const linhaDigitavel = cobranca.linhaDigitavel || linhaDigitavelFake;
 
   const badge = STATUS_BADGE[cobranca.status] ?? STATUS_BADGE.Aberta;
 
@@ -189,7 +190,7 @@ export default function CobrancaDetalhePage() {
         {/* ================================================ */}
         <div className="space-y-6">
           {/* ── Card único: Detalhes + Franqueado + Financeiro ── */}
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-soft">
+          <div className="bg-white rounded-2xl border border-gray-100">
             {/* — Header — */}
             <div className="px-8 pt-8 pb-0">
               <div className="flex items-start justify-between mb-1">
@@ -340,7 +341,7 @@ export default function CobrancaDetalhePage() {
           {/* ── Seção Cálculo ── */}
           <div
             id="secao-calculo"
-            className="bg-white rounded-2xl border border-gray-200/60 shadow-soft"
+            className="bg-white rounded-2xl border border-gray-100"
           >
             {/* Header colapsável */}
             <button
@@ -514,13 +515,25 @@ export default function CobrancaDetalhePage() {
                 Baixar nota fiscal
               </button>
               {paymentTab === "boleto" ? (
-                <button
-                  onClick={() => setBoletoViewerOpen(true)}
-                  className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-                >
-                  <Barcode className="h-4 w-4" />
-                  Ver boleto
-                </button>
+                cobranca.boletoUrl ? (
+                  <a
+                    href={cobranca.boletoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <Barcode className="h-4 w-4" />
+                    Ver boleto
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => setBoletoViewerOpen(true)}
+                    className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <Barcode className="h-4 w-4" />
+                    Ver boleto
+                  </button>
+                )
               ) : (
                 <button
                   onClick={() => setPixComprovanteOpen(true)}

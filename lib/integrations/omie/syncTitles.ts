@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { parse, isValid } from "date-fns";
-import { omieRequestAllPages } from "./client";
+import { omieRequestAllPages, fetchOmieBoleto } from "./client";
 import { mapOmieStatus } from "./statusMapper";
 import type { OmieContaReceber, OmieSyncResult } from "./types";
 
@@ -79,16 +79,51 @@ export async function syncOmieTitles(
         omieLastSyncAt: new Date(),
       };
 
+      let chargeId: string;
+
       if (existing) {
         await prisma.charge.update({
           where: { id: existing.id },
           data,
         });
+        chargeId = existing.id;
         result.updated++;
       } else {
-        await prisma.charge.create({ data });
+        const created = await prisma.charge.create({ data });
+        chargeId = created.id;
         result.created++;
       }
+
+      // Fetch boleto from Omie and upsert into Boleto model
+      try {
+        const boleto = await fetchOmieBoleto(Number(omieCode));
+        if (boleto.cCodStatus === "0" && boleto.cLinkBoleto) {
+          const barcodeValue = boleto.cCodBarras.replace(/[.\s]/g, "");
+          await prisma.boleto.upsert({
+            where: { chargeId },
+            create: {
+              chargeId,
+              publicUrl: boleto.cLinkBoleto,
+              linhaDigitavel: boleto.cCodBarras,
+              barcodeValue,
+            },
+            update: {
+              publicUrl: boleto.cLinkBoleto,
+              linhaDigitavel: boleto.cCodBarras,
+              barcodeValue,
+            },
+          });
+        }
+      } catch (boletoErr) {
+        // Boleto fetch failure should not break the sync
+        console.warn(
+          `[Omie Sync Titles] Boleto fetch failed for title ${titulo.codigo_lancamento_omie}:`,
+          boletoErr instanceof Error ? boletoErr.message : String(boletoErr)
+        );
+      }
+
+      // Rate limiting for boleto API calls
+      await new Promise((r) => setTimeout(r, 350));
     } catch (err) {
       result.errors++;
       const msg = `Title ${titulo.codigo_lancamento_omie}: ${err instanceof Error ? err.message : String(err)}`;

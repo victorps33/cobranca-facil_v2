@@ -49,6 +49,14 @@ export async function omieRequest<T>(
   }
 }
 
+import type { OmieBoleto } from "./types";
+
+export async function fetchOmieBoleto(codigoTitulo: number): Promise<OmieBoleto> {
+  return omieRequest<OmieBoleto>('/financas/contareceberboleto/', 'ObterBoleto', {
+    nCodTitulo: codigoTitulo,
+  });
+}
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }

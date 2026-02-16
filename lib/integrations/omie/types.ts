@@ -41,6 +41,18 @@ export interface OmieWebhookPayload {
   appKey?: string;
 }
 
+export interface OmieBoleto {
+  cLinkBoleto: string;
+  cCodStatus: string;
+  cDesStatus: string;
+  dDtEmBol: string;
+  cNumBoleto: string;
+  cCodBarras: string;
+  nPerJuros: number;
+  nPerMulta: number;
+  cNumBancario: string;
+}
+
 // Omie API envelope types
 export interface OmieListResponse<T> {
   pagina: number;

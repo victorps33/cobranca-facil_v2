@@ -39,6 +39,8 @@ export interface Cobranca {
   status: "Aberta" | "Vencida" | "Paga" | "Cancelada" | "Parcial";
   nfEmitida: boolean;
   competencia: string;
+  linhaDigitavel?: string;
+  boletoUrl?: string;
 }
 
 export interface ApuracaoDetalhe {
