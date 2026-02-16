@@ -23,7 +23,7 @@ export function InsightCard({
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white rounded-2xl border border-gray-100 p-5 text-left hover:border-gray-200 hover:shadow-medium transition-[border-color,box-shadow] group"
+      className="w-full bg-white rounded-2xl border border-gray-100 p-5 text-left hover:border-gray-200 transition-colors group"
     >
       <div className="flex items-start gap-4">
         <div

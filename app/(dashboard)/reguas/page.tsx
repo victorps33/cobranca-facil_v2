@@ -209,10 +209,9 @@ export default function ReguasPage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* Inject keyframes */}
+    <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
-
+    <div className="space-y-5">
       <PageHeader
         title="Réguas de Cobrança"
         primaryAction={{ label: "Nova Régua", onClick: () => {} }}
@@ -270,6 +269,7 @@ export default function ReguasPage() {
         onConfirm={executeToggle}
       />
     </div>
+    </>
   );
 }
 
@@ -285,9 +285,9 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
   return (
     <div
       className={cn(
-        "group rounded-2xl border bg-white transition-all duration-200 overflow-hidden",
+        "group rounded-2xl border bg-white transition-colors duration-200 overflow-hidden",
         regua.active
-          ? "border-gray-100 shadow-soft hover:shadow-medium hover:border-gray-200"
+          ? "border-gray-100 hover:border-gray-200"
           : "border-gray-100 opacity-60 hover:opacity-80"
       )}
       style={{ borderLeftWidth: 3, borderLeftColor: regua.active ? "#10b981" : "#d1d5db" }}

@@ -64,7 +64,7 @@ export default function NovoClientePage() {
         ]}
       />
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-soft overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100">
           <h1 className="text-lg font-semibold text-gray-900">Novo Franqueado</h1>
           <p className="text-sm text-gray-500 mt-0.5">Preencha os dados do franqueado</p>

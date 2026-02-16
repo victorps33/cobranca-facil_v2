@@ -354,8 +354,14 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
       {/* Panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out",
-          open ? "translate-x-0" : "translate-x-full"
+          "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out pointer-events-none",
+          open ? "opacity-100" : "opacity-0"
+        )}
+      >
+      <div
+        className={cn(
+          "w-full max-w-2xl h-[85vh] bg-white rounded-2xl border border-gray-200 shadow-2xl flex flex-col transition-all duration-300 ease-out pointer-events-auto",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0"
         )}
       >
         {/* Header */}
@@ -568,6 +574,7 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
             )}
           </div>
         )}
+      </div>
       </div>
     </>
   );

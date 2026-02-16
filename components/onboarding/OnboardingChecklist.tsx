@@ -68,7 +68,7 @@ export function OnboardingChecklist({ checklist, show, onDismiss }: OnboardingCh
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white shadow-soft overflow-hidden">
+    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">

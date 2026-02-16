@@ -217,7 +217,7 @@ export default function ClientesPage() {
           {/* Table card */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             {/* Search + Tab bar */}
-            <div className="px-4 pt-4 pb-0">
+            <div className="px-4 pt-4 pb-3">
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
                 <input

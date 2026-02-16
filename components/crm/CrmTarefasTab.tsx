@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -96,7 +96,16 @@ function getTasksStats(tasks: CrmTask[]) {
 type SortKey = "dueDate" | "priority" | null;
 type SortDir = "asc" | "desc";
 
-export function CrmTarefasTab() {
+export interface CrmTarefasTabActions {
+  openNewTask: () => void;
+  exportTasks: () => void;
+}
+
+interface CrmTarefasTabProps {
+  actionsRef?: React.MutableRefObject<CrmTarefasTabActions | null>;
+}
+
+export function CrmTarefasTab({ actionsRef }: CrmTarefasTabProps = {}) {
   const router = useRouter();
   const { data: session } = useSession();
   const userRole = session?.user?.role as UserRole | undefined;
@@ -227,6 +236,18 @@ export function CrmTarefasTab() {
   );
 
   const stats = getTasksStats(tasks);
+
+  // Expose actions to parent (PageHeader buttons)
+  useLayoutEffect(() => {
+    if (actionsRef) {
+      actionsRef.current = {
+        openNewTask: () => setTaskDialogOpen(true),
+        exportTasks: () => exportTasksToXlsx(filtered),
+      };
+    }
+    return () => { if (actionsRef) actionsRef.current = null; };
+  });
+
   const hasActiveFilters =
     search !== "" ||
     statusFilter !== "all" ||
@@ -340,52 +361,34 @@ export function CrmTarefasTab() {
 
   return (
     <div className="space-y-6">
-      {/* Actions bar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">{tasks.length} tarefas no total</p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => exportTasksToXlsx(filtered)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            Exportar
-          </button>
-          {!isReadOnly && (
-            <button
-              onClick={() => setTaskDialogOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-hover transition-colors"
-            >
-              Nova Tarefa
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={<Clock className="h-4 w-4" />}
           title="Pendentes"
           value={String(stats.pendentes)}
+          subtitle="aguardando início"
           className="animate-in stagger-1"
         />
         <MetricCard
           icon={<Play className="h-4 w-4" />}
           title="Em Andamento"
           value={String(stats.emAndamento)}
+          subtitle="em execução"
           className="animate-in stagger-2"
         />
         <MetricCard
           icon={<CheckCircle2 className="h-4 w-4" />}
-          title="Concluidas"
+          title="Concluídas"
           value={String(stats.concluidas)}
+          subtitle="finalizadas"
           className="animate-in stagger-3"
         />
         <MetricCard
           icon={<AlertTriangle className="h-4 w-4" />}
           title="Atrasadas"
           value={String(stats.atrasadas)}
+          subtitle="prazo expirado"
           variant={stats.atrasadas > 0 ? "danger" : "default"}
           className="animate-in stagger-4"
         />
