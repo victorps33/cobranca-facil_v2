@@ -11,10 +11,12 @@ export async function processOmieWebhook(
 ): Promise<{ processed: boolean; detail: string }> {
   const { topic, event } = payload;
 
+  const topicLower = topic.toLowerCase();
   console.log("[Omie Webhook] Received topic:", topic);
 
   // --- Contas a Receber events ---
-  if (topic.startsWith("financas.contareceber.")) {
+  // Matches: "Financas.ContaReceber.Alterado", "financas.contareceber.alterada", etc.
+  if (topicLower.startsWith("financas.contareceber.")) {
     const codigoLancamento = event.codigo_lancamento_omie as number | undefined;
     if (!codigoLancamento) {
       return { processed: false, detail: "Missing codigo_lancamento_omie" };
@@ -58,7 +60,8 @@ export async function processOmieWebhook(
   }
 
   // --- Clientes events ---
-  if (topic.startsWith("geral.clientes.")) {
+  // Matches: "ClienteFornecedor.Alterado", "geral.clientes.alterado", etc.
+  if (topicLower.startsWith("geral.clientes.") || topicLower.startsWith("clientefornecedor.")) {
     const codigoCliente = event.codigo_cliente_omie as number | undefined;
     if (!codigoCliente) {
       return { processed: false, detail: "Missing codigo_cliente_omie" };
