@@ -93,7 +93,7 @@ export function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center px-5 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex h-16 items-center px-5 border-b border-gray-100 dark:border-gray-800 overflow-hidden">
         <Link href="/">
           <MenloLogo size={collapsed ? "sm" : "md"} />
         </Link>
