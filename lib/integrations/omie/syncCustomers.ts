@@ -36,7 +36,13 @@ export async function syncOmieCustomers(
       const email = cli.email || "";
       const phone = cli.telefone1_numero || "";
 
-      if (!doc && !name) {
+      // Skip generic/placeholder records (e.g. "Cliente Consumidor / Sem Tomador")
+      const isGenericDoc = !doc || doc === "00000000000";
+      if (isGenericDoc && !name) {
+        result.skipped++;
+        continue;
+      }
+      if (cli.codigo_cliente_integracao === "_CLIENTE_CONSUMIDOR_") {
         result.skipped++;
         continue;
       }
