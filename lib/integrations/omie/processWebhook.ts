@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mapOmieStatus } from "./statusMapper";
+import { fetchOmieBoleto } from "./client";
 import type { OmieWebhookPayload } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,32 @@ export async function processOmieWebhook(
       where: { id: charge.id },
       data: updateData,
     });
+
+    // Try to fetch/update boleto from Omie
+    try {
+      const boleto = await fetchOmieBoleto(codigoLancamento);
+      if (boleto.cCodStatus === "0" && boleto.cLinkBoleto) {
+        const barcodeValue = (boleto.cCodBarras || "").replace(/[.\s]/g, "");
+        await prisma.boleto.upsert({
+          where: { chargeId: charge.id },
+          create: {
+            chargeId: charge.id,
+            publicUrl: boleto.cLinkBoleto,
+            linhaDigitavel: boleto.cCodBarras || "",
+            barcodeValue,
+          },
+          update: {
+            publicUrl: boleto.cLinkBoleto,
+            linhaDigitavel: boleto.cCodBarras || "",
+            barcodeValue,
+          },
+        });
+        console.log("[Omie Webhook] Boleto synced for charge", charge.id);
+      }
+    } catch (boletoErr) {
+      // Non-fatal: boleto may not exist yet for this title
+      console.warn("[Omie Webhook] Boleto fetch skipped for charge", charge.id, boletoErr instanceof Error ? boletoErr.message : "");
+    }
 
     console.log("[Omie Webhook] Updated charge", charge.id, "topic:", topic);
     return { processed: true, detail: `Updated charge ${charge.id}` };
