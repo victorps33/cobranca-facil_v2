@@ -49,11 +49,23 @@ export async function omieRequest<T>(
   }
 }
 
-import type { OmieBoleto } from "./types";
+import type { OmieBoleto, OmieCliente, OmieContaReceber } from "./types";
 
 export async function fetchOmieBoleto(codigoTitulo: number): Promise<OmieBoleto> {
   return omieRequest<OmieBoleto>('/financas/contareceberboleto/', 'ObterBoleto', {
     nCodTitulo: codigoTitulo,
+  });
+}
+
+export async function fetchOmieCliente(codigoCliente: number): Promise<OmieCliente> {
+  return omieRequest<OmieCliente>('/geral/clientes/', 'ConsultarCliente', {
+    codigo_cliente_omie: codigoCliente,
+  });
+}
+
+export async function fetchOmieTitulo(codigoLancamento: number): Promise<OmieContaReceber> {
+  return omieRequest<OmieContaReceber>('/financas/contareceber/', 'ConsultarContaReceber', {
+    codigo_lancamento_omie: codigoLancamento,
   });
 }
 
