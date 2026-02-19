@@ -295,7 +295,7 @@ export function CrmClientsTab({ onSwitchToTarefas }: CrmClientsTabProps) {
                   return (
                     <tr
                       key={c.id}
-                      onClick={() => router.push(`/crm/${c.id}`)}
+                      onClick={() => router.push(`/clientes/${c.id}`)}
                       className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3">

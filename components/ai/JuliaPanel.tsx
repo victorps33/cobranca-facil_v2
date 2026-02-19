@@ -360,8 +360,8 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
       >
       <div
         className={cn(
-          "w-full max-w-2xl h-[85vh] bg-white rounded-2xl border border-gray-200 shadow-2xl flex flex-col transition-all duration-300 ease-out pointer-events-auto",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          "w-full max-w-2xl h-[85vh] bg-white rounded-2xl border border-gray-200 shadow-2xl flex flex-col transition-all duration-300 ease-out",
+          open ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
         )}
       >
         {/* Header */}

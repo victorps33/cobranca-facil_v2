@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type { Franqueado, Cobranca } from "@/lib/types";
@@ -46,6 +46,7 @@ const cobrancaStatusColors: Record<string, { bg: string; text: string }> = {
 
 export default function ClienteDetalhePage() {
   const params = useParams();
+  const router = useRouter();
   const [franqueado, setFranqueado] = useState<Franqueado | null>(null);
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,6 +253,7 @@ export default function ClienteDetalhePage() {
                   return (
                     <tr
                       key={c.id}
+                      onClick={() => router.push(`/cobrancas/${c.id}`)}
                       className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3">

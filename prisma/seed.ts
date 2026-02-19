@@ -46,66 +46,63 @@ const customersData: Array<{
   doc: string;
   email: string;
   phone: string;
+  cidade: string;
+  estado: string;
+  bairro: string;
+  responsavel: string;
+  razaoSocial?: string;
+  statusLoja: string;
   profile: "healthy" | "controlled" | "attention" | "critical" | "zero" | "all_paid";
 }> = [
   // ── healthy (12) ──
-  { name: "Maria Silva", doc: "123.456.789-00", email: "maria@email.com", phone: "(11) 99999-1111", profile: "healthy" },
-  { name: "João Santos", doc: "234.567.890-11", email: "joao@email.com", phone: "(21) 99999-2222", profile: "healthy" },
-  { name: "Ana Oliveira", doc: "345.678.901-22", email: "ana@email.com", phone: "(31) 99999-3333", profile: "healthy" },
-  { name: "Fernanda Lima", doc: "789.012.345-66", email: "fernanda@email.com", phone: "(48) 99999-7777", profile: "healthy" },
-  { name: "Ricardo Alves", doc: "890.123.456-77", email: "ricardo@email.com", phone: "(51) 99999-8888", profile: "healthy" },
-  { name: "Patrícia Nunes", doc: "901.234.567-88", email: "patricia@email.com", phone: "(41) 99999-9999", profile: "healthy" },
-  { name: "Thiago Barbosa", doc: "112.345.678-01", email: "thiago@email.com", phone: "(62) 99888-1111", profile: "healthy" },
-  { name: "Camila Rocha", doc: "223.456.789-12", email: "camila@email.com", phone: "(71) 99888-2222", profile: "healthy" },
-  { name: "Rafael Mendes", doc: "334.567.890-23", email: "rafael@email.com", phone: "(85) 99888-3333", profile: "healthy" },
-  { name: "Juliana Cardoso", doc: "445.678.901-34", email: "juliana@email.com", phone: "(92) 99888-4444", profile: "healthy" },
-  { name: "Marcelo Teixeira", doc: "556.789.012-45", email: "marcelo@email.com", phone: "(11) 98888-5555", profile: "healthy" },
-  { name: "Beatriz Araújo", doc: "667.890.123-56", email: "beatriz@email.com", phone: "(21) 98888-6666", profile: "healthy" },
+  { name: "Pinheiros", doc: "11.111.111/0001-01", email: "pinheiros@menlo.com.br", phone: "(11) 99999-1111", cidade: "São Paulo", estado: "SP", bairro: "Pinheiros", responsavel: "Maria Silva", razaoSocial: "Menlo Pinheiros Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Botafogo", doc: "22.222.222/0001-02", email: "botafogo@menlo.com.br", phone: "(21) 99999-2222", cidade: "Rio de Janeiro", estado: "RJ", bairro: "Botafogo", responsavel: "João Santos", razaoSocial: "Menlo Botafogo Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Savassi", doc: "33.333.333/0001-03", email: "savassi@menlo.com.br", phone: "(31) 99999-3333", cidade: "Belo Horizonte", estado: "MG", bairro: "Savassi", responsavel: "Ana Oliveira", razaoSocial: "Menlo Savassi Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Lagoa da Conceição", doc: "44.444.444/0001-04", email: "lagoa@menlo.com.br", phone: "(48) 99999-7777", cidade: "Florianópolis", estado: "SC", bairro: "Lagoa da Conceição", responsavel: "Fernanda Lima", razaoSocial: "Menlo Lagoa Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Moinhos de Vento", doc: "55.555.555/0001-05", email: "moinhos@menlo.com.br", phone: "(51) 99999-8888", cidade: "Porto Alegre", estado: "RS", bairro: "Moinhos de Vento", responsavel: "Ricardo Alves", razaoSocial: "Menlo Moinhos Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Batel", doc: "66.666.666/0001-06", email: "batel@menlo.com.br", phone: "(41) 99999-9999", cidade: "Curitiba", estado: "PR", bairro: "Batel", responsavel: "Patrícia Nunes", razaoSocial: "Menlo Batel Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Setor Bueno", doc: "77.777.777/0001-07", email: "setorbueno@menlo.com.br", phone: "(62) 99888-1111", cidade: "Goiânia", estado: "GO", bairro: "Setor Bueno", responsavel: "Thiago Barbosa", razaoSocial: "Menlo Setor Bueno Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Pituba", doc: "88.888.888/0001-08", email: "pituba@menlo.com.br", phone: "(71) 99888-2222", cidade: "Salvador", estado: "BA", bairro: "Pituba", responsavel: "Camila Rocha", razaoSocial: "Menlo Pituba Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Aldeota", doc: "99.999.999/0001-09", email: "aldeota@menlo.com.br", phone: "(85) 99888-3333", cidade: "Fortaleza", estado: "CE", bairro: "Aldeota", responsavel: "Rafael Mendes", razaoSocial: "Menlo Aldeota Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Adrianópolis", doc: "10.101.010/0001-10", email: "adrianopolis@menlo.com.br", phone: "(92) 99888-4444", cidade: "Manaus", estado: "AM", bairro: "Adrianópolis", responsavel: "Juliana Cardoso", razaoSocial: "Menlo Adrianópolis Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Cambuí", doc: "11.121.314/0001-11", email: "cambui@menlo.com.br", phone: "(11) 98888-5555", cidade: "Campinas", estado: "SP", bairro: "Cambuí", responsavel: "Marcelo Teixeira", razaoSocial: "Menlo Cambuí Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
+  { name: "Icaraí", doc: "12.131.415/0001-12", email: "icarai@menlo.com.br", phone: "(21) 98888-6666", cidade: "Niterói", estado: "RJ", bairro: "Icaraí", responsavel: "Beatriz Araújo", razaoSocial: "Menlo Icaraí Franquias LTDA", statusLoja: "Aberta", profile: "healthy" },
 
   // ── controlled (8) ──
-  { name: "Pedro Costa", doc: "456.789.012-33", email: "pedro@email.com", phone: "(11) 99999-4444", profile: "controlled" },
-  { name: "Carlos Souza", doc: "678.901.234-55", email: "carlos@email.com", phone: "(31) 99999-6666", profile: "controlled" },
-  { name: "Renata Dias", doc: "778.901.234-67", email: "renata@email.com", phone: "(41) 98888-7777", profile: "controlled" },
-  { name: "Lucas Ferreira", doc: "889.012.345-78", email: "lucas@email.com", phone: "(48) 98888-8888", profile: "controlled" },
-  { name: "Mariana Gomes", doc: "990.123.456-89", email: "mariana@email.com", phone: "(51) 98888-9999", profile: "controlled" },
-  { name: "Vinícius Correia", doc: "101.234.567-90", email: "vinicius@email.com", phone: "(62) 97777-1111", profile: "controlled" },
-  { name: "Isabela Martins", doc: "212.345.678-01", email: "isabela@email.com", phone: "(71) 97777-2222", profile: "controlled" },
-  { name: "Soluções Digitais LTDA", doc: "23.456.789/0001-10", email: "financeiro@solucoesdigitais.com", phone: "(11) 3333-2222", profile: "controlled" },
+  { name: "Vila Mariana", doc: "13.141.516/0001-13", email: "vilamariana@menlo.com.br", phone: "(11) 99999-4444", cidade: "São Paulo", estado: "SP", bairro: "Vila Mariana", responsavel: "Pedro Costa", razaoSocial: "Menlo Vila Mariana Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Lourdes", doc: "14.151.617/0001-14", email: "lourdes@menlo.com.br", phone: "(31) 99999-6666", cidade: "Belo Horizonte", estado: "MG", bairro: "Lourdes", responsavel: "Carlos Souza", razaoSocial: "Menlo Lourdes Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Água Verde", doc: "15.161.718/0001-15", email: "aguaverde@menlo.com.br", phone: "(41) 98888-7777", cidade: "Curitiba", estado: "PR", bairro: "Água Verde", responsavel: "Renata Dias", razaoSocial: "Menlo Água Verde Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Trindade", doc: "16.171.819/0001-16", email: "trindade@menlo.com.br", phone: "(48) 98888-8888", cidade: "Florianópolis", estado: "SC", bairro: "Trindade", responsavel: "Lucas Ferreira", razaoSocial: "Menlo Trindade Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Petrópolis", doc: "17.181.920/0001-17", email: "petropolis@menlo.com.br", phone: "(51) 98888-9999", cidade: "Porto Alegre", estado: "RS", bairro: "Petrópolis", responsavel: "Mariana Gomes", razaoSocial: "Menlo Petrópolis Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Marista", doc: "18.192.021/0001-18", email: "marista@menlo.com.br", phone: "(62) 97777-1111", cidade: "Goiânia", estado: "GO", bairro: "Marista", responsavel: "Vinícius Correia", razaoSocial: "Menlo Marista Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Horto Florestal", doc: "19.202.122/0001-19", email: "horto@menlo.com.br", phone: "(71) 97777-2222", cidade: "Salvador", estado: "BA", bairro: "Horto Florestal", responsavel: "Isabela Martins", razaoSocial: "Menlo Horto Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
+  { name: "Itaim Bibi", doc: "23.456.789/0001-10", email: "itaim@menlo.com.br", phone: "(11) 3333-2222", cidade: "São Paulo", estado: "SP", bairro: "Itaim Bibi", responsavel: "Rodrigo Pinto", razaoSocial: "Menlo Itaim Franquias LTDA", statusLoja: "Aberta", profile: "controlled" },
 
   // ── attention (6) ──
-  { name: "Lucia Ferreira", doc: "567.890.123-44", email: "lucia@email.com", phone: "(11) 99999-5555", profile: "attention" },
-  { name: "Roberto Nascimento", doc: "323.456.789-23", email: "roberto@email.com", phone: "(85) 97777-3333", profile: "attention" },
-  { name: "Vanessa Pereira", doc: "434.567.890-34", email: "vanessa@email.com", phone: "(92) 97777-4444", profile: "attention" },
-  { name: "Gustavo Ribeiro", doc: "545.678.901-45", email: "gustavo@email.com", phone: "(21) 97777-5555", profile: "attention" },
-  { name: "Tech Solutions LTDA", doc: "12.345.678/0001-99", email: "financeiro@techsolutions.com", phone: "(11) 3333-1111", profile: "attention" },
-  { name: "Alfa Consultoria LTDA", doc: "34.567.890/0001-21", email: "contato@alfaconsultoria.com", phone: "(31) 3333-3333", profile: "attention" },
+  { name: "Mooca", doc: "20.212.223/0001-20", email: "mooca@menlo.com.br", phone: "(11) 99999-5555", cidade: "São Paulo", estado: "SP", bairro: "Mooca", responsavel: "Lucia Ferreira", razaoSocial: "Menlo Mooca Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
+  { name: "Meireles", doc: "21.222.324/0001-21", email: "meireles@menlo.com.br", phone: "(85) 97777-3333", cidade: "Fortaleza", estado: "CE", bairro: "Meireles", responsavel: "Roberto Nascimento", razaoSocial: "Menlo Meireles Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
+  { name: "Flores", doc: "22.232.425/0001-22", email: "flores@menlo.com.br", phone: "(92) 97777-4444", cidade: "Manaus", estado: "AM", bairro: "Flores", responsavel: "Vanessa Pereira", razaoSocial: "Menlo Flores Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
+  { name: "Tijuca", doc: "23.242.526/0001-23", email: "tijuca@menlo.com.br", phone: "(21) 97777-5555", cidade: "Rio de Janeiro", estado: "RJ", bairro: "Tijuca", responsavel: "Gustavo Ribeiro", razaoSocial: "Menlo Tijuca Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
+  { name: "Faria Lima", doc: "12.345.678/0001-99", email: "farialima@menlo.com.br", phone: "(11) 3333-1111", cidade: "São Paulo", estado: "SP", bairro: "Faria Lima", responsavel: "André Machado", razaoSocial: "Menlo Faria Lima Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
+  { name: "Funcionários", doc: "34.567.890/0001-21", email: "funcionarios@menlo.com.br", phone: "(31) 3333-3333", cidade: "Belo Horizonte", estado: "MG", bairro: "Funcionários", responsavel: "Felipe Ramos", razaoSocial: "Menlo Funcionários Franquias LTDA", statusLoja: "Aberta", profile: "attention" },
 
   // ── critical (4) ──
-  { name: "Marcos Vieira", doc: "656.789.012-56", email: "marcos@email.com", phone: "(41) 97777-6666", profile: "critical" },
-  { name: "Sandra Lopes", doc: "767.890.123-67", email: "sandra@email.com", phone: "(48) 97777-7777", profile: "critical" },
-  { name: "Eduardo Almeida", doc: "878.901.234-78", email: "eduardo@email.com", phone: "(62) 97777-8888", profile: "critical" },
-  { name: "Beta Serviços EIRELI", doc: "45.678.901/0001-32", email: "financeiro@betaservicos.com", phone: "(11) 3333-4444", profile: "critical" },
+  { name: "Campo Comprido", doc: "24.252.627/0001-24", email: "campocomprido@menlo.com.br", phone: "(41) 97777-6666", cidade: "Curitiba", estado: "PR", bairro: "Campo Comprido", responsavel: "Marcos Vieira", razaoSocial: "Menlo Campo Comprido Franquias LTDA", statusLoja: "Aberta", profile: "critical" },
+  { name: "Coqueiros", doc: "25.262.728/0001-25", email: "coqueiros@menlo.com.br", phone: "(48) 97777-7777", cidade: "Florianópolis", estado: "SC", bairro: "Coqueiros", responsavel: "Sandra Lopes", razaoSocial: "Menlo Coqueiros Franquias LTDA", statusLoja: "Aberta", profile: "critical" },
+  { name: "Jardim América", doc: "26.272.829/0001-26", email: "jardimamerica@menlo.com.br", phone: "(62) 97777-8888", cidade: "Goiânia", estado: "GO", bairro: "Jardim América", responsavel: "Eduardo Almeida", razaoSocial: "Menlo Jardim América Franquias LTDA", statusLoja: "Aberta", profile: "critical" },
+  { name: "República", doc: "45.678.901/0001-32", email: "republica@menlo.com.br", phone: "(11) 3333-4444", cidade: "São Paulo", estado: "SP", bairro: "República", responsavel: "Carlos Mendes", razaoSocial: "Menlo República Franquias LTDA", statusLoja: "Aberta", profile: "critical" },
 
   // ── zero (1 client with 0 charges) ──
-  { name: "Helena Castro", doc: "989.012.345-89", email: "helena@email.com", phone: "(71) 97777-9999", profile: "zero" },
+  { name: "Barra", doc: "27.282.930/0001-27", email: "barra@menlo.com.br", phone: "(71) 97777-9999", cidade: "Salvador", estado: "BA", bairro: "Barra", responsavel: "Helena Castro", razaoSocial: "Menlo Barra Franquias LTDA", statusLoja: "Aberta", profile: "zero" },
 
   // ── all_paid (1 client with all PAID) ──
-  { name: "Diego Monteiro", doc: "090.123.456-90", email: "diego@email.com", phone: "(85) 96666-1111", profile: "all_paid" },
+  { name: "Varjota", doc: "28.293.031/0001-28", email: "varjota@menlo.com.br", phone: "(85) 96666-1111", cidade: "Fortaleza", estado: "CE", bairro: "Varjota", responsavel: "Diego Monteiro", razaoSocial: "Menlo Varjota Franquias LTDA", statusLoja: "Aberta", profile: "all_paid" },
 ];
 
 // ── Charge helper ──
-const chargeDescriptions = [
-  "Mensalidade",
-  "Consultoria",
-  "Licença Software",
-  "Manutenção",
-  "Suporte Técnico",
-  "Hospedagem",
-  "Marketing Digital",
-  "Assessoria Contábil",
-  "Treinamento",
-  "Implantação",
-];
+const categorias = ["Royalties", "FNP", "Taxa de Franquia"];
+const formasPagamento = ["Boleto", "Pix", "Cartão"];
+const mesesAbrev = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -115,90 +112,168 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function competenciaFromDate(d: Date): string {
+  return `${mesesAbrev[d.getMonth()]}/${d.getFullYear()}`;
+}
+
+function descriptionFromCategoria(cat: string): string {
+  switch (cat) {
+    case "Royalties": return "Royalties mensal";
+    case "FNP": return "Fundo Nacional de Propaganda";
+    case "Taxa de Franquia": return "Taxa de franquia";
+    default: return cat;
+  }
+}
+
 interface ChargeSpec {
   customerId: string;
   description: string;
   amountCents: number;
   dueDate: Date;
   status: "PENDING" | "PAID" | "OVERDUE" | "CANCELED";
+  categoria: string;
+  formaPagamento: string;
+  competencia: string;
+  paidAt: Date | null;
+  amountPaidCents: number;
+  nfEmitida: boolean;
 }
 
+// Generate charges across 6 months for each customer
 function generateChargesForCustomer(
   customerId: string,
   profile: "healthy" | "controlled" | "attention" | "critical" | "zero" | "all_paid",
   now: Date
 ): ChargeSpec[] {
+  if (profile === "zero") return [];
+
   const charges: ChargeSpec[] = [];
 
-  const addCharge = (status: "PENDING" | "PAID" | "OVERDUE" | "CANCELED") => {
-    const desc = pickRandom(chargeDescriptions);
-    const amount = randInt(50000, 500000); // R$ 500 to R$ 5.000
-    let dueDate: Date;
-    switch (status) {
-      case "PAID":
-        dueDate = subDays(now, randInt(10, 60));
-        break;
-      case "OVERDUE":
-        dueDate = subDays(now, randInt(10, 90));
-        break;
-      case "PENDING":
-        dueDate = addDays(now, randInt(5, 30));
-        break;
-      case "CANCELED":
-        dueDate = subDays(now, randInt(20, 40));
-        break;
-    }
-    charges.push({ customerId, description: desc, amountCents: amount, dueDate, status });
-  };
+  // Generate charges for the last 6 months (including current)
+  for (let monthOffset = 5; monthOffset >= 0; monthOffset--) {
+    const refDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+    const dueDay = randInt(5, 25);
+    const dueDate = new Date(refDate.getFullYear(), refDate.getMonth(), dueDay);
+    const competencia = competenciaFromDate(refDate);
+    const isPast = dueDate < now;
+    const isCurrentMonth = monthOffset === 0;
 
-  switch (profile) {
-    case "healthy":
-      // 2 PAID, 1-2 PENDING, 0 OVERDUE
-      addCharge("PAID");
-      addCharge("PAID");
-      addCharge("PENDING");
-      if (Math.random() > 0.5) addCharge("PENDING");
-      break;
-    case "controlled":
-      // 2 PAID, 1 PENDING, 1 OVERDUE (small)
-      addCharge("PAID");
-      addCharge("PAID");
-      addCharge("PENDING");
+    // Each customer gets 1-2 charges per month (Royalties always, FNP sometimes)
+    const monthCategorias = ["Royalties"];
+    if (Math.random() > 0.4) monthCategorias.push("FNP");
+    // Taxa de Franquia only for some months
+    if (monthOffset === 4 && Math.random() > 0.5) monthCategorias.push("Taxa de Franquia");
+
+    for (const cat of monthCategorias) {
+      const amount = cat === "Royalties"
+        ? randInt(150000, 450000)  // R$ 1.500 – R$ 4.500
+        : cat === "FNP"
+          ? randInt(50000, 150000) // R$ 500 – R$ 1.500
+          : randInt(800000, 2000000); // R$ 8.000 – R$ 20.000 (Taxa de Franquia)
+
+      const forma = pickRandom(formasPagamento);
+
+      let status: ChargeSpec["status"];
+      let paidAt: Date | null = null;
+      let amountPaidCents = 0;
+      let nfEmitida = false;
+
+      if (profile === "all_paid") {
+        if (isPast) {
+          status = "PAID";
+          paidAt = addDays(dueDate, randInt(0, 3));
+          amountPaidCents = amount;
+          nfEmitida = cat === "Royalties" || cat === "FNP" ? Math.random() > 0.3 : false;
+        } else {
+          status = "PENDING";
+        }
+      } else if (isCurrentMonth) {
+        // Current month: mostly PENDING
+        if (profile === "healthy") {
+          status = dueDate < now ? (Math.random() > 0.3 ? "PAID" : "PENDING") : "PENDING";
+        } else if (profile === "controlled") {
+          status = dueDate < now ? (Math.random() > 0.5 ? "PAID" : "OVERDUE") : "PENDING";
+        } else if (profile === "attention") {
+          status = dueDate < now ? (Math.random() > 0.7 ? "PAID" : "OVERDUE") : "PENDING";
+        } else {
+          // critical
+          status = dueDate < now ? "OVERDUE" : "PENDING";
+        }
+
+        if (status === "PAID") {
+          paidAt = addDays(dueDate, randInt(0, 5));
+          amountPaidCents = amount;
+          nfEmitida = (cat === "Royalties" || cat === "FNP") && Math.random() > 0.5;
+        }
+      } else {
+        // Past months
+        switch (profile) {
+          case "healthy":
+            // 90% paid on time, 10% paid late
+            status = "PAID";
+            paidAt = addDays(dueDate, Math.random() > 0.9 ? randInt(3, 8) : randInt(0, 2));
+            amountPaidCents = amount;
+            nfEmitida = (cat === "Royalties" || cat === "FNP") && Math.random() > 0.3;
+            break;
+          case "controlled":
+            // 75% paid (some late), 15% overdue, 10% canceled
+            if (Math.random() < 0.75) {
+              status = "PAID";
+              paidAt = addDays(dueDate, randInt(1, 15));
+              amountPaidCents = amount;
+              nfEmitida = (cat === "Royalties" || cat === "FNP") && Math.random() > 0.5;
+            } else if (Math.random() < 0.6) {
+              status = "OVERDUE";
+            } else {
+              status = "CANCELED";
+            }
+            break;
+          case "attention":
+            // 50% paid (often late), 40% overdue, 10% canceled
+            if (Math.random() < 0.5) {
+              status = "PAID";
+              paidAt = addDays(dueDate, randInt(5, 30));
+              amountPaidCents = amount;
+              nfEmitida = (cat === "Royalties" || cat === "FNP") && Math.random() > 0.6;
+            } else if (Math.random() < 0.8) {
+              status = "OVERDUE";
+            } else {
+              status = "CANCELED";
+            }
+            break;
+          case "critical":
+            // 25% paid (very late), 65% overdue, 10% canceled
+            if (Math.random() < 0.25) {
+              status = "PAID";
+              paidAt = addDays(dueDate, randInt(15, 60));
+              amountPaidCents = amount;
+            } else if (Math.random() < 0.87) {
+              status = "OVERDUE";
+            } else {
+              status = "CANCELED";
+            }
+            break;
+          default:
+            status = "PAID";
+            paidAt = addDays(dueDate, randInt(0, 3));
+            amountPaidCents = amount;
+        }
+      }
+
       charges.push({
         customerId,
-        description: pickRandom(chargeDescriptions),
-        amountCents: randInt(50000, 150000), // smaller overdue
-        dueDate: subDays(now, randInt(10, 25)),
-        status: "OVERDUE",
+        description: descriptionFromCategoria(cat),
+        amountCents: amount,
+        dueDate,
+        status,
+        categoria: cat,
+        formaPagamento: forma,
+        competencia,
+        paidAt,
+        amountPaidCents,
+        nfEmitida,
       });
-      break;
-    case "attention":
-      // 1 PAID, 1 PENDING, 2-3 OVERDUE (medium)
-      addCharge("PAID");
-      addCharge("PENDING");
-      addCharge("OVERDUE");
-      addCharge("OVERDUE");
-      if (Math.random() > 0.5) addCharge("OVERDUE");
-      break;
-    case "critical":
-      // 1 PAID, 0-1 PENDING, 3-5 OVERDUE (large)
-      addCharge("PAID");
-      if (Math.random() > 0.5) addCharge("PENDING");
-      addCharge("OVERDUE");
-      addCharge("OVERDUE");
-      addCharge("OVERDUE");
-      if (Math.random() > 0.4) addCharge("OVERDUE");
-      if (Math.random() > 0.6) addCharge("OVERDUE");
-      break;
-    case "all_paid":
-      // 3 PAID
-      addCharge("PAID");
-      addCharge("PAID");
-      addCharge("PAID");
-      break;
-    case "zero":
-      // No charges
-      break;
+    }
   }
 
   return charges;
@@ -383,6 +458,13 @@ async function main() {
           doc: data.doc,
           email: data.email,
           phone: data.phone,
+          cidade: data.cidade,
+          estado: data.estado,
+          bairro: data.bairro,
+          responsavel: data.responsavel,
+          razaoSocial: data.razaoSocial,
+          statusLoja: data.statusLoja,
+          dataAbertura: subDays(new Date(), randInt(180, 900)),
           franqueadoraId: franqueadora.id,
         },
       })
@@ -391,7 +473,7 @@ async function main() {
 
   console.log(`✅ Created ${customers.length} customers`);
 
-  // Create charges using profile-based generation
+  // Create charges using profile-based generation (6 months of data)
   const now = new Date();
   const allChargeSpecs: ChargeSpec[] = [];
   customersData.forEach((cd, idx) => {
@@ -408,12 +490,18 @@ async function main() {
           amountCents: data.amountCents,
           dueDate: data.dueDate,
           status: data.status,
+          categoria: data.categoria,
+          formaPagamento: data.formaPagamento,
+          competencia: data.competencia,
+          paidAt: data.paidAt,
+          amountPaidCents: data.amountPaidCents,
+          nfEmitida: data.nfEmitida,
         },
       })
     )
   );
 
-  console.log(`✅ Created ${createdCharges.length} charges`);
+  console.log(`✅ Created ${createdCharges.length} charges (across 6 months)`);
 
   // Generate boletos for ~60% of non-canceled charges
   const chargesToGenerateBoleto = createdCharges

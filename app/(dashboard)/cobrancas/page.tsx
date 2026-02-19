@@ -63,7 +63,7 @@ export default function CobrancasPage() {
   const [nfDialogOpen, setNfDialogOpen] = useState(false);
   const [nfDialogCobranca, setNfDialogCobranca] = useState<Cobranca | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
@@ -78,7 +78,11 @@ export default function CobrancasPage() {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        openMenuId &&
+        menuRefs.current[openMenuId] &&
+        !menuRefs.current[openMenuId]!.contains(e.target as Node)
+      ) {
         setOpenMenuId(null);
       }
     }
@@ -144,7 +148,7 @@ export default function CobrancasPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, categoriaFilter, selectedCompetencia]);
+  }, [search, statusFilter, categoriaFilter, selectedCompetencia, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -245,8 +249,8 @@ export default function CobrancasPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)]">
-      <div className="flex-shrink-0 space-y-4">
+    <div className="space-y-4">
+      <div className="space-y-4">
         <PageHeader
           title="Cobranças"
           period={periodLabel}
@@ -331,7 +335,7 @@ export default function CobrancasPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 mt-4">
+      <div>
         {filtered.length === 0 ? (
           <FilterEmptyState
             message={
@@ -349,8 +353,8 @@ export default function CobrancasPage() {
             actionHref={!hasActiveFilters ? "/cobrancas/nova" : undefined}
           />
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col h-full">
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+          <div className="bg-white rounded-2xl border border-gray-100 flex flex-col">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm" aria-label="Lista de cobranças">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-gray-100 text-left">
@@ -431,11 +435,11 @@ export default function CobrancasPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1 relative" ref={openMenuId === c.id ? menuRef : undefined}>
-                          <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Download">
+                        <div className="flex items-center justify-end gap-1 relative" ref={(el) => { menuRefs.current[c.id] = el; }}>
+                          <button onClick={(e) => { e.stopPropagation(); toast({ title: "Em breve", description: "Funcionalidade de download será disponibilizada em breve." }); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Download">
                             <Download className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
-                          <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Reenviar">
+                          <button onClick={(e) => { e.stopPropagation(); toast({ title: "Em breve", description: "Funcionalidade de reenvio será disponibilizada em breve." }); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors" aria-label="Reenviar">
                             <Send className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                           <button
@@ -447,7 +451,7 @@ export default function CobrancasPage() {
                           </button>
 
                           {openMenuId === c.id && (
-                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-large py-1 min-w-[160px]">
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-large py-1 min-w-[160px]">
                               {canEmitNf(c) && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openNfDialog(c); }}
@@ -457,11 +461,11 @@ export default function CobrancasPage() {
                                   Emitir NF
                                 </button>
                               )}
-                              <button onClick={(e) => e.stopPropagation()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); toast({ title: "Em breve", description: "Funcionalidade de download será disponibilizada em breve." }); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                 <Download className="h-3.5 w-3.5" />
                                 Download
                               </button>
-                              <button onClick={(e) => e.stopPropagation()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); toast({ title: "Em breve", description: "Funcionalidade de reenvio será disponibilizada em breve." }); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                 <Send className="h-3.5 w-3.5" />
                                 Reenviar
                               </button>
