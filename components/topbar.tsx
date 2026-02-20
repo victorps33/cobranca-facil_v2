@@ -33,9 +33,10 @@ const roleLabels: Record<string, string> = {
 interface TopBarProps {
   onOpenJulia?: () => void;
   onOpenCommandPalette?: () => void;
+  juliaDisabled?: boolean;
 }
 
-export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
+export function TopBar({ onOpenJulia, onOpenCommandPalette, juliaDisabled }: TopBarProps) {
   const { data: session } = useSession();
   const { notifications, appNow: appNowInfo } = useAppData();
 
@@ -94,14 +95,16 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette }: TopBarProps) {
           )}
 
           {/* Julia AI Button */}
-          <button
-            onClick={onOpenJulia}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
-            title="Abrir Júlia AI"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span className="hidden lg:inline">Júlia</span>
-          </button>
+          {!juliaDisabled && (
+            <button
+              onClick={onOpenJulia}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              title="Abrir Júlia AI"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden lg:inline">Júlia</span>
+            </button>
+          )}
 
           {/* Notifications */}
           <DropdownMenu>

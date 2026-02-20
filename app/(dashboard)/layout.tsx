@@ -6,6 +6,7 @@ import { TopBar } from "@/components/topbar";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { JuliaPanel } from "@/components/ai/JuliaPanel";
+import { JuliaOnboardingWizard } from "@/components/ai/JuliaOnboardingWizard";
 import { CommandPalette } from "@/components/command-palette/CommandPalette";
 import { AppDataProvider } from "@/components/providers/AppDataProvider";
 
@@ -17,6 +18,8 @@ export default function DashboardLayout({
   const [showWizard, setShowWizard] = useState(false);
   const [wizardChecked, setWizardChecked] = useState(false);
   const [juliaOpen, setJuliaOpen] = useState(false);
+  const [juliaOnboardingOpen, setJuliaOnboardingOpen] = useState(false);
+  const [juliaDisabled, setJuliaDisabled] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
@@ -27,6 +30,23 @@ export default function DashboardLayout({
       })
       .catch(() => {})
       .finally(() => setWizardChecked(true));
+  }, []);
+
+  // Read julia_enabled preference from localStorage
+  useEffect(() => {
+    const enabled = localStorage.getItem("julia_enabled");
+    setJuliaDisabled(enabled === "false");
+  }, []);
+
+  // Listen for julia_enabled changes (from settings page)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "julia_enabled") {
+        setJuliaDisabled(e.newValue === "false");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   // Global Cmd+K shortcut
@@ -41,6 +61,21 @@ export default function DashboardLayout({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const handleOpenJulia = useCallback(() => {
+    if (juliaDisabled) return;
+    const onboardingDone = localStorage.getItem("julia_onboarding_done");
+    if (!onboardingDone) {
+      setJuliaOnboardingOpen(true);
+    } else {
+      setJuliaOpen(true);
+    }
+  }, [juliaDisabled]);
+
+  const handleJuliaOnboardingComplete = useCallback(() => {
+    setJuliaOnboardingOpen(false);
+    setJuliaOpen(true);
+  }, []);
+
   const handleCloseJulia = useCallback(() => setJuliaOpen(false), []);
   const handleCloseCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
 
@@ -50,8 +85,9 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="flex flex-1 flex-col min-h-0">
           <TopBar
-            onOpenJulia={() => setJuliaOpen(true)}
+            onOpenJulia={handleOpenJulia}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            juliaDisabled={juliaDisabled}
           />
           <main id="main-content" className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8">
             <ScrollToTop />
@@ -68,8 +104,16 @@ export default function DashboardLayout({
           />
         )}
 
+        {/* Julia Onboarding Wizard */}
+        <JuliaOnboardingWizard
+          open={juliaOnboardingOpen}
+          onComplete={handleJuliaOnboardingComplete}
+        />
+
         {/* Global AI Panel */}
-        <JuliaPanel open={juliaOpen} onClose={handleCloseJulia} />
+        {!juliaDisabled && (
+          <JuliaPanel open={juliaOpen} onClose={handleCloseJulia} />
+        )}
 
         {/* Command Palette */}
         <CommandPalette open={commandPaletteOpen} onClose={handleCloseCommandPalette} />

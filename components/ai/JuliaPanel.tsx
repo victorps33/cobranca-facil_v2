@@ -204,6 +204,8 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
   const [detailLevel, setDetailLevel] = useState<"resumido" | "detalhado">("resumido");
   const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
+  const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
+  const [lastSentText, setLastSentText] = useState<string>("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -243,6 +245,9 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
 
+    setLastSentText(text.trim());
+    setLastErrorMessage(null);
+
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: text.trim(), timestamp: new Date() };
     const historyMessages = [...messages, userMessage].filter((m) => m.id !== "initial").map((m) => ({ role: m.role, content: m.content }));
     const assistantId = (Date.now() + 1).toString();
@@ -269,7 +274,23 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
         signal: abortController.signal,
       });
 
-      if (!res.ok || !res.body) throw new Error("Stream failed");
+      if (!res.ok) {
+        let errorMsg: string;
+        if (res.status === 429) {
+          errorMsg = "Você atingiu o limite de perguntas. Aguarde alguns minutos.";
+        } else if (res.status === 503 || res.status === 500) {
+          errorMsg = "A Júlia está temporariamente indisponível.";
+        } else {
+          errorMsg = "Ocorreu um erro. Tente novamente.";
+        }
+        setLastErrorMessage(errorMsg);
+        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: errorMsg } : m));
+        setLoading(false);
+        abortRef.current = null;
+        return;
+      }
+
+      if (!res.body) throw new Error("Stream failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -303,7 +324,9 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
       if (newActions.length > 0) setActions(newActions);
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: "Desculpe, ocorreu um erro. Tente novamente." } : m));
+      const errorMsg = "Ocorreu um erro. Tente novamente.";
+      setLastErrorMessage(errorMsg);
+      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: errorMsg } : m));
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -447,6 +470,19 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
                 </div>
               ))}
 
+              {/* Retry button on error */}
+              {lastErrorMessage && !loading && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => { if (lastSentText) sendMessage(lastSentText); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100 flex items-center gap-1.5"
+                  >
+                    <ListRestart className="h-3 w-3" />
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+
               {/* Follow-up suggestions */}
               {suggestions.length > 0 && !loading && (
                 <div className="flex flex-wrap gap-1.5 pl-6">
@@ -547,6 +583,9 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
                   </button>
                 </div>
               </form>
+              <p className="text-[10px] text-gray-400 text-center pb-2">
+                Dados processados de forma segura e anônima
+              </p>
             </div>
           </>
         ) : (

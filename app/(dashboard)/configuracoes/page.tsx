@@ -26,8 +26,8 @@ import {
   Plug,
   Users,
   Palette,
-  Eye,
-  EyeOff,
+  Sparkles,
+  ExternalLink,
   Mail,
   Shield,
   Phone,
@@ -388,9 +388,20 @@ function TwilioNumbersSection() {
 }
 
 function IntegracoesContent() {
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [juliaEnabled, setJuliaEnabled] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("julia_enabled");
+    if (stored === "false") setJuliaEnabled(false);
+  }, []);
+
+  const handleJuliaToggle = (checked: boolean) => {
+    setJuliaEnabled(checked);
+    localStorage.setItem("julia_enabled", String(checked));
+    // Dispatch storage event for same-tab listeners
+    window.dispatchEvent(new StorageEvent("storage", { key: "julia_enabled", newValue: String(checked) }));
+  };
 
   const fontes = [
     { nome: "PDV", conectado: true },
@@ -417,25 +428,35 @@ function IntegracoesContent() {
 
       <hr className="border-gray-100" />
 
-      <div className="space-y-2">
-        <Label htmlFor="api-key">Chave API Anthropic</Label>
-        <div className="relative">
-          <Input
-            id="api-key"
-            type={showApiKey ? "text" : "password"}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-ant-..."
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowApiKey((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+      {/* Julia IA info card */}
+      <div className="rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-semibold text-gray-900">Júlia IA</span>
+          </div>
+          <Badge className="bg-emerald-50 text-emerald-700 border-transparent">Conectada</Badge>
         </div>
+        <p className="text-sm text-gray-500">
+          Analisa seus dados de cobrança de forma segura e anônima com IA da Anthropic.
+        </p>
+        <a
+          href="https://www.anthropic.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-2"
+        >
+          Saiba mais sobre a Anthropic <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+
+      {/* Julia opt-out switch */}
+      <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+        <div>
+          <Label htmlFor="switch-julia" className="cursor-pointer">Ativar Júlia IA</Label>
+          <p className="text-xs text-gray-400 mt-0.5">Desativar oculta a Júlia da barra superior</p>
+        </div>
+        <Switch id="switch-julia" checked={juliaEnabled} onCheckedChange={handleJuliaToggle} />
       </div>
 
       <div>

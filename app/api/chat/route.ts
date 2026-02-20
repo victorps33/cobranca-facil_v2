@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/auth-helpers";
+import { createHash } from "crypto";
 
 // ── Anthropic client ──
 
@@ -9,6 +10,77 @@ function getAnthropicClient(): Anthropic | null {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key || key.startsWith("sk-ant-your")) return null;
   return new Anthropic({ apiKey: key });
+}
+
+// ── Anonymization ──
+
+function anonymizeContext(text: string): string {
+  return text
+    .replace(/\d{3}\.\d{3}\.\d{3}-\d{2}/g, "[CPF]")
+    .replace(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g, "[CNPJ]")
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[email]")
+    .replace(/(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-.\s]?\d{4}/g, "[tel]");
+}
+
+// ── Rate limiting (in-memory) ──
+
+const RATE_LIMIT = 30; // messages per hour
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  if (entry.count >= RATE_LIMIT) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  entry.count++;
+  return { allowed: true, retryAfter: 0 };
+}
+
+// ── Response caching for presets ──
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const responseCache = new Map<string, { response: string; timestamp: number }>();
+
+const KNOWN_PRESET_QUESTIONS = [
+  "Quem eu devo cobrar primeiro?",
+  "O que mudou na minha rede este mês?",
+  "Compare a inadimplência e recuperação por região",
+  "Qual a previsão de recebimento para os próximos 30 dias?",
+  "Onde está concentrada a inadimplência na minha rede?",
+  "Qual a efetividade das minhas cobranças?",
+];
+
+function isPresetQuestion(message: string): boolean {
+  const lower = message.toLowerCase();
+  return KNOWN_PRESET_QUESTIONS.some((q) => lower.includes(q.toLowerCase().slice(0, 30)));
+}
+
+function getCacheKey(message: string, franqueadoraId: string, detailLevel: string): string {
+  const hash = createHash("md5").update(`${message}:${franqueadoraId}:${detailLevel}`).digest("hex");
+  return hash;
+}
+
+function getCachedResponse(key: string): string | null {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.response;
+}
+
+function setCachedResponse(key: string, response: string): void {
+  responseCache.set(key, { response, timestamp: Date.now() });
 }
 
 // ── System prompt ──
@@ -237,6 +309,17 @@ export async function POST(request: Request) {
   const { session, error } = await requireTenant();
   if (error) return error;
 
+  const userId = session!.user.id ?? "anonymous";
+
+  // Rate limiting
+  const { allowed, retryAfter } = checkRateLimit(userId);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "rate_limit", retryAfter },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const {
@@ -268,7 +351,22 @@ export async function POST(request: Request) {
 
     const anthropic = getAnthropicClient();
     const franqueadoraId = session!.user.franqueadoraId ?? "";
-    const dataContext = await buildDataContext(franqueadoraId);
+
+    // Check preset cache for non-streaming or first message
+    const isPreset = isPresetQuestion(lastUserMessage);
+    const cacheKey = isPreset ? getCacheKey(lastUserMessage, franqueadoraId, detailLevel) : "";
+    const cached = isPreset ? getCachedResponse(cacheKey) : null;
+
+    // Structured logging
+    console.log(JSON.stringify({
+      userId,
+      timestamp: new Date().toISOString(),
+      cached: !!cached,
+      model: "claude-haiku-4-5-20251001",
+      isPreset,
+    }));
+
+    const dataContext = anonymizeContext(await buildDataContext(franqueadoraId));
     const includeSuggestions = isStreaming;
 
     const detailInstruction = detailLevel === "detalhado"
@@ -284,8 +382,26 @@ export async function POST(request: Request) {
 
     // ── Streaming mode ──
     if (isStreaming) {
+      // Serve cached response as stream if available
+      if (cached) {
+        const words = cached.split(" ");
+        const readableStream = new ReadableStream({
+          async start(controller) {
+            for (let i = 0; i < words.length; i++) {
+              const text = (i === 0 ? "" : " ") + words[i];
+              controller.enqueue(sseEvent(JSON.stringify({ text })));
+              await new Promise((r) => setTimeout(r, 15));
+            }
+            controller.enqueue(sseEvent("[DONE]"));
+            controller.close();
+          },
+        });
+        return new Response(readableStream, { headers: sseHeaders() });
+      }
+
       if (anthropic) {
         try {
+          let fullResponse = "";
           const readableStream = new ReadableStream({
             async start(controller) {
               try {
@@ -302,13 +418,18 @@ export async function POST(request: Request) {
                     event.type === "content_block_delta" &&
                     event.delta.type === "text_delta"
                   ) {
+                    fullResponse += event.delta.text;
                     controller.enqueue(
                       sseEvent(JSON.stringify({ text: event.delta.text }))
                     );
                   }
                 }
+
+                // Cache preset responses
+                if (isPreset && fullResponse) {
+                  setCachedResponse(cacheKey, fullResponse);
+                }
               } catch {
-                // Fallback: send error message
                 controller.enqueue(
                   sseEvent(JSON.stringify({ text: "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente." }))
                 );
@@ -325,7 +446,7 @@ export async function POST(request: Request) {
       }
 
       // Fallback when no API key
-      const fallbackText = "Para usar a Júlia IA, configure a variável ANTHROPIC_API_KEY no ambiente.\n\n<<SUGESTÕES>>\nComo configurar a API?\nQuais funcionalidades tenho?\nComo cadastrar franqueados?";
+      const fallbackText = "A Júlia está temporariamente indisponível. Tente novamente em alguns instantes.\n\n<<SUGESTÕES>>\nTentar novamente\nVer cobranças\nVer clientes";
       const words = fallbackText.split(" ");
 
       const readableStream = new ReadableStream({
@@ -344,6 +465,12 @@ export async function POST(request: Request) {
     }
 
     // ── Non-streaming mode (card pre-loading) ──
+
+    // Check cache for non-streaming presets
+    if (cached) {
+      return NextResponse.json({ reply: cached });
+    }
+
     if (anthropic) {
       try {
         const response = await anthropic.messages.create({
@@ -355,7 +482,13 @@ export async function POST(request: Request) {
 
         const textContent = response.content.find((c) => c.type === "text");
         const reply = textContent?.text ?? "";
-        if (reply) return NextResponse.json({ reply });
+        if (reply) {
+          // Cache preset responses
+          if (isPreset) {
+            setCachedResponse(cacheKey, reply);
+          }
+          return NextResponse.json({ reply });
+        }
       } catch (err) {
         console.error("Anthropic API error in chat:", err);
       }
@@ -363,7 +496,7 @@ export async function POST(request: Request) {
 
     // Fallback when no API key
     return NextResponse.json({
-      reply: "Para usar a Júlia IA, configure a variável ANTHROPIC_API_KEY no ambiente.",
+      reply: "A Júlia está temporariamente indisponível. Tente novamente em alguns instantes.",
     });
   } catch (error) {
     console.error("Error in chat API:", error);
