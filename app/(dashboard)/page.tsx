@@ -82,7 +82,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader title="Dashboard" />
         <KpiSkeleton count={4} />
       </div>
@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
   if (!data || data.empty) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader
           title="Dashboard"
           primaryAction={{ label: "Cadastrar Cliente", href: "/clientes/novo" }}
@@ -152,7 +152,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         period={periodLabel}

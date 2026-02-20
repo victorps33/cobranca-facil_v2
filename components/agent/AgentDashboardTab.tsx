@@ -322,7 +322,7 @@ export function AgentDashboardTab({ onOpenConversation }: AgentDashboardTabProps
                     </p>
 
                     {dec.outputMessage && (
-                      <div className="mt-2 p-2.5 bg-gray-50 rounded-xl text-xs text-gray-600 border-l-2 border-primary/30">
+                      <div className="mt-2 p-2.5 bg-gray-50 rounded-xl text-xs text-gray-600 border border-gray-100">
                         {dec.outputMessage.slice(0, 200)}
                         {dec.outputMessage.length > 200 ? "..." : ""}
                       </div>
@@ -357,7 +357,7 @@ export function AgentDashboardTab({ onOpenConversation }: AgentDashboardTabProps
               escalations.map((esc) => (
                 <div
                   key={esc.id}
-                  className="bg-white rounded-2xl border border-red-100 p-4 hover:border-red-200 transition-colors"
+                  className="bg-white rounded-2xl border border-gray-100 p-4 hover:border-gray-200 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div>

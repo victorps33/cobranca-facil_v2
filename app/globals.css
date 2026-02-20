@@ -56,6 +56,10 @@
     --color-info: var(--menlo-blue);
     --color-info-bg: #dbeafe;
     --color-info-border: #bfdbfe;
+    --color-neutral: #6b7280;
+    --color-neutral-bg: #f3f4f6;
+    --color-neutral-border: #e5e7eb;
+    --color-neutral-text: #4b5563;
     
     /* Spacing Scale */
     --space-1: 4px;
@@ -164,6 +168,10 @@
   --muted-foreground: 220 9% 60%;
   --border: 228 15% 20%;
   --input: 228 15% 20%;
+  --color-neutral: #9ca3af;
+  --color-neutral-bg: #1f2937;
+  --color-neutral-border: #374151;
+  --color-neutral-text: #d1d5db;
 }
 
 /* ===== COMPACT DENSITY ===== */
@@ -266,7 +274,9 @@
   }
   
   .badge-neutral {
-    @apply bg-gray-100 text-gray-600 border border-gray-200;
+    background: var(--color-neutral-bg);
+    color: var(--color-neutral-text);
+    border: 1px solid var(--color-neutral-border);
   }
 
   /* Inputs */

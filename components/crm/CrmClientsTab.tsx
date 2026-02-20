@@ -11,7 +11,8 @@ import { toast } from "@/components/ui/use-toast";
 import { exportCrmClientsToXlsx } from "@/lib/crm-export";
 import type { CrmCustomer } from "@/lib/types/crm";
 import { KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
-import { Search, AlertTriangle, DollarSign, Clock, PhoneMissed, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
+import { AlertTriangle, DollarSign, Clock, PhoneMissed, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 type SortKey = "nome" | "status" | "valorAberto" | "totalVencido" | "qtdTarefasAbertas" | "ultimaInteracao";
 type SortDir = "asc" | "desc";
@@ -222,16 +223,12 @@ export function CrmClientsTab({ onSwitchToTarefas }: CrmClientsTabProps) {
 
       {/* Filters */}
       <div className="space-y-3">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onValueChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
+          wrapperClassName="max-w-sm"
+        />
         <FilterPillGroup
           options={[
             { key: "all", label: "Todos", count: customers.length },
@@ -259,7 +256,7 @@ export function CrmClientsTab({ onSwitchToTarefas }: CrmClientsTabProps) {
               <thead>
                 <tr className="border-b border-gray-100 text-left">
                   {([
-                    { key: "nome" as SortKey, label: "Cliente", align: "text-left", px: "px-5" },
+                    { key: "nome" as SortKey, label: "Cliente", align: "text-left", px: "px-4" },
                     { key: "status" as SortKey, label: "Saúde", align: "text-left", px: "px-4" },
                     { key: "valorAberto" as SortKey, label: "Dívida Total", align: "text-right", px: "px-4" },
                     { key: "totalVencido" as SortKey, label: "Vencido", align: "text-right", px: "px-4" },
@@ -298,7 +295,7 @@ export function CrmClientsTab({ onSwitchToTarefas }: CrmClientsTabProps) {
                       onClick={() => router.push(`/clientes/${c.id}`)}
                       className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{c.name}</p>
                         <p className="text-xs text-gray-400">{c.doc}</p>
                       </td>

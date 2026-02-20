@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import { CheckCircle, Clock, AlertTriangle, XCircle, Circle } from "lucide-react";
 
-type StatusType = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED" | "CANCELED" | string;
+type StatusType = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED" | "CANCELED" | "Aberta" | "Vencida" | "Paga" | "Cancelada" | string;
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -15,6 +15,7 @@ const statusConfig: Record<string, {
   className: string;
   icon: typeof Circle;
 }> = {
+  // English keys (API/DB)
   PENDING: {
     label: "Pendente",
     className: "bg-info-bg text-info-text border-info-border",
@@ -32,19 +33,40 @@ const statusConfig: Record<string, {
   },
   CANCELLED: {
     label: "Cancelado",
-    className: "bg-gray-100 text-gray-600 border-gray-200",
+    className: "bg-neutral-bg text-neutral-text border-neutral-border",
     icon: XCircle,
   },
   CANCELED: {
     label: "Cancelado",
-    className: "bg-gray-100 text-gray-600 border-gray-200",
+    className: "bg-neutral-bg text-neutral-text border-neutral-border",
+    icon: XCircle,
+  },
+  // Portuguese keys (UI)
+  Aberta: {
+    label: "Aberta",
+    className: "bg-info-bg text-info-text border-info-border",
+    icon: Clock,
+  },
+  Vencida: {
+    label: "Vencida",
+    className: "bg-danger-bg text-danger-text border-danger-border",
+    icon: AlertTriangle,
+  },
+  Paga: {
+    label: "Paga",
+    className: "bg-success-bg text-success-text border-success-border",
+    icon: CheckCircle,
+  },
+  Cancelada: {
+    label: "Cancelada",
+    className: "bg-neutral-bg text-neutral-text border-neutral-border",
     icon: XCircle,
   },
 };
 
 const defaultConfig = {
   label: "Desconhecido",
-  className: "bg-gray-100 text-gray-600 border-gray-200",
+  className: "bg-neutral-bg text-neutral-text border-neutral-border",
   icon: Circle,
 };
 
@@ -77,5 +99,15 @@ export function StatusBadge({
   );
 }
 
-// Export status labels for use elsewhere
+// Export status config for use elsewhere
 export const STATUS_CONFIG = statusConfig;
+
+/** Get the CSS classes for a given status key (for inline badge rendering) */
+export function getStatusClasses(status: string): string {
+  return (statusConfig[status] ?? defaultConfig).className;
+}
+
+/** Get the display label for a given status key */
+export function getStatusLabel(status: string): string {
+  return (statusConfig[status] ?? defaultConfig).label;
+}

@@ -45,7 +45,7 @@ export function ActionPlan({ actions, onExecute }: ActionPlanProps) {
   }
 
   return (
-    <div className="rounded-2xl border-2 border-blue-100 bg-white p-5">
+    <div className="rounded-2xl border border-gray-100 bg-white p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

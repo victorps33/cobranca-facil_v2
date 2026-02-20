@@ -1,7 +1,7 @@
 "use client";
 
 import { FilterPillGroup } from "@/components/ui/filter-pills";
-import { Search, X } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 
 interface InboxFiltersProps {
   search: string;
@@ -38,24 +38,12 @@ export function InboxFilters({
   return (
     <div className="p-3 space-y-2 border-b border-gray-100">
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Buscar conversas..."
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
-        />
-        {search && (
-          <button
-            onClick={() => onSearchChange("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      <SearchBar
+        value={search}
+        onValueChange={onSearchChange}
+        placeholder="Buscar conversas…"
+        size="sm"
+      />
 
       {/* Channel pills */}
       <FilterPillGroup

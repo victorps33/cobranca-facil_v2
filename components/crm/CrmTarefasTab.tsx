@@ -26,8 +26,8 @@ import {
 import type { CrmTask } from "@/lib/types/crm";
 import type { UserRole } from "@prisma/client";
 import { Skeleton, KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
-  Search,
   Clock,
   Play,
   CheckCircle2,
@@ -396,19 +396,12 @@ export function CrmTarefasTab({ actionsRef }: CrmTarefasTabProps = {}) {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Buscar por tarefa, cliente ou responsavel..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onValueChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Buscar por tarefa, cliente ou responsável…"
+          wrapperClassName="flex-1 min-w-[200px] max-w-sm"
+        />
         <FilterPillGroup
           options={[
             { key: "all", label: "Todos" },
@@ -476,7 +469,7 @@ export function CrmTarefasTab({ actionsRef }: CrmTarefasTabProps = {}) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
                     Tarefa
                   </th>
                   <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
@@ -520,7 +513,7 @@ export function CrmTarefasTab({ actionsRef }: CrmTarefasTabProps = {}) {
                       className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
                     >
                       <td
-                        className="px-5 py-3 cursor-pointer"
+                        className="px-4 py-3 cursor-pointer"
                         onClick={() =>
                           t.customerId && router.push(`/crm/${t.customerId}`)
                         }

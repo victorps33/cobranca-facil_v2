@@ -28,14 +28,14 @@ interface ChartCardProps {
 export function ChartCard({ title, subtitle, children, action, compact, className }: ChartCardProps) {
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden h-full flex flex-col ${className ?? ""}`}>
-      <div className={`${compact ? "px-5 py-3" : "px-6 py-5"} border-b border-gray-50 flex items-center justify-between`}>
+      <div className={`${compact ? "px-4 py-3" : "px-6 py-4"} border-b border-gray-50 flex items-center justify-between`}>
         <div>
           <h3 className={`font-semibold text-gray-900 ${compact ? "text-sm" : ""}`}>{title}</h3>
           {subtitle && <p className={`text-gray-500 mt-0.5 ${compact ? "text-xs" : "text-sm"}`}>{subtitle}</p>}
         </div>
         {action}
       </div>
-      <div className={`${compact ? "p-5" : "p-6"} flex-1`}>{children}</div>
+      <div className={`${compact ? "p-4" : "p-6"} flex-1`}>{children}</div>
     </div>
   );
 }

@@ -10,11 +10,12 @@ import { Pagination } from "@/components/ui/pagination";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { cn } from "@/lib/cn";
 import type { Cobranca } from "@/lib/types";
+import { getStatusClasses } from "@/components/ui/status-badge";
 import { EmitirNfDialog } from "@/components/cobrancas/EmitirNfDialog";
 import { toast } from "@/components/ui/use-toast";
 import { KpiSkeleton } from "@/components/ui/skeleton";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
-  Search,
   ChevronDown,
   ChevronUp,
   DollarSign,
@@ -29,13 +30,6 @@ import {
   QrCode,
   Receipt,
 } from "lucide-react";
-
-const STATUS_COLORS: Record<string, string> = {
-  Aberta: "bg-info-bg text-info-text border border-info-border",
-  Vencida: "bg-danger-bg text-danger-text border border-danger-border",
-  Paga: "bg-success-bg text-success-text border border-success-border",
-  Cancelada: "bg-gray-100 text-gray-500 border border-gray-200",
-};
 
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
   Boleto: <FileText className="h-3.5 w-3.5" />,
@@ -223,7 +217,7 @@ export default function CobrancasPage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader title="Cobranças" />
         <KpiSkeleton count={4} />
       </div>
@@ -232,7 +226,7 @@ export default function CobrancasPage() {
 
   if (allCobrancas.length === 0) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader
           title="Cobranças"
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
@@ -249,8 +243,8 @@ export default function CobrancasPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Cobranças"
           period={periodLabel}
@@ -266,7 +260,7 @@ export default function CobrancasPage() {
           onChange={setSelectedCompetencia}
         />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             className="animate-in stagger-1"
             icon={<DollarSign className="h-4 w-4" />}
@@ -299,18 +293,12 @@ export default function CobrancasPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
-            <input
-              type="search"
-              name="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por cliente, descrição ou ID…"
-              aria-label="Buscar cobranças"
-              className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:border-secondary transition-colors"
-            />
-          </div>
+          <SearchBar
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Buscar por cliente, descrição ou ID…"
+            wrapperClassName="flex-1 min-w-[200px] max-w-sm"
+          />
           <FilterPillGroup
             options={[
               { key: "all", label: "Todos" },
@@ -355,30 +343,30 @@ export default function CobrancasPage() {
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 flex flex-col">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" aria-label="Lista de cobranças">
+              <table className="w-full min-w-[800px] text-sm" aria-label="Lista de cobranças">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-gray-100 text-left">
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Cobrança</th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Cobrança</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                       <button onClick={() => toggleSort("cliente")} className="inline-flex items-center gap-1">
                         Cliente <SortIcon k="cliente" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                       <button onClick={() => toggleSort("dataVencimento")} className="inline-flex items-center gap-1">
                         Vencimento <SortIcon k="dataVencimento" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Pagamento</th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Pagamento</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">
                       <button onClick={() => toggleSort("valorOriginal")} className="inline-flex items-center gap-1">
                         Valor <SortIcon k="valorOriginal" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Forma</th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-center">NF</th>
-                    <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Ações</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Forma</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-center">NF</th>
+                    <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -386,7 +374,7 @@ export default function CobrancasPage() {
                     <tr key={c.id} onClick={() => router.push(`/cobrancas/${c.id}`)} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer">
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900 text-sm">{c.id.slice(0, 8)}</p>
-                        <p className="text-xs text-gray-400">{c.categoria}</p>
+                        <p className="text-xs text-muted-foreground">{c.categoria}</p>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{c.cliente}</td>
                       <td className={cn(
@@ -414,7 +402,7 @@ export default function CobrancasPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full", STATUS_COLORS[c.status] || "")}>
+                        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-full border", getStatusClasses(c.status))}>
                           {c.status}
                         </span>
                       </td>

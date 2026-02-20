@@ -11,7 +11,8 @@ import type { Franqueado } from "@/lib/types";
 import { exportFranqueadosToXlsx } from "@/lib/franqueados-import-export";
 import { Pagination } from "@/components/ui/pagination";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { MapPin, Upload, Download, AlertTriangle, X, Search, Users } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
+import { MapPin, Upload, Download, AlertTriangle, X, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type StatusFilter = "Todos" | "Aberta" | "Fechada" | "Vendida";
@@ -132,7 +133,7 @@ export default function ClientesPage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader title="Cadastro" />
         <TableSkeleton rows={8} cols={5} />
       </div>
@@ -140,7 +141,7 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader title="Cadastro" />
 
       {/* Seção: Franqueadora */}
@@ -154,7 +155,7 @@ export default function ClientesPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             Franqueados
-            <span className="ml-2 text-sm font-normal text-gray-400">{counts.Todos} cadastrados</span>
+            <span className="ml-2 text-sm font-normal text-muted-foreground">{counts.Todos} cadastrados</span>
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -218,24 +219,12 @@ export default function ClientesPage() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             {/* Search + Tab bar */}
             <div className="px-4 pt-4 pb-3">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus-visible:outline-none focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/30 transition-colors"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+              <SearchBar
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+                placeholder="Buscar por nome, cidade, bairro, responsável ou CNPJ…"
+                wrapperClassName="max-w-sm"
+              />
             </div>
 
             <div className="border-b border-gray-100">
@@ -256,7 +245,7 @@ export default function ClientesPage() {
                         aria-current={isActive ? "page" : undefined}
                       >
                         {tab.label}
-                        <span className="ml-1.5 text-xs text-gray-400 tabular-nums">
+                        <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">
                           {counts[tab.value]}
                         </span>
                       </button>
@@ -279,22 +268,22 @@ export default function ClientesPage() {
             ) : (
               <>
                 <div className="overflow-x-auto min-h-[480px]">
-                  <table className="w-full text-sm" aria-label="Lista de franqueados">
+                  <table className="w-full min-w-[640px] text-sm" aria-label="Lista de franqueados">
                     <thead>
                       <tr className="border-b border-gray-100 text-left">
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                           Franqueado
                         </th>
-                        <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                           Responsável
                         </th>
-                        <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                           Localização
                         </th>
-                        <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">
                           Status
                         </th>
-                        <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">
+                        <th className="px-4 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">
                           Abertura
                         </th>
                       </tr>
@@ -307,7 +296,7 @@ export default function ClientesPage() {
                             key={c.id}
                             className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
                           >
-                            <td className="px-5 py-3.5">
+                            <td className="px-4 py-3">
                               <Link
                                 href={`/clientes/${c.id}`}
                                 className="flex items-center gap-3 group"
@@ -325,7 +314,7 @@ export default function ClientesPage() {
                                   <p className="font-medium text-gray-900 text-sm truncate group-hover:text-primary transition-colors">
                                     {c.nome}
                                   </p>
-                                  <p className="text-xs text-gray-400 truncate">
+                                  <p className="text-xs text-muted-foreground truncate">
                                     {c.cnpj} · {c.razaoSocial}
                                     {c.cnpj && duplicateCnpjs.has(c.cnpj) && (
                                       <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
@@ -336,17 +325,17 @@ export default function ClientesPage() {
                                 </div>
                               </Link>
                             </td>
-                            <td className="px-4 py-3.5">
+                            <td className="px-4 py-3">
                               <div className="min-w-0">
                                 <p className="text-sm text-gray-900 truncate">
                                   {c.responsavel || "—"}
                                 </p>
-                                <p className="text-xs text-gray-400 truncate">
+                                <p className="text-xs text-muted-foreground truncate">
                                   {c.email}
                                 </p>
                               </div>
                             </td>
-                            <td className="px-4 py-3.5">
+                            <td className="px-4 py-3">
                               {c.cidade ? (
                                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
                                   <MapPin className="h-3.5 w-3.5 text-gray-300 shrink-0" aria-hidden="true" />
@@ -358,7 +347,7 @@ export default function ClientesPage() {
                                 <span className="text-sm text-gray-300">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3.5">
+                            <td className="px-4 py-3">
                               <span
                                 className={cn(
                                   "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -373,7 +362,7 @@ export default function ClientesPage() {
                                 {c.statusLoja}
                               </span>
                             </td>
-                            <td className="px-4 py-3.5 text-sm text-gray-500 tabular-nums text-right">
+                            <td className="px-4 py-3 text-sm text-gray-500 tabular-nums text-right">
                               {c.dataAbertura ? formatDate(c.dataAbertura) : "—"}
                             </td>
                           </tr>

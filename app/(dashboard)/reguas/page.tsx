@@ -188,7 +188,7 @@ export default function ReguasPage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <PageHeader title="Réguas de Cobrança" />
         <div className="space-y-4">
           {[1, 2].map((i) => (
@@ -211,7 +211,7 @@ export default function ReguasPage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Réguas de Cobrança"
         primaryAction={{ label: "Nova Régua", onClick: () => {} }}
@@ -285,17 +285,14 @@ function ReguaCard({ regua, onToggle }: { regua: Regua; onToggle: () => void }) 
   return (
     <div
       className={cn(
-        "group rounded-2xl border bg-white transition-colors duration-200 overflow-hidden",
-        regua.active
-          ? "border-gray-100 hover:border-gray-200"
-          : "border-gray-100 opacity-60 hover:opacity-80"
+        "group rounded-2xl border border-gray-100 bg-white transition-colors duration-200 overflow-hidden hover:border-gray-200",
+        !regua.active && "opacity-60 hover:opacity-80"
       )}
-      style={{ borderLeftWidth: 3, borderLeftColor: regua.active ? "#10b981" : "#d1d5db" }}
     >
       {/* Header */}
       <Link
         href={`/reguas/${regua.id}`}
-        className="flex items-center gap-4 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary/30"
+        className="flex items-center gap-4 px-6 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary/30"
       >
         <div className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",

@@ -80,6 +80,12 @@ const config: Config = {
           border: "#bfdbfe",
           text: "#1e40af",
         },
+        neutral: {
+          DEFAULT: "#6b7280",
+          bg: "#f3f4f6",
+          border: "#e5e7eb",
+          text: "#4b5563",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -181,7 +181,7 @@ export function DunningTimeline({ steps, onStepsChange, editable = false }: Dunn
 
       {/* Add step button */}
       {editable && (
-        <button className="relative pl-14 pr-4 py-3 w-full text-left rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 transition-colors mt-2 group">
+        <button className="relative pl-14 pr-4 py-3 w-full text-left rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-colors mt-2 group">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
             <Plus className="h-3 w-3 text-gray-400 group-hover:text-gray-600" />
           </div>

@@ -534,21 +534,21 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
 
             {!uploading && !uploadResult && (
               <div
-                className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-6 flex items-center gap-5 hover:border-secondary hover:bg-blue-50/20 transition-colors cursor-pointer"
+                className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center gap-5 hover:border-gray-200 hover:bg-gray-50/50 transition-colors cursor-pointer"
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.add("border-secondary", "bg-blue-50/30");
+                  e.currentTarget.classList.add("border-gray-300", "bg-gray-50");
                 }}
                 onDragLeave={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.remove("border-secondary", "bg-blue-50/30");
+                  e.currentTarget.classList.remove("border-gray-300", "bg-gray-50");
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  e.currentTarget.classList.remove("border-secondary", "bg-blue-50/30");
+                  e.currentTarget.classList.remove("border-gray-300", "bg-gray-50");
                   const file = e.dataTransfer.files[0];
                   if (file) handleFileUpload(file);
                 }}
@@ -847,7 +847,7 @@ export function ApuracaoWizard({ competencia }: ApuracaoWizardProps) {
 
           {/* Alerta de variacao */}
           {franqueadosComAlerta > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-amber-50 border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
               <p className="text-sm text-amber-800">
                 <strong>{franqueadosComAlerta} franqueado{franqueadosComAlerta > 1 ? "s" : ""}</strong> com variacao acima de 20% em relacao ao mes anterior.
