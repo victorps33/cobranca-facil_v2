@@ -9,6 +9,7 @@ import { JuliaPanel } from "@/components/ai/JuliaPanel";
 import { JuliaOnboardingWizard } from "@/components/ai/JuliaOnboardingWizard";
 import { CommandPalette } from "@/components/command-palette/CommandPalette";
 import { AppDataProvider } from "@/components/providers/AppDataProvider";
+import { FranqueadoraProvider } from "@/components/providers/FranqueadoraProvider";
 
 export default function DashboardLayout({
   children,
@@ -81,43 +82,45 @@ export default function DashboardLayout({
 
   return (
     <AppDataProvider>
-      <div className="flex h-screen bg-background overflow-hidden">
-        <Sidebar />
-        <div className="flex flex-1 flex-col min-h-0">
-          <TopBar
-            onOpenJulia={handleOpenJulia}
-            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-            juliaDisabled={juliaDisabled}
+      <FranqueadoraProvider>
+        <div className="flex h-screen bg-background overflow-hidden">
+          <Sidebar />
+          <div className="flex flex-1 flex-col min-h-0">
+            <TopBar
+              onOpenJulia={handleOpenJulia}
+              onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+              juliaDisabled={juliaDisabled}
+            />
+            <main id="main-content" className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8">
+              <ScrollToTop />
+              <div className="max-w-7xl mx-auto min-h-full">
+                {children}
+              </div>
+            </main>
+          </div>
+
+          {wizardChecked && showWizard && (
+            <OnboardingWizard
+              open={showWizard}
+              onComplete={() => setShowWizard(false)}
+            />
+          )}
+
+          {/* Julia Onboarding Wizard */}
+          <JuliaOnboardingWizard
+            open={juliaOnboardingOpen}
+            onComplete={handleJuliaOnboardingComplete}
           />
-          <main id="main-content" className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8">
-            <ScrollToTop />
-            <div className="max-w-7xl mx-auto min-h-full">
-              {children}
-            </div>
-          </main>
+
+          {/* Global AI Panel */}
+          {!juliaDisabled && (
+            <JuliaPanel open={juliaOpen} onClose={handleCloseJulia} />
+          )}
+
+          {/* Command Palette */}
+          <CommandPalette open={commandPaletteOpen} onClose={handleCloseCommandPalette} />
         </div>
-
-        {wizardChecked && showWizard && (
-          <OnboardingWizard
-            open={showWizard}
-            onComplete={() => setShowWizard(false)}
-          />
-        )}
-
-        {/* Julia Onboarding Wizard */}
-        <JuliaOnboardingWizard
-          open={juliaOnboardingOpen}
-          onComplete={handleJuliaOnboardingComplete}
-        />
-
-        {/* Global AI Panel */}
-        {!juliaDisabled && (
-          <JuliaPanel open={juliaOpen} onClose={handleCloseJulia} />
-        )}
-
-        {/* Command Palette */}
-        <CommandPalette open={commandPaletteOpen} onClose={handleCloseCommandPalette} />
-      </div>
+      </FranqueadoraProvider>
     </AppDataProvider>
   );
 }
