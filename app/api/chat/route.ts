@@ -280,7 +280,7 @@ async function buildDataContext(tenantIds: string[]): Promise<string> {
     });
 
     let subsidiaryContexts = "";
-    for (const [fId, fName] of franqueadoraNames) {
+    for (const [fId, fName] of Array.from(franqueadoraNames.entries())) {
       const fCustomerMetrics = customerMetrics.filter(cm => {
         const cust = customers.find(c => c.name === cm.nome);
         return cust?.franqueadoraId === fId;
