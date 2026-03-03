@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import type { Cobranca } from "@/lib/types";
 import { getStatusClasses } from "@/components/ui/status-badge";
 import { EmitirNfDialog } from "@/components/cobrancas/EmitirNfDialog";
+import { ImportChargesDialog } from "@/components/cobrancas/ImportChargesDialog";
 import { toast } from "@/components/ui/use-toast";
 import { KpiSkeleton } from "@/components/ui/skeleton";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -29,6 +30,7 @@ import {
   CreditCard,
   QrCode,
   Receipt,
+  Upload,
 } from "lucide-react";
 
 const PAYMENT_ICONS: Record<string, React.ReactNode> = {
@@ -60,8 +62,10 @@ export default function CobrancasPage() {
   const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [page, setPage] = useState(1);
   const pageSize = 15;
+  const [importOpen, setImportOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchCharges = useCallback(() => {
+    setLoading(true);
     fetch("/api/charges")
       .then((r) => r.json())
       .then((data) => {
@@ -69,6 +73,10 @@ export default function CobrancasPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchCharges();
+  }, [fetchCharges]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -230,6 +238,9 @@ export default function CobrancasPage() {
         <PageHeader
           title="Cobranças"
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
+          secondaryActions={[
+            { label: "Importar", icon: <Upload className="h-4 w-4" />, onClick: () => setImportOpen(true) },
+          ]}
         />
         <DataEmptyState
           title="Nenhuma cobrança encontrada"
@@ -237,6 +248,11 @@ export default function CobrancasPage() {
           actionLabel="Nova Cobrança"
           actionHref="/cobrancas/nova"
           icon={<Receipt className="h-6 w-6 text-gray-400" />}
+        />
+        <ImportChargesDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImportComplete={fetchCharges}
         />
       </div>
     );
@@ -249,6 +265,9 @@ export default function CobrancasPage() {
           title="Cobranças"
           period={periodLabel}
           primaryAction={{ label: "Nova Cobrança", href: "/cobrancas/nova" }}
+          secondaryActions={[
+            { label: "Importar", icon: <Upload className="h-4 w-4" />, onClick: () => setImportOpen(true) },
+          ]}
         />
 
         <FilterPillGroup
@@ -482,6 +501,12 @@ export default function CobrancasPage() {
         onOpenChange={setNfDialogOpen}
         cobranca={nfDialogCobranca}
         onEmitir={handleEmitirNf}
+      />
+
+      <ImportChargesDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImportComplete={fetchCharges}
       />
     </div>
   );
