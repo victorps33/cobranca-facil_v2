@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -59,21 +60,21 @@ interface OnboardingStatus {
 }
 
 export default function DashboardPage() {
+  const { activeFranqueadoraId } = useFranqueadora();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedCompetencia, setSelectedCompetencia] = useState("");
+  const [selectedCompetencia, setSelectedCompetencia] = useState("all");
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     const tenantHeaders = getFranqueadoraHeaders();
 
     fetch("/api/dashboard", { headers: tenantHeaders })
       .then((r) => r.json())
       .then((d) => {
         setData(d);
-        if (d.competencias?.length > 0) {
-          setSelectedCompetencia(d.competencias[0].value);
-        }
+        setSelectedCompetencia("all");
       })
       .finally(() => setLoading(false));
 
@@ -81,7 +82,7 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((status: OnboardingStatus) => setOnboarding(status))
       .catch(() => {});
-  }, []);
+  }, [activeFranqueadoraId]);
 
   if (loading) {
     return (
@@ -107,7 +108,7 @@ export default function DashboardPage() {
           />
         )}
         <DataEmptyState
-          title="Bem-vindo ao Menlo!"
+          title="Bem-vindo à Menlo!"
           description="Comece cadastrando seus clientes e criando cobranças para ver seus dados aqui."
           actionLabel="Cadastrar Cliente"
           actionHref="/clientes"
@@ -120,37 +121,56 @@ export default function DashboardPage() {
   const competencias = data.competencias || [];
   const kpis = data.kpisByCompetencia || {};
 
-  const selectedLabel = competencias.find((c) => c.value === selectedCompetencia)?.label || "";
-  const periodLabel = `Competência: ${selectedLabel}`;
+  const isAll = selectedCompetencia === "all";
+  const selectedLabel = isAll
+    ? "Todas"
+    : competencias.find((c) => c.value === selectedCompetencia)?.label || "";
+  const periodLabel = isAll
+    ? "Todas as competências"
+    : `Competência: ${selectedLabel}`;
 
-  // KPIs for selected competência
-  const currentKpi = kpis[selectedCompetencia] || { totalEmitido: 0, totalRecebido: 0, totalAberto: 0, total: 0, pagas: 0, vencidas: 0, abertas: 0 };
+  // KPIs: aggregate all or single competência
+  const emptyKpi = { totalEmitido: 0, totalRecebido: 0, totalAberto: 0, total: 0, pagas: 0, vencidas: 0, abertas: 0 };
+  const currentKpi = isAll
+    ? Object.values(kpis).reduce((acc, k) => ({
+        totalEmitido: acc.totalEmitido + k.totalEmitido,
+        totalRecebido: acc.totalRecebido + k.totalRecebido,
+        totalAberto: acc.totalAberto + k.totalAberto,
+        total: acc.total + k.total,
+        pagas: acc.pagas + k.pagas,
+        vencidas: acc.vencidas + k.vencidas,
+        abertas: acc.abertas + k.abertas,
+      }), { ...emptyKpi })
+    : kpis[selectedCompetencia] || emptyKpi;
+
   const inadRate = currentKpi.totalEmitido > 0
     ? ((currentKpi.totalAberto / currentKpi.totalEmitido) * 100).toFixed(1)
     : "0.0";
 
-  // Trend vs previous competência
-  const currentIdx = competencias.findIndex((c) => c.value === selectedCompetencia);
-  const prevComp = currentIdx < competencias.length - 1 ? competencias[currentIdx + 1] : null;
+  // Trend vs previous competência (only when a single competência is selected)
   let trendEmitido = 0;
   let trendRecebido = 0;
   let trendInad = 0;
   let trendPendentes = 0;
 
-  if (prevComp && kpis[prevComp.value]) {
-    const prevKpi = kpis[prevComp.value];
-    if (prevKpi.totalEmitido > 0) {
-      trendEmitido = Math.round(((currentKpi.totalEmitido - prevKpi.totalEmitido) / prevKpi.totalEmitido) * 100);
-      const prevInad = (prevKpi.totalAberto / prevKpi.totalEmitido) * 100;
-      trendInad = Math.round((Number(inadRate) - prevInad) * 10) / 10;
-    }
-    if (prevKpi.totalRecebido > 0) {
-      trendRecebido = Math.round(((currentKpi.totalRecebido - prevKpi.totalRecebido) / prevKpi.totalRecebido) * 100);
-    }
-    const prevPendentes = prevKpi.abertas + prevKpi.vencidas;
-    const currPendentes = currentKpi.abertas + currentKpi.vencidas;
-    if (prevPendentes > 0) {
-      trendPendentes = Math.round(((currPendentes - prevPendentes) / prevPendentes) * 100);
+  if (!isAll) {
+    const currentIdx = competencias.findIndex((c) => c.value === selectedCompetencia);
+    const prevComp = currentIdx < competencias.length - 1 ? competencias[currentIdx + 1] : null;
+    if (prevComp && kpis[prevComp.value]) {
+      const prevKpi = kpis[prevComp.value];
+      if (prevKpi.totalEmitido > 0) {
+        trendEmitido = Math.round(((currentKpi.totalEmitido - prevKpi.totalEmitido) / prevKpi.totalEmitido) * 100);
+        const prevInad = (prevKpi.totalAberto / prevKpi.totalEmitido) * 100;
+        trendInad = Math.round((Number(inadRate) - prevInad) * 10) / 10;
+      }
+      if (prevKpi.totalRecebido > 0) {
+        trendRecebido = Math.round(((currentKpi.totalRecebido - prevKpi.totalRecebido) / prevKpi.totalRecebido) * 100);
+      }
+      const prevPendentes = prevKpi.abertas + prevKpi.vencidas;
+      const currPendentes = currentKpi.abertas + currentKpi.vencidas;
+      if (prevPendentes > 0) {
+        trendPendentes = Math.round(((currPendentes - prevPendentes) / prevPendentes) * 100);
+      }
     }
   }
 
@@ -171,7 +191,10 @@ export default function DashboardPage() {
       )}
 
       <FilterPillGroup
-        options={competencias.map((c) => ({ key: c.value, label: c.label }))}
+        options={[
+          { key: "all", label: "Todas" },
+          ...competencias.map((c) => ({ key: c.value, label: c.label })),
+        ]}
         value={selectedCompetencia}
         onChange={setSelectedCompetencia}
       />

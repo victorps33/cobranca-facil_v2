@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -139,6 +141,7 @@ const KEYFRAMES = `
 /* ── Page ── */
 
 export default function ReguasPage() {
+  const { activeFranqueadoraId } = useFranqueadora();
   const [reguas, setReguas] = useState<Regua[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -146,13 +149,24 @@ export default function ReguasPage() {
   const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
-    fetch("/api/dunning-rules")
+    setLoading(true);
+    fetch("/api/dunning-rules", { headers: getFranqueadoraHeaders() })
       .then((r) => r.json())
       .then((rules: ApiDunningRule[]) => {
-        setReguas(rules.map(mapApiToRegua));
+        // Deduplicate rules with same name and same step structure
+        const seen = new Map<string, ApiDunningRule>();
+        for (const rule of rules) {
+          const stepsKey = rule.steps
+            .map((s) => `${s.trigger}:${s.offsetDays}:${s.channel}`)
+            .sort()
+            .join("|");
+          const key = `${rule.name}::${stepsKey}`;
+          if (!seen.has(key)) seen.set(key, rule);
+        }
+        setReguas(Array.from(seen.values()).map(mapApiToRegua));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeFranqueadoraId]);
 
   const filteredReguas =
     activeFilter === "all"
@@ -172,7 +186,7 @@ export default function ReguasPage() {
     try {
       const res = await fetch(`/api/dunning-rules/${confirmToggle.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getFranqueadoraHeaders() },
         body: JSON.stringify({ active: !confirmToggle.active }),
       });
       if (res.ok) {

@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenant, requireRole } from "@/lib/auth-helpers";
+import { requireTenant, requireTenantOrGroup, requireRole } from "@/lib/auth-helpers";
+import { headers } from "next/headers";
 
 // GET /api/customers — Lista clientes com métricas computadas
 export async function GET() {
-  const { error, tenantId } = await requireTenant();
+  const headerList = headers();
+  const requestedId = headerList.get("x-franqueadora-id") || null;
+  const { tenantIds, error } = await requireTenantOrGroup(
+    requestedId === "all" ? null : requestedId
+  );
   if (error) return error;
 
   try {
     const customers = await prisma.customer.findMany({
-      where: { franqueadoraId: tenantId! },
+      where: { franqueadoraId: { in: tenantIds } },
       include: { charges: true },
       orderBy: { createdAt: "desc" },
     });
@@ -90,13 +95,6 @@ export async function POST(req: NextRequest) {
     // Validação de campos obrigatórios
     const errors: string[] = [];
     if (!body.name?.trim()) errors.push("Nome é obrigatório");
-    if (!body.doc?.trim()) errors.push("CPF/CNPJ é obrigatório");
-    if (!body.email?.trim()) {
-      errors.push("E-mail é obrigatório");
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
-      errors.push("E-mail inválido");
-    }
-    if (!body.phone?.trim()) errors.push("Telefone é obrigatório");
 
     if (errors.length > 0) {
       return NextResponse.json({ errors }, { status: 400 });
@@ -105,9 +103,9 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         name: body.name.trim(),
-        doc: body.doc.trim(),
-        email: body.email.trim(),
-        phone: body.phone.trim(),
+        doc: body.doc?.trim() || "",
+        email: body.email?.trim() || "",
+        phone: body.phone?.trim() || "",
         razaoSocial: body.razaoSocial?.trim() || null,
         cidade: body.cidade?.trim() || null,
         estado: body.estado?.trim() || null,

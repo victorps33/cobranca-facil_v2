@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -47,6 +48,7 @@ type SortDir = "asc" | "desc";
 
 export default function CobrancasPage() {
   const router = useRouter();
+  const { activeFranqueadoraId } = useFranqueadora();
   const [allCobrancas, setAllCobrancas] = useState<Cobranca[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCompetencia, setSelectedCompetencia] = useState<string>("all");
@@ -73,7 +75,7 @@ export default function CobrancasPage() {
         if (Array.isArray(data)) setAllCobrancas(data);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeFranqueadoraId]);
 
   useEffect(() => {
     fetchCharges();

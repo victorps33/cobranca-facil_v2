@@ -13,6 +13,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Upload, FileSpreadsheet, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import * as XLSX from "xlsx";
 
 interface ChargePreview {
   customerName: string;
@@ -61,6 +63,169 @@ export function ImportChargesDialog({ open, onOpenChange, onImportComplete }: Im
     onOpenChange(val);
   }, [onOpenChange]);
 
+  // ---------- Local fallback for charge parsing ----------
+
+  const excelSerialToDate = (serial: number): string => {
+    const utcDays = Math.floor(serial - 25569);
+    const d = new Date(utcDays * 86400 * 1000);
+    return d.toISOString().split("T")[0];
+  };
+
+  const parseChargesLocally = useCallback(
+    async (file: File): Promise<boolean> => {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+
+      if (rows.length === 0) return false;
+
+      // Detect columns by normalized header
+      const headers = Object.keys(rows[0]);
+      const norm = (s: string) =>
+        s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      let nameCol: string | null = null;
+      let franquiaCol: string | null = null;
+      let dateCol: string | null = null;
+      let valueCol: string | null = null;
+      let typeCol: string | null = null;
+
+      for (const h of headers) {
+        const n = norm(h);
+        if (n.includes("nome") && n.includes("franqueado")) nameCol = h;
+        else if (n === "franquia" || n === "unidade" || n === "filial") franquiaCol = h;
+        else if (n.includes("vencimento") || n.includes("data")) dateCol = h;
+        else if (n === "valor" || n.includes("amount") || n.includes("valor total")) valueCol = h;
+        else if (n === "tipo" || n === "categoria" || n === "descricao" || n === "description") typeCol = h;
+      }
+
+      if (!nameCol && !valueCol) return false;
+
+      // Fetch existing customers to match
+      const tenantHeaders = getFranqueadoraHeaders();
+      const custResponse = await fetch("/api/customers", { headers: tenantHeaders });
+      const customers: { id: string; nome: string }[] = custResponse.ok
+        ? await custResponse.json()
+        : [];
+
+      // Build name → customer mapping (fuzzy: lowercase + trim)
+      const customerMap = new Map<string, { id: string; nome: string }>();
+      for (const c of customers) {
+        customerMap.set(c.nome.toLowerCase().trim(), c);
+        const parts = c.nome.split(" – ");
+        if (parts.length > 1) {
+          customerMap.set(parts[parts.length - 1].toLowerCase().trim(), c);
+        }
+      }
+
+      // Collect unique customer names that need to be auto-created
+      const uniqueNames = new Set<string>();
+      for (const row of rows) {
+        const rawName = nameCol ? String(row[nameCol] ?? "").trim() : "";
+        const franquia = franquiaCol ? String(row[franquiaCol] ?? "").trim() : "";
+        const composedName = franquia && rawName ? `${franquia} – ${rawName}` : rawName;
+        if (!composedName) continue;
+        const key = composedName.toLowerCase().trim();
+        if (!customerMap.has(key)) uniqueNames.add(composedName);
+      }
+
+      // Auto-create missing customers
+      let autoCreated = 0;
+      for (const name of Array.from(uniqueNames)) {
+        try {
+          const res = await fetch("/api/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...tenantHeaders },
+            body: JSON.stringify({ name, doc: "", email: "", phone: "" }),
+          });
+          if (res.ok) {
+            const created = await res.json();
+            customerMap.set(name.toLowerCase().trim(), { id: created.id, nome: name });
+            autoCreated++;
+          }
+        } catch { /* skip */ }
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      const localWarnings: string[] = [];
+
+      if (autoCreated > 0) {
+        localWarnings.push(
+          `${autoCreated} franqueado${autoCreated !== 1 ? "s" : ""} criado${autoCreated !== 1 ? "s" : ""} automaticamente no cadastro.`
+        );
+      }
+
+      const parsedCharges: ChargePreview[] = [];
+
+      for (const row of rows) {
+        const rawName = nameCol ? String(row[nameCol] ?? "").trim() : "";
+        const franquia = franquiaCol ? String(row[franquiaCol] ?? "").trim() : "";
+        const composedName = franquia && rawName ? `${franquia} – ${rawName}` : rawName;
+
+        if (!composedName) continue;
+
+        // Match customer (now includes auto-created ones)
+        const matchKey = composedName.toLowerCase().trim();
+        const nameOnlyKey = rawName.toLowerCase().trim();
+        const matched = customerMap.get(matchKey) || customerMap.get(nameOnlyKey) || null;
+
+        // Parse date
+        let dueDate = today;
+        if (dateCol) {
+          const rawDate = row[dateCol];
+          if (typeof rawDate === "number" && rawDate > 10000) {
+            dueDate = excelSerialToDate(rawDate);
+          } else if (typeof rawDate === "string" && rawDate.includes("-")) {
+            dueDate = rawDate;
+          }
+        }
+
+        // Parse value (BRL → cents)
+        let amountCents = 0;
+        if (valueCol) {
+          const rawVal = row[valueCol];
+          const num = typeof rawVal === "number" ? rawVal : parseFloat(String(rawVal).replace(/[^\d.,]/g, "").replace(",", "."));
+          if (!isNaN(num)) {
+            amountCents = Math.round(num * 100);
+          }
+        }
+
+        const description = typeCol ? String(row[typeCol] ?? "").trim() : "Cobrança";
+        const isOverdue = dueDate < today;
+
+        parsedCharges.push({
+          customerName: composedName,
+          customerId: matched?.id ?? null,
+          description,
+          amountCents,
+          dueDate,
+          status: isOverdue ? "OVERDUE" : "PENDING",
+          paidAt: null,
+          categoria: typeCol ? String(row[typeCol] ?? "").trim() : null,
+          competencia: null,
+        });
+      }
+
+      if (parsedCharges.length === 0) return false;
+
+      const matched = parsedCharges.filter((c) => c.customerId).length;
+
+      setCharges(parsedCharges);
+      setWarnings(localWarnings);
+      setSummary(
+        `${parsedCharges.length} cobranças extraídas da planilha. ${matched} associadas a clientes.`
+      );
+      setTargetFranqueadoraId(
+        activeFranqueadoraId && activeFranqueadoraId !== "all" ? activeFranqueadoraId : null
+      );
+      return true;
+    },
+    [activeFranqueadoraId]
+  );
+
+  // ---------- File processing ----------
+
   const processFile = useCallback(async (file: File) => {
     // Check if a specific franqueadora is selected (not "all" for group users)
     if (isGroupUser && activeFranqueadoraId === "all") {
@@ -74,52 +239,82 @@ export function ImportChargesDialog({ open, onOpenChange, onImportComplete }: Im
 
     setState("parsing");
 
+    // Try AI first
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const headers: Record<string, string> = {};
+      // Convert XLSX to CSV for AI readability
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      if ([".xlsx", ".xls"].includes(ext)) {
+        try {
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const csvText = XLSX.utils.sheet_to_csv(ws);
+          if (csvText.trim()) {
+            const csvBlob = new Blob([csvText], { type: "text/csv" });
+            const csvFile = new File([csvBlob], file.name.replace(/\.\w+$/, ".csv"), { type: "text/csv" });
+            formData.set("file", csvFile);
+          }
+        } catch { /* send original */ }
+      }
+
+      const hdrs: Record<string, string> = {};
       if (activeFranqueadoraId && activeFranqueadoraId !== "all") {
-        headers["x-franqueadora-id"] = activeFranqueadoraId;
+        hdrs["x-franqueadora-id"] = activeFranqueadoraId;
       }
 
       const response = await fetch("/api/charges/upload", {
         method: "POST",
-        headers,
+        headers: hdrs,
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao processar arquivo");
-      }
+      if (!response.ok) throw new Error("AI unavailable");
 
       const data = await response.json();
 
-      if (!data.charges || data.charges.length === 0) {
+      if (data.charges && data.charges.length > 0) {
+        setCharges(data.charges);
+        setWarnings(data.warnings || []);
+        setSummary(data.summary || null);
+        setTargetFranqueadoraId(data.targetFranqueadoraId);
+        setState("preview");
+        return;
+      }
+    } catch {
+      // AI failed, try local fallback
+    }
+
+    // Local fallback
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    if ([".xlsx", ".xls", ".csv"].includes(ext)) {
+      try {
+        const success = await parseChargesLocally(file);
+        if (success) {
+          setState("preview");
+          return;
+        }
+      } catch (err) {
+        console.error("Local charge parsing failed:", err);
         toast({
-          title: "Nenhuma cobrança encontrada",
-          description: data.warnings?.[0] || "A IA não conseguiu extrair cobranças deste arquivo.",
+          title: "Erro no parser local",
+          description: err instanceof Error ? err.message : String(err),
           variant: "destructive",
         });
         setState("idle");
         return;
       }
-
-      setCharges(data.charges);
-      setWarnings(data.warnings || []);
-      setSummary(data.summary || null);
-      setTargetFranqueadoraId(data.targetFranqueadoraId);
-      setState("preview");
-    } catch (err) {
-      toast({
-        title: "Erro ao processar arquivo",
-        description: err instanceof Error ? err.message : "Tente novamente.",
-        variant: "destructive",
-      });
-      setState("idle");
     }
-  }, [activeFranqueadoraId, isGroupUser, toast]);
+
+    toast({
+      title: "Erro ao processar arquivo",
+      description: "Formato não suportado ou arquivo vazio.",
+      variant: "destructive",
+    });
+    setState("idle");
+  }, [activeFranqueadoraId, isGroupUser, toast, parseChargesLocally]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

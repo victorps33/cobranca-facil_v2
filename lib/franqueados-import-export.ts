@@ -6,9 +6,16 @@ import type { Franqueado } from "@/lib/types";
 // ---------------------------------------------------------------------------
 
 const headerMap: Record<string, keyof Franqueado> = {
-  // nome
+  // nome — direct cadastral headers
   nome: "nome",
   name: "nome",
+  franqueado: "nome",
+  "nome do franqueado": "nome",
+  "nome franqueado": "nome",
+  cliente: "nome",
+  "nome do cliente": "nome",
+  loja: "nome",
+  "nome da loja": "nome",
 
   // razaoSocial
   razaosocial: "razaoSocial",
@@ -77,6 +84,15 @@ const headerMap: Record<string, keyof Franqueado> = {
   pmr: "pmr",
 };
 
+// Headers that identify a "supplementary name" (e.g. franchise unit) to compose with nome
+const supplementaryNameHeaders = new Set([
+  "franquia",
+  "unidade",
+  "filial",
+  "loja",
+  "franquia/unidade",
+]);
+
 function normalizeHeader(raw: string): string {
   return raw
     .trim()
@@ -138,8 +154,17 @@ export function parseSpreadsheetFile(file: File): Promise<ParseResult> {
         const sampleKeys = Object.keys(jsonRows[0]);
         const fieldMapping: Record<string, keyof Franqueado> = {};
         const unmappedHeaders: string[] = [];
+        let supplementaryNameKey: string | null = null;
 
         for (const key of sampleKeys) {
+          const norm = normalizeHeader(key);
+
+          // Check if this is a supplementary name column (e.g. "Franquia")
+          if (supplementaryNameHeaders.has(norm)) {
+            supplementaryNameKey = key;
+            continue;
+          }
+
           const field = resolveField(key);
           if (field) {
             fieldMapping[key] = field;
@@ -185,6 +210,14 @@ export function parseSpreadsheetFile(file: File): Promise<ParseResult> {
             }
           }
 
+          // Compose nome with supplementary name (e.g. "Franquia 01 – Ana")
+          if (supplementaryNameKey && partial.nome) {
+            const suppVal = String(raw[supplementaryNameKey] ?? "").trim();
+            if (suppVal) {
+              partial.nome = `${suppVal} – ${partial.nome}`;
+            }
+          }
+
           // Validate required field: nome
           if (!partial.nome) {
             warnings.push(`Linha ${i + 2}: campo "nome" vazio, registro ignorado.`);
@@ -194,7 +227,24 @@ export function parseSpreadsheetFile(file: File): Promise<ParseResult> {
           rows.push(partial as Partial<Franqueado>);
         }
 
-        resolve({ rows, warnings });
+        // Deduplicate: if multiple rows have the same nome, keep only unique entries
+        // This handles charge-oriented spreadsheets where each row is a charge, not a customer
+        const uniqueMap = new Map<string, Partial<Franqueado>>();
+        for (const row of rows) {
+          const key = String(row.nome).toLowerCase().trim();
+          if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, row);
+          }
+        }
+
+        const uniqueRows = Array.from(uniqueMap.values());
+        if (uniqueRows.length < rows.length) {
+          warnings.push(
+            `Dados de cobranças detectados: ${rows.length} linhas consolidadas em ${uniqueRows.length} franqueado${uniqueRows.length !== 1 ? "s" : ""} único${uniqueRows.length !== 1 ? "s" : ""}.`
+          );
+        }
+
+        resolve({ rows: uniqueRows, warnings });
       } catch (err) {
         reject(err);
       }

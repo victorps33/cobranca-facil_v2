@@ -52,14 +52,26 @@ export async function POST(request: Request) {
       }
     }
 
-    const prompt = `Você é um assistente especializado em extrair dados estruturados de franqueados/lojas a partir de arquivos.
+    const prompt = `Você é um assistente especializado em extrair dados cadastrais de franqueados/lojas a partir de qualquer tipo de arquivo.
 
-O usuário enviou um arquivo chamado "${file.name}". Analise o conteúdo abaixo e extraia os dados de franqueados/lojas.
+O usuário enviou um arquivo chamado "${file.name}". Analise o conteúdo abaixo e extraia os dados ÚNICOS de franqueados/lojas.
 
 Conteúdo do arquivo:
 ---
 ${fileContent.substring(0, 40000)}
 ---
+
+IMPORTANTE — O arquivo pode ter diferentes formatos:
+1. **Dados cadastrais diretos** — cada linha é um franqueado com nome, CNPJ, email, etc.
+2. **Dados de cobranças/financeiro** — cada linha é uma cobrança/título. Neste caso, extraia os FRANQUEADOS ÚNICOS (deduplicados) a partir das colunas que identificam o franqueado (ex: "Nome do Franqueado", "Franquia", "Cliente", etc.).
+3. **Dados mistos** — combine informações de diferentes colunas para montar o cadastro.
+
+Quando o arquivo for orientado a cobranças:
+- Identifique colunas que representam o franqueado (nome, franquia, loja)
+- Deduplicar: se "Ana" aparece em 5 linhas de cobrança, ela deve gerar apenas 1 registro
+- Use a coluna de "Franquia" ou similar como parte do nome se disponível (ex: "Franquia 01 – Ana")
+- Ignore colunas de valor, vencimento, tipo de cobrança — esses são dados financeiros, não cadastrais
+- Se houver números seriais de data do Excel (ex: 46060), converta para YYYY-MM-DD (base: 1899-12-30)
 
 Extraia os dados e retorne EXCLUSIVAMENTE um JSON válido (sem markdown, sem blocos de código, sem texto adicional) no seguinte formato:
 
@@ -86,8 +98,9 @@ Extraia os dados e retorne EXCLUSIVAMENTE um JSON válido (sem markdown, sem blo
 Regras:
 - Use "" (string vazia) para campos não encontrados no arquivo
 - statusLoja deve ser "Aberta", "Fechada" ou "Vendida". Se não especificado, use "Aberta"
-- Se o arquivo não contém dados de franqueados/lojas, retorne franqueados vazio e explique em warnings
+- Se o arquivo não contém dados identificáveis de franqueados/lojas, retorne franqueados vazio e explique em warnings
 - O campo "nome" é obrigatório. Pule registros sem nome
+- DEDUPLICAR: cada franqueado deve aparecer apenas uma vez, mesmo que tenha múltiplas linhas no arquivo
 - Retorne APENAS o JSON, sem nenhum texto antes ou depois`;
 
     const message = await anthropic.messages.create({

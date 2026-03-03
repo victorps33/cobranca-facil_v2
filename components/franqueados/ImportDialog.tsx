@@ -18,8 +18,10 @@ import {
   type ParseResult,
 } from "@/lib/franqueados-import-export";
 import type { Franqueado } from "@/lib/types";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import * as XLSX from "xlsx";
 
-type DialogState = "idle" | "parsing" | "preview";
+type DialogState = "idle" | "parsing" | "preview" | "saving";
 
 interface ImportDialogProps {
   open: boolean;
@@ -101,24 +103,18 @@ export function ImportDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      // For text-based files, also read and send the content
       const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       const isSpreadsheet = SPREADSHEET_EXTENSIONS.includes(ext);
 
-      // If it's a spreadsheet, first try parsing client-side for the raw content
+      // If it's a spreadsheet, convert to CSV so the AI can read it (binary XLSX is unreadable)
       if (isSpreadsheet) {
         try {
-          const result = await parseSpreadsheetFile(file);
-          if (result.rows.length > 0) {
-            // Convert parsed rows to CSV text for the AI
-            const headers = Object.keys(result.rows[0]);
-            const csvLines = [
-              headers.join(","),
-              ...result.rows.map((row) =>
-                headers.map((h) => String((row as Record<string, unknown>)[h] ?? "")).join(",")
-              ),
-            ];
-            const csvBlob = new Blob([csvLines.join("\n")], { type: "text/csv" });
+          const data = await file.arrayBuffer();
+          const wb = XLSX.read(data);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const csvText = XLSX.utils.sheet_to_csv(ws);
+          if (csvText.trim()) {
+            const csvBlob = new Blob([csvText], { type: "text/csv" });
             const csvFile = new File([csvBlob], file.name.replace(/\.\w+$/, ".csv"), {
               type: "text/csv",
             });
@@ -129,73 +125,69 @@ export function ImportDialog({
         }
       }
 
-      try {
-        const response = await fetch("/api/cadastro/upload", {
-          method: "POST",
-          body: formData,
-        });
+      const response = await fetch("/api/cadastro/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Erro ao processar arquivo");
-        }
-
-        const data = await response.json();
-
-        if (!data.franqueados || data.franqueados.length === 0) {
-          toast({
-            title: "Nenhum registro encontrado",
-            description:
-              data.warnings?.[0] ||
-              "A IA não conseguiu extrair dados de franqueados deste arquivo.",
-            variant: "destructive",
-          });
-          return false;
-        }
-
-        // Convert AI response to Franqueado objects
-        const completedRows: Franqueado[] = data.franqueados
-          .filter((f: Record<string, string>) => f.nome)
-          .map((f: Record<string, string>) => ({
-            id: generateUUID(),
-            nome: f.nome || "",
-            razaoSocial: f.razaoSocial || "",
-            cnpj: f.cnpj || "",
-            email: f.email || "",
-            telefone: f.telefone || "",
-            cidade: f.cidade || "",
-            estado: f.estado || "",
-            bairro: f.bairro || "",
-            dataAbertura:
-              f.dataAbertura || new Date().toISOString().slice(0, 10),
-            responsavel: f.responsavel || "",
-            statusLoja:
-              (["Aberta", "Fechada", "Vendida"].includes(f.statusLoja)
-                ? f.statusLoja
-                : "Aberta") as Franqueado["statusLoja"],
-            valorEmitido: 0,
-            valorRecebido: 0,
-            valorAberto: 0,
-            inadimplencia: 0,
-            status: "Saudável" as const,
-            pmr: 0,
-          }));
-
-        const { unique, dupes } = deduplicateRows(completedRows);
-
-        setParseResult({
-          rows: data.franqueados.map((f: Record<string, string>) => ({
-            nome: f.nome,
-          })),
-          warnings: data.warnings || [],
-        });
-        setCompleted(unique);
-        setDuplicateCnpjs(dupes);
-        setAiSummary(data.summary || null);
-        return true;
-      } catch (err) {
-        throw err;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro do servidor (${response.status})`);
       }
+
+      const data = await response.json();
+
+      if (!data.franqueados || data.franqueados.length === 0) {
+        toast({
+          title: "Nenhum registro encontrado",
+          description:
+            data.warnings?.[0] ||
+            "A IA não conseguiu extrair dados de franqueados deste arquivo.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Convert AI response to Franqueado objects
+      const completedRows: Franqueado[] = data.franqueados
+        .filter((f: Record<string, string>) => f.nome)
+        .map((f: Record<string, string>) => ({
+          id: generateUUID(),
+          nome: f.nome || "",
+          razaoSocial: f.razaoSocial || "",
+          cnpj: f.cnpj || "",
+          email: f.email || "",
+          telefone: f.telefone || "",
+          cidade: f.cidade || "",
+          estado: f.estado || "",
+          bairro: f.bairro || "",
+          dataAbertura:
+            f.dataAbertura || new Date().toISOString().slice(0, 10),
+          responsavel: f.responsavel || "",
+          statusLoja:
+            (["Aberta", "Fechada", "Vendida"].includes(f.statusLoja)
+              ? f.statusLoja
+              : "Aberta") as Franqueado["statusLoja"],
+          valorEmitido: 0,
+          valorRecebido: 0,
+          valorAberto: 0,
+          inadimplencia: 0,
+          status: "Saudável" as const,
+          pmr: 0,
+        }));
+
+      const { unique, dupes } = deduplicateRows(completedRows);
+
+      setParseResult({
+        rows: data.franqueados.map((f: Record<string, string>) => ({
+          nome: f.nome,
+        })),
+        warnings: data.warnings || [],
+      });
+      setCompleted(unique);
+      setDuplicateCnpjs(dupes);
+      setAiSummary(data.summary || null);
+      return true;
     },
     [toast, deduplicateRows]
   );
@@ -210,7 +202,7 @@ export function ImportDialog({
         toast({
           title: "Nenhum registro encontrado",
           description:
-            "A planilha não contém registros válidos. Verifique se os cabeçalhos estão corretos.",
+            "A planilha não contém dados reconhecíveis de franqueados.",
           variant: "destructive",
         });
         return false;
@@ -234,39 +226,38 @@ export function ImportDialog({
     async (file: File) => {
       setState("parsing");
 
+      // Try AI processing first
       try {
-        // Try AI processing first
         const success = await processWithAI(file);
         if (success) {
           setState("preview");
-        } else {
-          setState("idle");
+          return;
         }
-      } catch {
-        // Fallback to local parsing for spreadsheets
-        const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-        if (SPREADSHEET_EXTENSIONS.includes(ext)) {
-          try {
-            const success = await processLocally(file);
-            setState(success ? "preview" : "idle");
-          } catch {
-            toast({
-              title: "Erro ao processar arquivo",
-              description:
-                "Não foi possível ler o arquivo. Verifique se está correto.",
-              variant: "destructive",
-            });
-            setState("idle");
-          }
-        } else {
+      } catch (err) {
+        console.warn("IA indisponível, usando parser local:", err);
+      }
+
+      // Fallback: local parsing (handles non-standard headers + charge-oriented data)
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      if (SPREADSHEET_EXTENSIONS.includes(ext)) {
+        try {
+          const success = await processLocally(file);
+          setState(success ? "preview" : "idle");
+        } catch {
           toast({
             title: "Erro ao processar arquivo",
-            description:
-              "Não foi possível processar este arquivo. Verifique se a API de IA está configurada.",
+            description: "Não foi possível ler o arquivo.",
             variant: "destructive",
           });
           setState("idle");
         }
+      } else {
+        toast({
+          title: "Erro ao processar arquivo",
+          description: "A IA está indisponível e este formato requer processamento por IA.",
+          variant: "destructive",
+        });
+        setState("idle");
       }
     },
     [processWithAI, processLocally, toast]
@@ -294,12 +285,62 @@ export function ImportDialog({
     [processFile]
   );
 
-  const handleConfirmImport = useCallback(() => {
-    onImport(completed);
-    toast({
-      title: "Importação concluída",
-      description: `${completed.length} franqueado${completed.length !== 1 ? "s" : ""} importado${completed.length !== 1 ? "s" : ""} com sucesso.`,
-    });
+  const handleConfirmImport = useCallback(async () => {
+    setState("saving");
+
+    const tenantHeaders = getFranqueadoraHeaders();
+    const saved: Franqueado[] = [];
+    const errors: string[] = [];
+
+    for (const row of completed) {
+      try {
+        const res = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...tenantHeaders },
+          body: JSON.stringify({
+            name: row.nome,
+            doc: row.cnpj || "",
+            email: row.email || `${row.nome.toLowerCase().replace(/[^a-z0-9]/g, "")}@importado.local`,
+            phone: row.telefone || "",
+            razaoSocial: row.razaoSocial || "",
+            cidade: row.cidade || "",
+            estado: row.estado || "",
+            bairro: row.bairro || "",
+            responsavel: row.responsavel || "",
+            statusLoja: row.statusLoja || "Aberta",
+            dataAbertura: row.dataAbertura || null,
+          }),
+        });
+
+        if (res.ok) {
+          const customer = await res.json();
+          saved.push({ ...row, id: customer.id });
+        } else {
+          const err = await res.json().catch(() => ({}));
+          errors.push(`${row.nome}: ${err.errors?.join(", ") || err.error || "erro"}`);
+        }
+      } catch {
+        errors.push(`${row.nome}: falha na conexão`);
+      }
+    }
+
+    if (saved.length > 0) {
+      onImport(saved);
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: `${saved.length} importado${saved.length !== 1 ? "s" : ""}, ${errors.length} com erro`,
+        description: errors.slice(0, 3).join("; "),
+        variant: errors.length > 0 && saved.length === 0 ? "destructive" : "default",
+      });
+    } else {
+      toast({
+        title: "Importação concluída",
+        description: `${saved.length} franqueado${saved.length !== 1 ? "s" : ""} importado${saved.length !== 1 ? "s" : ""} com sucesso.`,
+      });
+    }
+
     handleOpenChange(false);
   }, [completed, onImport, toast, handleOpenChange]);
 
@@ -363,12 +404,16 @@ export function ImportDialog({
           </div>
         )}
 
-        {/* PARSING — Spinner */}
-        {state === "parsing" && (
+        {/* PARSING / SAVING — Spinner */}
+        {(state === "parsing" || state === "saving") && (
           <div className="flex flex-col items-center justify-center gap-3 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-gray-500">Processando arquivo com IA...</p>
-            <p className="text-xs text-gray-400">Interpretando e extraindo dados</p>
+            <p className="text-sm text-gray-500">
+              {state === "saving" ? "Salvando franqueados..." : "Processando arquivo..."}
+            </p>
+            <p className="text-xs text-gray-400">
+              {state === "saving" ? "Gravando no banco de dados" : "Interpretando e extraindo dados"}
+            </p>
           </div>
         )}
 

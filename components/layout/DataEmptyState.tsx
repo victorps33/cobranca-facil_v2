@@ -10,6 +10,7 @@ interface DataEmptyStateProps {
   actionHref?: string;
   secondaryActionLabel?: string;
   secondaryActionHref?: string;
+  secondaryActionOnClick?: () => void;
   icon?: React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function DataEmptyState({
   actionHref,
   secondaryActionLabel,
   secondaryActionHref,
+  secondaryActionOnClick,
   icon,
 }: DataEmptyStateProps) {
   return (
@@ -39,14 +41,21 @@ export function DataEmptyState({
               {actionLabel}
             </Link>
           )}
-          {secondaryActionLabel && secondaryActionHref && (
+          {secondaryActionLabel && secondaryActionOnClick ? (
+            <button
+              onClick={secondaryActionOnClick}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              {secondaryActionLabel}
+            </button>
+          ) : secondaryActionLabel && secondaryActionHref ? (
             <Link
               href={secondaryActionHref}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
             >
               {secondaryActionLabel}
             </Link>
-          )}
+          ) : null}
         </div>
       )}
     </div>

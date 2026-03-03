@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenant } from "@/lib/auth-helpers";
+import { requireTenantOrGroup } from "@/lib/auth-helpers";
+import { headers } from "next/headers";
 
 export async function GET() {
-  const { session, error } = await requireTenant();
+  const headerList = headers();
+  const requestedId = headerList.get("x-franqueadora-id") || null;
+  const { tenantIds, error } = await requireTenantOrGroup(
+    requestedId === "all" ? null : requestedId
+  );
   if (error) return error;
 
-  const franqueadoraId = session!.user.franqueadoraId as string;
-
   try {
-    // Fetch all charges for this tenant with customer info
+    // Fetch all charges for this tenant (or group) with customer info
     const charges = await prisma.charge.findMany({
-      where: { customer: { franqueadoraId } },
+      where: { customer: { franqueadoraId: { in: tenantIds } } },
       include: { customer: { select: { name: true, id: true } } },
       orderBy: { createdAt: "desc" },
     });

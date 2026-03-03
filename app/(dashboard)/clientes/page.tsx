@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -53,6 +54,7 @@ const tabs: { label: string; value: StatusFilter }[] = [
 ];
 
 export default function ClientesPage() {
+  const { activeFranqueadoraId } = useFranqueadora();
   const [franqueados, setFranqueados] = useState<Franqueado[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Todos");
@@ -63,13 +65,14 @@ export default function ClientesPage() {
   const pageSize = 15;
 
   useEffect(() => {
+    setLoading(true);
     fetch("/api/customers", { headers: getFranqueadoraHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setFranqueados(data);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeFranqueadoraId]);
 
   const counts = useMemo(() => {
     return {
@@ -190,7 +193,7 @@ export default function ClientesPage() {
           actionLabel="Novo Franqueado"
           actionHref="/clientes/novo"
           secondaryActionLabel="Importar"
-          secondaryActionHref="#"
+          secondaryActionOnClick={() => setImportOpen(true)}
           icon={<Users className="h-6 w-6 text-gray-400" />}
         />
       ) : (

@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenant, requireRole } from "@/lib/auth-helpers";
+import { requireTenant, requireTenantOrGroup, requireRole } from "@/lib/auth-helpers";
+import { headers } from "next/headers";
 
 // GET /api/charges — Lista cobranças enriquecidas
 export async function GET() {
-  const { error, tenantId } = await requireTenant();
+  const headerList = headers();
+  const requestedId = headerList.get("x-franqueadora-id") || null;
+  const { tenantIds, error } = await requireTenantOrGroup(
+    requestedId === "all" ? null : requestedId
+  );
   if (error) return error;
 
   try {
     const charges = await prisma.charge.findMany({
-      where: { customer: { franqueadoraId: tenantId! } },
+      where: { customer: { franqueadoraId: { in: tenantIds } } },
       include: { customer: true, boleto: true },
       orderBy: { dueDate: "desc" },
     });

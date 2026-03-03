@@ -76,21 +76,24 @@ const promptPresets = [
   { id: "efetividade", label: "Efetividade da cobrança", question: "Qual a efetividade das minhas cobranças? Analise o PMR médio por perfil de risco.", icon: Shield, color: "text-blue-500", bgColor: "bg-blue-50" },
 ];
 
-const juliaAlerts = [
-  { id: "alert-1", type: "critical" as const, icon: AlertTriangle, title: "Campo Belo: PMR subiu 87%", description: "De 8 para 15 dias — saiu de Saudável para Exige Atenção", question: "Detalhe a situação de Campo Belo. O que causou a piora?" },
-  { id: "alert-2", type: "warning" as const, icon: Clock, title: "R$ 42k vencem esta semana", description: "3 cobranças com vencimento nos próximos 7 dias", question: "Quais cobranças vencem esta semana? Liste por ordem de vencimento." },
-  { id: "alert-3", type: "success" as const, icon: CheckCircle2, title: "Curitiba regularizou R$ 9,2k", description: "2 cobranças pagas, status voltou para Controlado", question: "O que mudou com a franquia Curitiba? Detalhe a regularização." },
-];
+interface JuliaAlert {
+  id: string;
+  type: "critical" | "warning" | "success";
+  title: string;
+  description: string;
+  question: string;
+}
+
+const alertIconMap = {
+  critical: AlertTriangle,
+  warning: Clock,
+  success: CheckCircle2,
+};
 
 // ── Chart Configs ──
 
-const chartConfigs: Record<string, { title: string; type: "bar" | "pie" | "line" | "area"; data: any[]; colors?: string[]; keys?: string[] }> = {
-  inadimplencia_regiao: { title: "Inadimplência por Região", type: "bar", data: [{ name: "SP", "Inadimplência (%)": 6.2 }, { name: "PE", "Inadimplência (%)": 22.5 }, { name: "CE", "Inadimplência (%)": 15.8 }, { name: "BA", "Inadimplência (%)": 18.1 }, { name: "PR", "Inadimplência (%)": 8.1 }], colors: ["#ef4444"], keys: ["Inadimplência (%)"] },
-  pmr_perfil: { title: "PMR por Perfil de Risco", type: "bar", data: [{ name: "Saudável", "PMR (dias)": 12 }, { name: "Controlado", "PMR (dias)": 22 }, { name: "Exige Atenção", "PMR (dias)": 35 }, { name: "Crítico", "PMR (dias)": 48 }], colors: ["#f59e0b"], keys: ["PMR (dias)"] },
-  status_franqueados: { title: "Distribuição por Status", type: "pie", data: [{ name: "Saudável", value: 5, fill: "#22c55e" }, { name: "Controlado", value: 3, fill: "#f59e0b" }, { name: "Exige Atenção", value: 2, fill: "#ef4444" }, { name: "Crítico", value: 2, fill: "#991b1b" }] },
-  tendencia_recebimento: { title: "Tendência — Taxa de Recebimento", type: "line", data: [{ name: "Set", "Taxa (%)": 82 }, { name: "Out", "Taxa (%)": 78 }, { name: "Nov", "Taxa (%)": 74 }, { name: "Dez", "Taxa (%)": 71 }, { name: "Jan", "Taxa (%)": 68 }, { name: "Fev", "Taxa (%)": 65 }], colors: ["#8b5cf6"], keys: ["Taxa (%)"] },
-  previsao_recebimento: { title: "Cenários de Recebimento (30 dias)", type: "area", data: [{ name: "Sem 1", "Base": 22000, "Pessimista": 14000 }, { name: "Sem 2", "Base": 45000, "Pessimista": 28000 }, { name: "Sem 3", "Base": 67000, "Pessimista": 40000 }, { name: "Sem 4", "Base": 89000, "Pessimista": 54000 }], colors: ["#8b5cf6", "#e879f9"], keys: ["Base", "Pessimista"] },
-};
+// Chart configs are populated dynamically from real data when available
+const chartConfigs: Record<string, { title: string; type: "bar" | "pie" | "line" | "area"; data: any[]; colors?: string[]; keys?: string[] }> = {};
 
 function detectChart(text: string): string | null {
   const lower = text.toLowerCase();
@@ -201,17 +204,17 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [activeChart, setActiveChart] = useState<string | null>(null);
-  const [detailLevel, setDetailLevel] = useState<"resumido" | "detalhado">("resumido");
   const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
   const [lastSentText, setLastSentText] = useState<string>("");
+  const [juliaAlerts, setJuliaAlerts] = useState<JuliaAlert[]>([]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize greeting
+  // Initialize greeting + fetch real alerts
   useEffect(() => {
     const greeting = getGreeting();
     setMessages([{
@@ -221,6 +224,19 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
       timestamp: new Date(),
     }]);
     setConversations(loadConversations());
+
+    // Fetch real alerts from the database
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("active_franqueadora_id") : null;
+    const alertHeaders: Record<string, string> = {};
+    if (tenantId) alertHeaders["x-franqueadora-id"] = tenantId;
+    fetch("/api/julia/alerts", { headers: alertHeaders })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.alerts && Array.isArray(data.alerts)) {
+          setJuliaAlerts(data.alerts);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Auto-scroll on new messages
@@ -267,10 +283,14 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
     abortRef.current = abortController;
 
     try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("active_franqueadora_id") : null;
+      const chatHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (tenantId) chatHeaders["x-franqueadora-id"] = tenantId;
+
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyMessages, stream: true, pageContext: "insights", detailLevel }),
+        headers: chatHeaders,
+        body: JSON.stringify({ messages: historyMessages, stream: true, pageContext: "insights" }),
         signal: abortController.signal,
       });
 
@@ -331,7 +351,7 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
       setLoading(false);
       abortRef.current = null;
     }
-  }, [loading, messages, detailLevel]);
+  }, [loading, messages]);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
 
@@ -504,13 +524,14 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
               {isInitialState && !loading && (
                 <div className="pt-2">
                   {/* Alerts */}
+                  {juliaAlerts.length > 0 && (
                   <div className="space-y-2 mb-4">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
                       <Zap className="h-2.5 w-2.5" />
                       Alertas
                     </p>
                     {juliaAlerts.map((alert) => {
-                      const Icon = alert.icon;
+                      const Icon = alertIconMap[alert.type] || AlertTriangle;
                       return (
                         <div key={alert.id} className={cn("p-2.5 rounded-xl border transition-all cursor-pointer group",
                           alert.type === "critical" && "border-red-200 bg-red-50/50 hover:bg-red-50",
@@ -533,6 +554,7 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
                       );
                     })}
                   </div>
+                  )}
 
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2 pl-1">Perguntas rápidas</p>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -554,19 +576,17 @@ export function JuliaPanel({ open, onClose }: JuliaPanelProps) {
 
             {/* Input area */}
             <div className="border-t border-gray-100 shrink-0">
-              <div className="px-4 pt-2 flex items-center justify-between">
-                <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
-                  <button onClick={() => setDetailLevel("resumido")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "resumido" ? "bg-white text-gray-900 shadow-soft" : "text-gray-500 hover:text-gray-700")}>Resumido</button>
-                  <button onClick={() => setDetailLevel("detalhado")} className={cn("px-2 py-1 text-[10px] font-medium rounded-md transition-all", detailLevel === "detalhado" ? "bg-white text-gray-900 shadow-soft" : "text-gray-500 hover:text-gray-700")}>Detalhado</button>
+              {!isInitialState && (
+                <div className="px-4 pt-2 flex items-center gap-1 overflow-x-auto">
+                  <button onClick={clearChat} disabled={loading} className="whitespace-nowrap px-2.5 py-1 text-[10px] font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors border border-gray-100 flex-shrink-0 disabled:opacity-50 flex items-center gap-1">
+                    <ListRestart className="h-3 w-3" />
+                    Voltar ao início
+                  </button>
+                  {promptPresets.slice(0, 2).map((p) => (
+                    <button key={p.id} onClick={() => sendMessage(p.question)} disabled={loading} className="whitespace-nowrap px-2 py-1 text-[10px] font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors border border-gray-100 flex-shrink-0 disabled:opacity-50">{p.label}</button>
+                  ))}
                 </div>
-                {!isInitialState && (
-                  <div className="flex gap-1 overflow-x-auto">
-                    {promptPresets.slice(0, 2).map((p) => (
-                      <button key={p.id} onClick={() => sendMessage(p.question)} disabled={loading} className="whitespace-nowrap px-2 py-1 text-[10px] font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors border border-gray-100 flex-shrink-0 disabled:opacity-50">{p.label}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
               <form onSubmit={handleSubmit} className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <input
