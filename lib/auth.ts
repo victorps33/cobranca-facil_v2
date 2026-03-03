@@ -52,6 +52,7 @@ providers.push(
         image: user.image,
         role: user.role,
         franqueadoraId: user.franqueadoraId,
+        grupoFranqueadoraId: user.grupoFranqueadoraId,
         onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
       };
     },
@@ -112,6 +113,7 @@ export const authOptions: NextAuthOptions = {
         user.id = dbUser.id;
         user.role = dbUser.role;
         user.franqueadoraId = dbUser.franqueadoraId;
+        user.grupoFranqueadoraId = dbUser.grupoFranqueadoraId;
         user.onboardingCompletedAt = dbUser.onboardingCompletedAt?.toISOString() ?? null;
       }
 
@@ -123,6 +125,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.franqueadoraId = user.franqueadoraId;
+        token.grupoFranqueadoraId = user.grupoFranqueadoraId;
         token.onboardingCompletedAt = user.onboardingCompletedAt;
       }
 
@@ -130,10 +133,13 @@ export const authOptions: NextAuthOptions = {
       if (!token.franqueadoraId && token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { franqueadoraId: true, onboardingCompletedAt: true },
+          select: { franqueadoraId: true, grupoFranqueadoraId: true, onboardingCompletedAt: true },
         });
         if (dbUser?.franqueadoraId) {
           token.franqueadoraId = dbUser.franqueadoraId;
+        }
+        if (dbUser?.grupoFranqueadoraId) {
+          token.grupoFranqueadoraId = dbUser.grupoFranqueadoraId;
         }
         if (dbUser?.onboardingCompletedAt) {
           token.onboardingCompletedAt = dbUser.onboardingCompletedAt.toISOString();
@@ -158,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.franqueadoraId = token.franqueadoraId;
+        session.user.grupoFranqueadoraId = token.grupoFranqueadoraId;
         session.user.onboardingCompletedAt = token.onboardingCompletedAt;
       }
       return session;
