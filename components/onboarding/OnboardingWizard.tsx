@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -14,13 +14,18 @@ import { cn } from "@/lib/cn";
 import {
   Rocket,
   Users,
+  Receipt,
   Bell,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
+  Upload,
   Mail,
   MessageSquare,
 } from "lucide-react";
+import { ImportDialog } from "@/components/franqueados/ImportDialog";
+import { ImportChargesDialog } from "@/components/cobrancas/ImportChargesDialog";
+import type { Franqueado } from "@/lib/types";
 
 interface OnboardingWizardProps {
   open: boolean;
@@ -30,9 +35,10 @@ interface OnboardingWizardProps {
 
 const STEPS = [
   { id: 1, name: "Bem-vindo" },
-  { id: 2, name: "Clientes" },
-  { id: 3, name: "Régua" },
-  { id: 4, name: "Pronto!" },
+  { id: 2, name: "Cadastro" },
+  { id: 3, name: "Cobranças" },
+  { id: 4, name: "Régua" },
+  { id: 5, name: "Pronto!" },
 ];
 
 const TIMELINE_STEPS = [
@@ -45,6 +51,10 @@ const TIMELINE_STEPS = [
 export function OnboardingWizard({ open, onComplete, empresaNome }: OnboardingWizardProps) {
   const [step, setStep] = useState(1);
   const [completing, setCompleting] = useState(false);
+  const [clientImportOpen, setClientImportOpen] = useState(false);
+  const [chargesImportOpen, setChargesImportOpen] = useState(false);
+  const [importedClients, setImportedClients] = useState(0);
+  const [importedCharges, setImportedCharges] = useState(0);
   const router = useRouter();
 
   async function handleComplete() {
@@ -68,68 +78,101 @@ export function OnboardingWizard({ open, onComplete, empresaNome }: OnboardingWi
     }
   }
 
+  const handleClientImport = useCallback((rows: Franqueado[]) => {
+    setImportedClients((prev) => prev + rows.length);
+  }, []);
+
+  const handleChargesImportComplete = useCallback(() => {
+    setImportedCharges((prev) => prev + 1);
+  }, []);
+
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleComplete(); }}>
-      <DialogContent className="sm:max-w-[540px] p-0 gap-0 overflow-hidden">
-        {/* Stepper header */}
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-          <Stepper steps={STEPS} currentStep={step} />
-        </div>
+    <>
+      <Dialog open={open && !clientImportOpen && !chargesImportOpen} onOpenChange={(isOpen) => { if (!isOpen) handleComplete(); }}>
+        <DialogContent className="sm:max-w-[540px] p-0 gap-0 overflow-hidden">
+          {/* Stepper header */}
+          <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+            <Stepper steps={STEPS} currentStep={step} />
+          </div>
 
-        {/* Content area */}
-        <div className="px-6 py-6 min-h-[280px] flex flex-col">
-          {step === 1 && (
-            <StepWelcome empresaNome={empresaNome} />
-          )}
-          {step === 2 && <StepClients />}
-          {step === 3 && <StepRegua />}
-          {step === 4 && <StepReady />}
-        </div>
+          {/* Content area */}
+          <div className="px-6 py-6 min-h-[280px] flex flex-col">
+            {step === 1 && <StepWelcome empresaNome={empresaNome} />}
+            {step === 2 && (
+              <StepClients
+                onOpenImport={() => setClientImportOpen(true)}
+                importedCount={importedClients}
+              />
+            )}
+            {step === 3 && (
+              <StepCharges
+                onOpenImport={() => setChargesImportOpen(true)}
+                importedCount={importedCharges}
+              />
+            )}
+            {step === 4 && <StepRegua />}
+            {step === 5 && <StepReady />}
+          </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep(step - 1)}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {step < 4 ? (
-            <button
-              onClick={() => setStep(step + 1)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Continuar
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+            {step > 1 ? (
               <button
-                onClick={() => handleCompleteAndNavigate("/clientes/novo")}
-                disabled={completing}
-                className="px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                onClick={() => setStep(step - 1)}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
-                Cadastrar cliente
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
               </button>
+            ) : (
+              <div />
+            )}
+
+            {step < 5 ? (
               <button
-                onClick={handleComplete}
-                disabled={completing}
+                onClick={() => setStep(step + 1)}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
               >
-                Ir para o Dashboard
+                Continuar
                 <ArrowRight className="h-4 w-4" />
               </button>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleCompleteAndNavigate("/clientes")}
+                  disabled={completing}
+                  className="px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                >
+                  Ver cadastro
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={completing}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Ir para o Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import dialogs rendered outside the onboarding dialog */}
+      <ImportDialog
+        open={clientImportOpen}
+        onOpenChange={setClientImportOpen}
+        existingFranqueados={[]}
+        onImport={handleClientImport}
+      />
+
+      <ImportChargesDialog
+        open={chargesImportOpen}
+        onOpenChange={setChargesImportOpen}
+        onImportComplete={handleChargesImportComplete}
+      />
+    </>
   );
 }
 
@@ -154,7 +197,7 @@ function StepWelcome({ empresaNome }: { empresaNome?: string }) {
   );
 }
 
-function StepClients() {
+function StepClients({ onOpenImport, importedCount }: { onOpenImport: () => void; importedCount: number }) {
   const router = useRouter();
   return (
     <div className="flex flex-col flex-1">
@@ -170,6 +213,20 @@ function StepClients() {
 
       <div className="space-y-3 mt-2">
         <button
+          onClick={onOpenImport}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10 transition-all text-left group"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors">
+            <Upload className="h-4 w-4 text-primary transition-colors" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900">Importar planilha</p>
+            <p className="text-xs text-gray-500">Importe vários clientes de uma vez (.xlsx, .csv)</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-primary/40 group-hover:text-primary transition-colors" />
+        </button>
+
+        <button
           onClick={() => router.push("/clientes/novo")}
           className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-primary/30 hover:bg-primary/5 transition-all text-left group"
         >
@@ -182,24 +239,75 @@ function StepClients() {
           </div>
           <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-primary transition-colors" />
         </button>
+      </div>
+
+      {importedCount > 0 && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600">
+          <CheckCircle2 className="h-4 w-4" />
+          {importedCount} cliente{importedCount !== 1 ? "s" : ""} importado{importedCount !== 1 ? "s" : ""}
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 mt-auto pt-4">
+        Você pode pular esta etapa e cadastrar clientes depois.
+      </p>
+    </div>
+  );
+}
+
+function StepCharges({ onOpenImport, importedCount }: { onOpenImport: () => void; importedCount: number }) {
+  const router = useRouter();
+  return (
+    <div className="flex flex-col flex-1">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100">
+          <Receipt className="h-5 w-5 text-orange-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Importe suas cobranças</h3>
+          <p className="text-sm text-gray-500">Suba os dados financeiros dos seus franqueados</p>
+        </div>
+      </div>
+
+      <div className="space-y-3 mt-2">
+        <button
+          onClick={onOpenImport}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10 transition-all text-left group"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors">
+            <Upload className="h-4 w-4 text-primary transition-colors" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900">Importar cobranças</p>
+            <p className="text-xs text-gray-500">Importe de uma planilha (.xlsx, .csv)</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-primary/40 group-hover:text-primary transition-colors" />
+        </button>
 
         <button
-          onClick={() => router.push("/clientes/novo")}
+          onClick={() => router.push("/cobrancas/nova")}
           className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-primary/30 hover:bg-primary/5 transition-all text-left group"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-primary/10 transition-colors">
-            <Users className="h-4 w-4 text-gray-600 group-hover:text-primary transition-colors" />
+            <Receipt className="h-4 w-4 text-gray-600 group-hover:text-primary transition-colors" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">Importar planilha</p>
-            <p className="text-xs text-gray-500">Importe v&aacute;rios clientes de uma vez</p>
+            <p className="text-sm font-medium text-gray-900">Criar manualmente</p>
+            <p className="text-xs text-gray-500">Crie cobranças uma a uma</p>
           </div>
           <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-primary transition-colors" />
         </button>
       </div>
 
+      {importedCount > 0 && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600">
+          <CheckCircle2 className="h-4 w-4" />
+          Cobranças importadas com sucesso
+        </div>
+      )}
+
       <p className="text-xs text-gray-400 mt-auto pt-4">
-        Voc&ecirc; pode pular esta etapa e cadastrar clientes depois.
+        Você pode pular esta etapa e criar cobranças depois.
       </p>
     </div>
   );
@@ -213,8 +321,8 @@ function StepRegua() {
           <Bell className="h-5 w-5 text-emerald-600" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-gray-900">R&eacute;gua Padr&atilde;o criada</h3>
-          <p className="text-sm text-gray-500">J&aacute; configuramos uma r&eacute;gua autom&aacute;tica para voc&ecirc;</p>
+          <h3 className="text-base font-semibold text-gray-900">Régua Padrão criada</h3>
+          <p className="text-sm text-gray-500">Já configuramos uma régua automática para você</p>
         </div>
       </div>
 
@@ -247,8 +355,8 @@ function StepRegua() {
       </div>
 
       <p className="text-xs text-gray-400 mt-auto pt-3">
-        Voc&ecirc; pode personalizar esta r&eacute;gua a qualquer momento em{" "}
-        <span className="font-medium text-gray-500">R&eacute;guas de Cobran&ccedil;a</span>.
+        Você pode personalizar esta régua a qualquer momento em{" "}
+        <span className="font-medium text-gray-500">Réguas de Cobrança</span>.
       </p>
     </div>
   );
@@ -262,8 +370,8 @@ function StepReady() {
       </div>
       <h3 className="text-xl font-semibold text-gray-900">Tudo pronto!</h3>
       <p className="text-sm text-gray-500 mt-2 max-w-sm">
-        Sua conta est&aacute; configurada. Agora voc&ecirc; pode cadastrar clientes,
-        criar cobran&ccedil;as e acompanhar tudo pelo dashboard.
+        Sua conta está configurada. Agora você pode acompanhar tudo pelo
+        dashboard e perguntar o que quiser para a Júlia.
       </p>
     </div>
   );
