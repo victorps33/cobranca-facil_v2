@@ -30,6 +30,8 @@ model User {
   role            UserRole  @default(VISUALIZADOR)
   franqueadoraId  String?
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
+  grupoFranqueadoraId  String?
+  grupoFranqueadora    GrupoFranqueadora? @relation(fields: [grupoFranqueadoraId], references: [id])
   accounts        Account[]
   sessions        Session[]
   interactionsCreated InteractionLog[]
@@ -42,6 +44,7 @@ model User {
   checklistDismissedAt  DateTime?
 
   @@index([franqueadoraId])
+  @@index([grupoFranqueadoraId])
 }
 
 model Account {
@@ -232,10 +235,21 @@ model AppState {
   simulatedNow DateTime?
 }
 
+model GrupoFranqueadora {
+  id              String          @id @default(cuid())
+  nome            String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  franqueadoras   Franqueadora[]
+  users           User[]
+}
+
 model Franqueadora {
   id                 String        @id @default(cuid())
   nome               String
   razaoSocial        String
+  grupoId            String?
+  grupo              GrupoFranqueadora? @relation(fields: [grupoId], references: [id])
   cnpj               String?
   email              String        @unique
   emailSecundario    String?
@@ -253,6 +267,8 @@ model Franqueadora {
   conversations      Conversation[]
   agentConfig        AgentConfig?
   contatos           ContatoFranqueadora[]
+
+  @@index([grupoId])
 }
 
 model ContatoFranqueadora {
@@ -300,6 +316,8 @@ enum AgentAction {
   SKIP
   MARK_PROMISE
   UPDATE_STATUS
+  SEND_BOLETO
+  SCHEDULE_CALLBACK
 }
 
 enum EscalationReason {
@@ -509,6 +527,12 @@ model AgentConfig {
   systemPromptOverride String?      @db.Text
   whatsappFrom         String?      @unique
   smsFrom              String?      @unique
+  maxInstallments        Int     @default(6)
+  monthlyInterestRate    Float   @default(0.02)
+  maxCashDiscount        Float   @default(0.10)
+  minInstallmentCents    Int     @default(5000)
+  maxFirstInstallmentDays Int    @default(30)
+  negotiationRules       Json?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 }
