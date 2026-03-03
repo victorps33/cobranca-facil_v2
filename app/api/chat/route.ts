@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-import { requireTenant } from "@/lib/auth-helpers";
+import { requireTenantOrGroup } from "@/lib/auth-helpers";
 import { createHash } from "crypto";
 
 // ── Anthropic client ──
@@ -146,22 +146,30 @@ Tipos de export disponíveis:
 
 Use ações que façam sentido para os insights apresentados. Sempre inclua pelo menos 2 ações.`;
 
+const MULTI_SUBSIDIARY_INSTRUCTION = `
+
+Quando os dados contêm múltiplas subsidiárias:
+- Identifique cada subsidiária pelo nome
+- Permita comparações diretas entre elas (ex: inadimplência, PMR, recebimentos)
+- Na visão consolidada, apresente totais gerais E quebra por subsidiária
+- Se perguntarem sobre uma subsidiária específica, foque nela`;
+
 // ── Build data context from real Prisma data ──
 
-async function buildDataContext(franqueadoraId: string): Promise<string> {
+async function buildDataContext(tenantIds: string[]): Promise<string> {
   const fmtBRL = (cents: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
   // Fetch customers with charges
   const customers = await prisma.customer.findMany({
-    where: { franqueadoraId },
-    include: { charges: true },
+    where: { franqueadoraId: { in: tenantIds } },
+    include: { charges: true, franqueadora: { select: { id: true, nome: true } } },
   });
 
   // Fetch all charges
   const charges = await prisma.charge.findMany({
-    where: { customer: { franqueadoraId } },
-    include: { customer: true },
+    where: { customer: { franqueadoraId: { in: tenantIds } } },
+    include: { customer: { include: { franqueadora: { select: { id: true, nome: true } } } } },
   });
 
   if (customers.length === 0 && charges.length === 0) {
@@ -262,6 +270,54 @@ async function buildDataContext(franqueadoraId: string): Promise<string> {
     })
     .join("\n");
 
+  // If multiple tenants, organize by subsidiary
+  if (tenantIds.length > 1) {
+    const franqueadoraNames = new Map<string, string>();
+    customers.forEach(c => {
+      if (c.franqueadoraId && c.franqueadora?.nome) {
+        franqueadoraNames.set(c.franqueadoraId, c.franqueadora.nome);
+      }
+    });
+
+    let subsidiaryContexts = "";
+    for (const [fId, fName] of franqueadoraNames) {
+      const fCustomerMetrics = customerMetrics.filter(cm => {
+        const cust = customers.find(c => c.name === cm.nome);
+        return cust?.franqueadoraId === fId;
+      });
+      const fCharges = charges.filter(c => c.customer?.franqueadoraId === fId);
+
+      const fEmitido = fCustomerMetrics.reduce((s, c) => s + c.emitido, 0);
+      const fRecebido = fCustomerMetrics.reduce((s, c) => s + c.recebido, 0);
+      const fAberto = fCustomerMetrics.reduce((s, c) => s + c.aberto, 0);
+      const fVencidasCount = fCharges.filter(c => c.status === "OVERDUE").length;
+      const fValorVencido = fCharges.filter(c => c.status === "OVERDUE").reduce((s, c) => s + c.amountCents, 0);
+
+      const fDetalhe = fCustomerMetrics
+        .map(c => `  - ${c.nome} (${c.cidade}/${c.estado}): status=${c.status}, PMR=${c.pmr}d, inadimplência=${(c.inadimplencia * 100).toFixed(1)}%, aberto=${fmtBRL(c.aberto)}`)
+        .join("\n");
+
+      subsidiaryContexts += `
+## SUBSIDIÁRIA: ${fName}
+- Franqueados: ${fCustomerMetrics.length} | Emitido: ${fmtBRL(fEmitido)} | Recebido: ${fmtBRL(fRecebido)} | Aberto: ${fmtBRL(fAberto)}
+- Cobranças vencidas: ${fVencidasCount} (${fmtBRL(fValorVencido)})
+
+DETALHE:
+${fDetalhe || "  Nenhum franqueado."}
+`;
+    }
+
+    return `
+=== DADOS DA REDE (VISÃO CONSOLIDADA) ===
+
+TOTAIS GERAIS:
+- Franqueados: ${customers.length} | Emitido: ${fmtBRL(totalEmitido)} | Recebido: ${fmtBRL(totalRecebido)} | Aberto: ${fmtBRL(totalAberto)}
+- PMR médio: ${pmrMedio}d | Taxa de recebimento: ${taxaRecebimento.toFixed(1)}%
+- Cobranças vencidas: ${vencidasCount} (${fmtBRL(valorVencido)})
+${subsidiaryContexts}
+===`;
+  }
+
   return `
 === DADOS DA REDE ===
 
@@ -306,7 +362,10 @@ function sseEvent(data: string): Uint8Array {
 // ── POST handler ──
 
 export async function POST(request: Request) {
-  const { session, error } = await requireTenant();
+  const requestedFranqueadoraId = request.headers.get("x-franqueadora-id") || null;
+  const { session, tenantIds, error } = await requireTenantOrGroup(
+    requestedFranqueadoraId === "all" ? null : requestedFranqueadoraId
+  );
   if (error) return error;
 
   const userId = session!.user.id ?? "anonymous";
@@ -350,11 +409,11 @@ export async function POST(request: Request) {
     }
 
     const anthropic = getAnthropicClient();
-    const franqueadoraId = session!.user.franqueadoraId ?? "";
+    const franqueadoraIdForCache = tenantIds.join(",");
 
     // Check preset cache for non-streaming or first message
     const isPreset = isPresetQuestion(lastUserMessage);
-    const cacheKey = isPreset ? getCacheKey(lastUserMessage, franqueadoraId, detailLevel) : "";
+    const cacheKey = isPreset ? getCacheKey(lastUserMessage, franqueadoraIdForCache, detailLevel) : "";
     const cached = isPreset ? getCachedResponse(cacheKey) : null;
 
     // Structured logging
@@ -366,7 +425,7 @@ export async function POST(request: Request) {
       isPreset,
     }));
 
-    const dataContext = anonymizeContext(await buildDataContext(franqueadoraId));
+    const dataContext = anonymizeContext(await buildDataContext(tenantIds));
     const includeSuggestions = isStreaming;
 
     const detailInstruction = detailLevel === "detalhado"
@@ -376,6 +435,7 @@ export async function POST(request: Request) {
     const systemPrompt =
       JULIA_SYSTEM_PROMPT +
       detailInstruction +
+      (tenantIds.length > 1 ? MULTI_SUBSIDIARY_INSTRUCTION : "") +
       "\n\n" +
       dataContext +
       (includeSuggestions ? SUGGESTIONS_INSTRUCTION + ACTIONS_INSTRUCTION : "");
