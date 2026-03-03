@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       franqueadoraId: string | null;
+      grupoFranqueadoraId: string | null;
       onboardingCompletedAt: string | null;
     } & DefaultSession["user"];
   }
@@ -14,6 +15,7 @@ declare module "next-auth" {
   interface User {
     role: UserRole;
     franqueadoraId: string | null;
+    grupoFranqueadoraId: string | null;
     onboardingCompletedAt: string | null;
   }
 }
@@ -23,6 +25,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     franqueadoraId: string | null;
+    grupoFranqueadoraId: string | null;
     onboardingCompletedAt: string | null;
   }
 }
