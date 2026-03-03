@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -64,7 +65,9 @@ export default function DashboardPage() {
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
 
   useEffect(() => {
-    fetch("/api/dashboard")
+    const tenantHeaders = getFranqueadoraHeaders();
+
+    fetch("/api/dashboard", { headers: tenantHeaders })
       .then((r) => r.json())
       .then((d) => {
         setData(d);
@@ -74,7 +77,7 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false));
 
-    fetch("/api/onboarding/status")
+    fetch("/api/onboarding/status", { headers: tenantHeaders })
       .then((r) => r.json())
       .then((status: OnboardingStatus) => setOnboarding(status))
       .catch(() => {});

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -66,7 +67,7 @@ export default function CobrancasPage() {
 
   const fetchCharges = useCallback(() => {
     setLoading(true);
-    fetch("/api/charges")
+    fetch("/api/charges", { headers: getFranqueadoraHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setAllCobrancas(data);

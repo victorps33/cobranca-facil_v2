@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { UserRole } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 
@@ -35,7 +36,43 @@ export async function requireTenant() {
   const { session, error } = await requireAuth();
   if (error) return { session: null, tenantId: null, error };
 
-  const tenantId = session!.user.franqueadoraId;
+  let tenantId = session!.user.franqueadoraId;
+
+  // Group user: resolve tenant from x-franqueadora-id header
+  if (!tenantId && session!.user.grupoFranqueadoraId) {
+    const headerList = headers();
+    const requestedId = headerList.get("x-franqueadora-id");
+
+    if (requestedId && requestedId !== "all") {
+      // Validate the requested franqueadora belongs to the user's group
+      const { prisma } = await import("@/lib/prisma");
+      const franqueadora = await prisma.franqueadora.findFirst({
+        where: {
+          id: requestedId,
+          grupoId: session!.user.grupoFranqueadoraId,
+        },
+      });
+
+      if (franqueadora) {
+        tenantId = requestedId;
+      }
+    }
+
+    // If still no tenant (header was "all" or missing), pick the first franqueadora in the group
+    if (!tenantId) {
+      const { prisma } = await import("@/lib/prisma");
+      const firstFranqueadora = await prisma.franqueadora.findFirst({
+        where: { grupoId: session!.user.grupoFranqueadoraId },
+        orderBy: { nome: "asc" },
+        select: { id: true },
+      });
+
+      if (firstFranqueadora) {
+        tenantId = firstFranqueadora.id;
+      }
+    }
+  }
+
   if (!tenantId) {
     return {
       session: null,
@@ -46,6 +83,7 @@ export async function requireTenant() {
       ),
     };
   }
+
   return { session, tenantId, error: null };
 }
 

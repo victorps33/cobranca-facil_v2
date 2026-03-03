@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterEmptyState } from "@/components/layout/FilterEmptyState";
@@ -62,7 +63,7 @@ export default function ClientesPage() {
   const pageSize = 15;
 
   useEffect(() => {
-    fetch("/api/customers")
+    fetch("/api/customers", { headers: getFranqueadoraHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setFranqueados(data);

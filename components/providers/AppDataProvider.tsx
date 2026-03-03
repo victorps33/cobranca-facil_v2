@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
+import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 
 interface NotificationItem {
   id: string;
@@ -38,15 +40,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [inboxUnread, setInboxUnread] = useState(0);
   const [appNow, setAppNow] = useState<AppNowInfo | null>(null);
+  const { activeFranqueadoraId } = useFranqueadora();
 
   // Fetch tasks + charges (notifications) — every 60s
   const fetchNotifications = useCallback(async () => {
     const items: NotificationItem[] = [];
     let taskCount = 0;
+    const tenantHeaders = getFranqueadoraHeaders();
     try {
       const [tasksRes, chargesRes] = await Promise.all([
-        fetch("/api/crm/tasks").then((r) => r.json()).catch(() => []),
-        fetch("/api/charges").then((r) => r.json()).catch(() => []),
+        fetch("/api/crm/tasks", { headers: tenantHeaders }).then((r) => r.json()).catch(() => []),
+        fetch("/api/charges", { headers: tenantHeaders }).then((r) => r.json()).catch(() => []),
       ]);
 
       if (Array.isArray(tasksRes)) {
@@ -90,8 +94,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   // Fetch inbox unread — every 10s
   const fetchInboxUnread = useCallback(async () => {
+    const tenantHeaders = getFranqueadoraHeaders();
     try {
-      const res = await fetch("/api/inbox/unread-count");
+      const res = await fetch("/api/inbox/unread-count", { headers: tenantHeaders });
       const data = await res.json();
       setInboxUnread(data.unreadCount || 0);
     } catch {}
@@ -99,8 +104,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   // Fetch app state — every 30s
   const fetchAppNow = useCallback(async () => {
+    const tenantHeaders = getFranqueadoraHeaders();
     try {
-      const res = await fetch("/api/app-state");
+      const res = await fetch("/api/app-state", { headers: tenantHeaders });
       const data = await res.json();
       setAppNow(data);
     } catch {}
@@ -110,19 +116,19 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, activeFranqueadoraId]);
 
   useEffect(() => {
     fetchInboxUnread();
     const interval = setInterval(fetchInboxUnread, 10000);
     return () => clearInterval(interval);
-  }, [fetchInboxUnread]);
+  }, [fetchInboxUnread, activeFranqueadoraId]);
 
   useEffect(() => {
     fetchAppNow();
     const interval = setInterval(fetchAppNow, 30000);
     return () => clearInterval(interval);
-  }, [fetchAppNow]);
+  }, [fetchAppNow, activeFranqueadoraId]);
 
   return (
     <AppDataContext.Provider value={{ overdueTasks, notifications, inboxUnread, appNow }}>
