@@ -2,12 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { addDays, subDays } from "date-fns";
 import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
-import {
-  TEMPLATE_EMAIL_D5,
-  TEMPLATE_WHATSAPP_D1,
-  TEMPLATE_SMS_D3,
-  TEMPLATE_WHATSAPP_D7,
-} from "../lib/default-dunning-rule";
+import { createDefaultDunningRules } from "../lib/default-dunning-rule";
 
 const prisma = new PrismaClient();
 
@@ -537,28 +532,13 @@ async function main() {
 
   console.log(`✅ Created ${boletos.length} boletos`);
 
-  // Create dunning rule (linked to franqueadora)
-  const dunningRule = await prisma.dunningRule.create({
-    data: {
-      name: "Régua Padrão",
-      active: true,
-      timezone: "America/Sao_Paulo",
-      franqueadoraId: franqueadora.id,
-    },
-  });
+  // Create dunning rules (one per risk profile, linked to franqueadora)
+  const rulePayloads = createDefaultDunningRules(franqueadora.id);
+  for (const payload of rulePayloads) {
+    await prisma.dunningRule.create({ data: payload });
+  }
 
-  const steps = [
-    { ruleId: dunningRule.id, trigger: "BEFORE_DUE" as const, offsetDays: 5, channel: "EMAIL" as const, template: TEMPLATE_EMAIL_D5, enabled: true },
-    { ruleId: dunningRule.id, trigger: "BEFORE_DUE" as const, offsetDays: 1, channel: "WHATSAPP" as const, template: TEMPLATE_WHATSAPP_D1, enabled: true },
-    { ruleId: dunningRule.id, trigger: "AFTER_DUE" as const, offsetDays: 3, channel: "SMS" as const, template: TEMPLATE_SMS_D3, enabled: true },
-    { ruleId: dunningRule.id, trigger: "AFTER_DUE" as const, offsetDays: 7, channel: "WHATSAPP" as const, template: TEMPLATE_WHATSAPP_D7, enabled: true },
-  ];
-
-  await Promise.all(
-    steps.map((step) => prisma.dunningStep.create({ data: step }))
-  );
-
-  console.log(`✅ Created dunning rule with ${steps.length} steps`);
+  console.log(`✅ Created ${rulePayloads.length} dunning rules (one per risk profile)`);
 
   // ── CRM: Interaction Logs (~60) ──
   const [adminUser, financeiroUser, operacionalUser] = users;

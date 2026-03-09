@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
-import { createDefaultDunningRule } from "@/lib/default-dunning-rule";
+import { createDefaultDunningRules } from "@/lib/default-dunning-rule";
 
 export async function POST(request: Request) {
   try {
@@ -65,7 +65,10 @@ export async function POST(request: Request) {
         },
       });
 
-      await createDefaultDunningRule(tx, franqueadora.id);
+      const rulePayloads = createDefaultDunningRules(franqueadora.id);
+      for (const payload of rulePayloads) {
+        await tx.dunningRule.create({ data: payload });
+      }
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

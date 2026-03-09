@@ -4,7 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
-import { createDefaultDunningRule } from "@/lib/default-dunning-rule";
+import { createDefaultDunningRules } from "@/lib/default-dunning-rule";
 
 // Optional: restrict Google OAuth to specific domains via env var
 // Example: ALLOWED_GOOGLE_DOMAINS=menlopagamentos.com.br,gmail.com
@@ -103,7 +103,10 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
-            await createDefaultDunningRule(tx, franqueadora.id);
+            const rulePayloads = createDefaultDunningRules(franqueadora.id);
+            for (const payload of rulePayloads) {
+              await tx.dunningRule.create({ data: payload });
+            }
 
             return newUser;
           });
