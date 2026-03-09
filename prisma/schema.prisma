@@ -106,11 +106,24 @@ model Customer {
   conversations   Conversation[]
   agentDecisions  AgentDecisionLog[]
   messageQueue    MessageQueue[]
+  riskScore       FranchiseeRiskScore?
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
 
   @@index([franqueadoraId])
+}
+
+model FranchiseeRiskScore {
+  id               String      @id @default(cuid())
+  customerId       String      @unique
+  customer         Customer    @relation(fields: [customerId], references: [id])
+  defaultRate      Float
+  avgDaysLate      Float
+  totalOutstanding Int
+  riskProfile      RiskProfile
+  calculatedAt     DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model Charge {
@@ -134,6 +147,7 @@ model Charge {
   collectionTasks  CollectionTask[]
   agentDecisions       AgentDecisionLog[]
   messageQueue         MessageQueue[]
+  escalationTasks      EscalationTask[]
   omieCodigoTitulo     BigInt?    @unique @map("omie_codigo_titulo")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieStatusRaw        String?    @map("omie_status_raw")
@@ -143,6 +157,18 @@ model Charge {
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
+}
+
+model EscalationTask {
+  id          String           @id @default(cuid())
+  chargeId    String
+  charge      Charge           @relation(fields: [chargeId], references: [id])
+  type        EscalationType
+  status      EscalationStatus @default(PENDING)
+  description String
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime         @default(now())
 }
 
 enum ChargeStatus {
@@ -170,6 +196,8 @@ model DunningRule {
   timezone        String        @default("America/Sao_Paulo")
   franqueadoraId  String?
   franqueadora    Franqueadora? @relation(fields: [franqueadoraId], references: [id])
+  riskProfile     RiskProfile   @default(BOM_PAGADOR)
+  maxPhase        DunningPhase  @default(ATRASO)
   createdAt       DateTime      @default(now())
   steps           DunningStep[]
 
@@ -183,6 +211,7 @@ model DunningStep {
   trigger          DunningTrigger
   offsetDays       Int               @default(0)
   channel          Channel
+  phase            DunningPhase  @default(LEMBRETE)
   template         String
   enabled          Boolean           @default(true)
   createdAt        DateTime          @default(now())
@@ -203,6 +232,10 @@ enum Channel {
   EMAIL
   SMS
   WHATSAPP
+  LIGACAO
+  BOA_VISTA
+  CARTORIO
+  JURIDICO
 }
 
 model NotificationLog {
@@ -228,6 +261,35 @@ enum NotificationStatus {
   SENT
   FAILED
   SKIPPED
+}
+
+enum RiskProfile {
+  BOM_PAGADOR
+  DUVIDOSO
+  MAU_PAGADOR
+}
+
+enum DunningPhase {
+  LEMBRETE
+  VENCIMENTO
+  ATRASO
+  NEGATIVACAO
+  COBRANCA_INTENSIVA
+  PROTESTO
+  POS_PROTESTO
+}
+
+enum EscalationType {
+  NEGATIVACAO
+  PROTESTO
+  JURIDICO
+}
+
+enum EscalationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 model AppState {
