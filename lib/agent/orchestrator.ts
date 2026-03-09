@@ -8,6 +8,11 @@ import {
   executeEscalation,
 } from "./escalation";
 import type { Channel } from "@prisma/client";
+import { dispatchImmediate } from "./dispatch";
+import { executeSendBoleto } from "./actions/send-boleto";
+import { validateNegotiation } from "./actions/negotiate";
+import { executeMarkPromise } from "./actions/mark-promise";
+import { executeScheduleCallback } from "./actions/schedule-callback";
 
 export async function processScheduledDunning(
   franqueadoraId: string
@@ -89,9 +94,16 @@ export async function processScheduledDunning(
       });
       if (existing) continue;
 
+      // Skip non-communication channels (escalation actions handled separately)
+      const commChannels = ["EMAIL", "SMS", "WHATSAPP"] as const;
+      if (!commChannels.includes(step.channel as typeof commChannels[number])) {
+        skipped++;
+        continue;
+      }
+
       try {
         // Build context and get AI decision
-        const ctx = await buildCollectionContext(charge.id, step.channel);
+        const ctx = await buildCollectionContext(charge.id, step.channel as "EMAIL" | "SMS" | "WHATSAPP");
         if (!ctx) {
           skipped++;
           continue;
@@ -218,13 +230,13 @@ export async function processInboundMessage(
   if (!message || !message.conversation.customer.franqueadoraId) return;
 
   const franqueadoraId = message.conversation.customer.franqueadoraId;
+  const customerId = message.conversation.customerId;
 
   const config = await prisma.agentConfig.findUnique({
     where: { franqueadoraId },
   });
 
   if (!config?.enabled) {
-    // Mark as pending human
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { status: "PENDENTE_HUMANO" },
@@ -238,7 +250,7 @@ export async function processInboundMessage(
     data: { status: "PENDENTE_IA" },
   });
 
-  // Build context
+  // Build enriched context
   const ctx = await buildInboundContext(conversationId, message.content);
   if (!ctx) return;
 
@@ -255,25 +267,29 @@ export async function processInboundMessage(
     }
   );
 
-  const failureCheck = await checkConsecutiveFailures(
-    message.conversation.customerId
-  );
+  const failureCheck = await checkConsecutiveFailures(customerId);
+
+  const shouldEscalate = forceCheck.shouldEscalate || failureCheck.shouldEscalate;
+  const finalAction = shouldEscalate ? "ESCALATE_HUMAN" : decision.action;
+  const finalReasoning = forceCheck.shouldEscalate
+    ? `Safety net: ${forceCheck.details}`
+    : failureCheck.shouldEscalate
+      ? `Safety net: ${failureCheck.details}`
+      : decision.reasoning;
+  const finalEscalationReason = forceCheck.shouldEscalate
+    ? forceCheck.reason
+    : failureCheck.shouldEscalate
+      ? failureCheck.reason
+      : decision.escalationReason;
 
   // Log the decision
   await prisma.agentDecisionLog.create({
     data: {
       conversationId,
-      customerId: message.conversation.customerId,
+      customerId,
       franqueadoraId,
-      action: forceCheck.shouldEscalate || failureCheck.shouldEscalate
-        ? "ESCALATE_HUMAN"
-        : decision.action,
-      reasoning:
-        forceCheck.shouldEscalate
-          ? `Safety net: ${forceCheck.details}`
-          : failureCheck.shouldEscalate
-            ? `Safety net: ${failureCheck.details}`
-            : decision.reasoning,
+      action: finalAction,
+      reasoning: finalReasoning,
       confidence: decision.confidence,
       inputContext: JSON.stringify({
         conversationId,
@@ -281,57 +297,120 @@ export async function processInboundMessage(
         inboundMessage: message.content.slice(0, 500),
       }),
       outputMessage: decision.message,
-      escalationReason:
-        forceCheck.shouldEscalate
-          ? forceCheck.reason
-          : failureCheck.shouldEscalate
-            ? failureCheck.reason
-            : decision.escalationReason,
+      escalationReason: finalEscalationReason,
       executedAt: new Date(),
     },
   });
 
   // Execute escalation if needed
-  if (forceCheck.shouldEscalate || failureCheck.shouldEscalate) {
+  if (shouldEscalate) {
     const reason = forceCheck.reason || failureCheck.reason || "AI_UNCERTAINTY";
     const details =
       forceCheck.details || failureCheck.details || "Safety net triggered";
+    await executeEscalation(conversationId, customerId, reason, details, franqueadoraId);
+    return;
+  }
+
+  if (finalAction === "ESCALATE_HUMAN" && decision.escalationReason) {
     await executeEscalation(
-      conversationId,
-      message.conversation.customerId,
-      reason,
-      details,
-      franqueadoraId
+      conversationId, customerId, decision.escalationReason, decision.reasoning, franqueadoraId
     );
     return;
   }
 
-  // Execute AI decision
-  if (decision.action === "ESCALATE_HUMAN" && decision.escalationReason) {
-    await executeEscalation(
-      conversationId,
-      message.conversation.customerId,
-      decision.escalationReason,
-      decision.reasoning,
-      franqueadoraId
-    );
-    return;
+  // Handle specific actions
+  let messageContent = decision.message;
+
+  if (finalAction === "SEND_BOLETO") {
+    const boletoResult = await executeSendBoleto(ctx, decision);
+    messageContent = boletoResult.message;
+
+    if (boletoResult.createHumanTask) {
+      const systemUser = await prisma.user.findFirst({
+        where: { franqueadoraId, role: "ADMINISTRADOR" },
+      });
+      if (systemUser) {
+        await prisma.collectionTask.create({
+          data: {
+            customerId,
+            title: "[BOLETO] Cliente solicitou boleto nao disponivel",
+            description: `Cliente pediu boleto mas nenhum esta disponivel no sistema.\nConversation: ${conversationId}`,
+            status: "PENDENTE",
+            priority: "ALTA",
+            createdById: systemUser.id,
+          },
+        });
+      }
+    }
   }
 
-  if (decision.message) {
-    // Enqueue response
-    await prisma.messageQueue.create({
+  if (finalAction === "NEGOTIATE" && decision.metadata?.installments) {
+    const targetChargeId = decision.metadata.chargeId;
+    const charge = targetChargeId
+      ? ctx.openCharges.find((c) => c.id === targetChargeId)
+      : ctx.openCharges[0];
+
+    if (charge) {
+      const result = validateNegotiation(
+        decision.metadata.installments,
+        charge.amountCents,
+        ctx.negotiationConfig
+      );
+
+      if (result.approved) {
+        messageContent = result.message;
+      } else {
+        await executeEscalation(
+          conversationId,
+          customerId,
+          "AI_UNCERTAINTY",
+          result.escalateReason || "Negociacao fora dos limites configurados",
+          franqueadoraId
+        );
+        return;
+      }
+    }
+  }
+
+  if (finalAction === "MARK_PROMISE" && decision.metadata?.promiseDate) {
+    await executeMarkPromise(
+      customerId,
+      franqueadoraId,
+      decision.metadata.promiseDate,
+      decision.metadata.chargeId
+    );
+  }
+
+  if (finalAction === "SCHEDULE_CALLBACK") {
+    const callbackDate =
+      decision.metadata?.callbackDate || new Date(Date.now() + 3600000).toISOString();
+    const formatted = await executeScheduleCallback(customerId, franqueadoraId, callbackDate);
+    messageContent =
+      decision.message ||
+      `Agendei um retorno de um especialista para ${formatted}. Obrigada!`;
+  }
+
+  // Enqueue and immediately dispatch
+  if (messageContent) {
+    const queueItem = await prisma.messageQueue.create({
       data: {
-        customerId: message.conversation.customerId,
+        customerId,
         conversationId,
         channel: message.conversation.channel,
-        content: decision.message,
+        content: messageContent,
         status: "PENDING",
-        priority: 2,
+        priority: 10,
         scheduledFor: new Date(),
         franqueadoraId,
       },
     });
+
+    // Dispatch immediately — don't wait for cron
+    try {
+      await dispatchImmediate(queueItem.id);
+    } catch (err) {
+      console.error("[Orchestrator] Immediate dispatch failed, will retry via cron:", err);
+    }
   }
 
   // Update conversation status

@@ -419,7 +419,11 @@ export default function ReguaDetalhePage() {
     resetStepForm();
     setAddingStepPhase(phase);
     // Auto-expand phase if collapsed
-    setExpandedPhases((prev) => new Set([...prev, phase]));
+    setExpandedPhases((prev) => {
+      const next = new Set(Array.from(prev));
+      next.add(phase);
+      return next;
+    });
   };
 
   const openEditStep = (step: DunningStep) => {
