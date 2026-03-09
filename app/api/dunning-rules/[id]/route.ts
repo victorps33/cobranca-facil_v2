@@ -34,9 +34,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!existing) return NextResponse.json({ error: "Régua não encontrada" }, { status: 404 });
 
     const body = await req.json();
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.riskProfile !== undefined) data.riskProfile = body.riskProfile;
+    if (body.maxPhase !== undefined) data.maxPhase = body.maxPhase;
+    if (body.isActive !== undefined) data.isActive = body.isActive;
+
     const rule = await prisma.dunningRule.update({
       where: { id: params.id },
-      data: body,
+      data,
       include: { steps: true },
     });
     return NextResponse.json(rule);

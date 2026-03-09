@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
         channel: body.channel,
         template: body.template,
         enabled: body.enabled ?? true,
+        phase: body.phase || "LEMBRETE",
       },
     });
     return NextResponse.json(step, { status: 201 });

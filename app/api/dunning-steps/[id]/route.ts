@@ -34,9 +34,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!existing) return NextResponse.json({ error: "Step não encontrado" }, { status: 404 });
 
     const body = await req.json();
+    const data: Record<string, unknown> = {};
+    if (body.trigger !== undefined) data.trigger = body.trigger;
+    if (body.offsetDays !== undefined) data.offsetDays = body.offsetDays;
+    if (body.channel !== undefined) data.channel = body.channel;
+    if (body.template !== undefined) data.template = body.template;
+    if (body.enabled !== undefined) data.enabled = body.enabled;
+    if (body.phase !== undefined) data.phase = body.phase;
+
     const step = await prisma.dunningStep.update({
       where: { id: params.id },
-      data: body,
+      data,
     });
     return NextResponse.json(step);
   } catch {
