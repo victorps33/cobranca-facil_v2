@@ -491,13 +491,15 @@ export default function ReguasPage() {
 
         {/* Section tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex gap-0" aria-label="Seções">
+          <nav className="flex gap-0" role="tablist" aria-label="Seções">
             {[
               { key: "reguas" as const, label: "Réguas Padrão" },
               { key: "campanhas" as const, label: "Campanhas" },
             ].map((tab) => (
               <button
                 key={tab.key}
+                role="tab"
+                aria-selected={activeSection === tab.key}
                 onClick={() => setActiveSection(tab.key)}
                 className={cn(
                   "relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap",
@@ -562,7 +564,7 @@ export default function ReguasPage() {
             })}
           </>
         ) : (
-          <CampaignsSection />
+          <CampaignsSection key={activeFranqueadoraId} />
         )}
 
         <ConfirmDialog
@@ -813,13 +815,17 @@ function RuleCard({
 function CampaignsSection() {
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const headers = getFranqueadoraHeaders();
     fetch("/api/negotiation-campaigns", { headers })
       .then((r) => (r.ok ? r.json() : []))
       .then(setCampaigns)
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to fetch campaigns:", err);
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -834,6 +840,15 @@ function CampaignsSection() {
           </div>
         ))}
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <FilterEmptyState
+        message="Erro ao carregar campanhas."
+        suggestion="Tente recarregar a página."
+      />
     );
   }
 
@@ -863,8 +878,8 @@ function CampaignCard({ campaign }: { campaign: ApiCampaign }) {
   const sorted = toTimelineSteps(campaign.steps);
   const d0Index = sorted.findIndex((s) => s.days === 0);
   const status = CAMPAIGN_STATUS[campaign.status];
-  const start = new Date(campaign.startDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
-  const end = new Date(campaign.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  const start = new Date(campaign.startDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const end = new Date(campaign.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return (
     <div
