@@ -865,7 +865,7 @@ function RuleCard({
   );
 }
 
-/* ── Segmentation Table (placeholder) ── */
+/* ── Segmentation Table ── */
 
 function SegmentationTable({
   data,
@@ -876,10 +876,140 @@ function SegmentationTable({
   expandedCell: string | null;
   onToggleCell: (key: string) => void;
 }) {
+  const { phases, competencias, matrix, totalsByPhase, totalsByCompetencia } = data;
+
+  function formatComp(comp: string): string {
+    const [year, month] = comp.split("-");
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    return `${months[parseInt(month, 10) - 1]}/${year.slice(2)}`;
+  }
+
+  const grandTotal = Object.values(totalsByCompetencia).reduce((a, b) => a + b, 0);
+
   return (
-    <p className="text-xs text-gray-400 text-center py-4">
-      Carregando tabela de segmentação...
-    </p>
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-gray-100">
+            <th className="text-left py-2 pr-4 text-gray-500 font-medium">Fase</th>
+            {competencias.map((comp) => (
+              <th key={comp} className="text-center py-2 px-3 text-gray-500 font-medium">
+                {formatComp(comp)}
+              </th>
+            ))}
+            <th className="text-center py-2 pl-3 text-gray-500 font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {phases.map((phase) => {
+            const phaseLabel = PHASE_LABELS[phase] || phase;
+            return (
+              <SegmentationRow
+                key={phase}
+                phase={phase}
+                phaseLabel={phaseLabel}
+                competencias={competencias}
+                cells={matrix[phase] || {}}
+                total={totalsByPhase[phase] || 0}
+                expandedCell={expandedCell}
+                onToggleCell={onToggleCell}
+              />
+            );
+          })}
+          {/* Totals row */}
+          <tr className="border-t border-gray-200">
+            <td className="py-2 pr-4 text-gray-500 font-semibold">Total</td>
+            {competencias.map((comp) => (
+              <td key={comp} className="text-center py-2 px-3 text-gray-500 font-semibold tabular-nums">
+                {totalsByCompetencia[comp] || 0}
+              </td>
+            ))}
+            <td className="text-center py-2 pl-3 text-gray-900 font-semibold tabular-nums">
+              {grandTotal}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ── Segmentation Row ── */
+
+function SegmentationRow({
+  phase,
+  phaseLabel,
+  competencias,
+  cells,
+  total,
+  expandedCell,
+  onToggleCell,
+}: {
+  phase: string;
+  phaseLabel: string;
+  competencias: string[];
+  cells: Record<string, SegmentationCell>;
+  total: number;
+  expandedCell: string | null;
+  onToggleCell: (key: string) => void;
+}) {
+  const expandedComp = competencias.find((comp) => expandedCell === `${phase}:${comp}`);
+  const expandedCustomers = expandedComp ? cells[expandedComp]?.customers || [] : [];
+
+  return (
+    <>
+      <tr className="border-b border-gray-50">
+        <td className="py-2 pr-4 text-gray-700 font-medium whitespace-nowrap">{phaseLabel}</td>
+        {competencias.map((comp) => {
+          const cell = cells[comp];
+          const count = cell?.count || 0;
+          const key = `${phase}:${comp}`;
+          const isExpanded = expandedCell === key;
+
+          return (
+            <td key={comp} className="text-center py-2 px-3">
+              {count > 0 ? (
+                <button
+                  onClick={() => onToggleCell(key)}
+                  className={cn(
+                    "inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded-md text-xs tabular-nums transition-colors",
+                    isExpanded
+                      ? "bg-gray-900 text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  {count}
+                </button>
+              ) : (
+                <span className="text-gray-300">0</span>
+              )}
+            </td>
+          );
+        })}
+        <td className="text-center py-2 pl-3 text-gray-700 font-semibold tabular-nums">{total}</td>
+      </tr>
+      {expandedComp && expandedCustomers.length > 0 && (
+        <tr>
+          <td colSpan={competencias.length + 2} className="py-2 px-4">
+            <div className="bg-gray-50 rounded-lg px-4 py-3">
+              <p className="text-[10px] text-gray-400 font-medium mb-2">
+                {phaseLabel} — {expandedComp}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {expandedCustomers.map((c) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center px-2.5 py-1 rounded-full bg-white border border-gray-200 text-xs text-gray-700"
+                  >
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
