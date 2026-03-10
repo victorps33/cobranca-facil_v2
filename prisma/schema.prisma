@@ -106,6 +106,7 @@ model Customer {
   conversations   Conversation[]
   agentDecisions  AgentDecisionLog[]
   messageQueue    MessageQueue[]
+  negotiationCampaigns NegotiationCampaignCustomer[]
   riskScore       FranchiseeRiskScore?
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
@@ -222,6 +223,55 @@ model DunningStep {
   @@index([enabled])
 }
 
+model NegotiationCampaign {
+  id                   String                       @id @default(cuid())
+  name                 String
+  description          String?
+  status               CampaignStatus               @default(DRAFT)
+  startDate            DateTime
+  endDate              DateTime
+  maxCashDiscount      Float                        @default(0.10)
+  maxInstallments      Int                          @default(6)
+  monthlyInterestRate  Float                        @default(0.02)
+  minInstallmentCents  Int                          @default(5000)
+  targetFilters        Json?
+  franqueadoraId       String?
+  franqueadora         Franqueadora?                @relation(fields: [franqueadoraId], references: [id])
+  createdAt            DateTime                     @default(now())
+  steps                NegotiationCampaignStep[]
+  customers            NegotiationCampaignCustomer[]
+
+  @@index([franqueadoraId])
+  @@index([status])
+}
+
+model NegotiationCampaignStep {
+  id          String              @id @default(cuid())
+  campaignId  String
+  campaign    NegotiationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  trigger     DunningTrigger
+  offsetDays  Int                 @default(0)
+  channel     Channel
+  template    String
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+
+  @@index([campaignId])
+}
+
+model NegotiationCampaignCustomer {
+  id          String              @id @default(cuid())
+  campaignId  String
+  campaign    NegotiationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer            @relation(fields: [customerId], references: [id])
+  addedAt     DateTime            @default(now())
+
+  @@unique([campaignId, customerId])
+  @@index([campaignId])
+  @@index([customerId])
+}
+
 enum DunningTrigger {
   BEFORE_DUE
   ON_DUE
@@ -292,6 +342,12 @@ enum EscalationStatus {
   CANCELLED
 }
 
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
 model AppState {
   id           Int       @id @default(1)
   simulatedNow DateTime?
@@ -327,8 +383,9 @@ model Franqueadora {
   customers          Customer[]
   dunningRules       DunningRule[]
   conversations      Conversation[]
-  agentConfig        AgentConfig?
-  contatos           ContatoFranqueadora[]
+  agentConfig            AgentConfig?
+  contatos               ContatoFranqueadora[]
+  negotiationCampaigns   NegotiationCampaign[]
 
   @@index([grupoId])
 }
