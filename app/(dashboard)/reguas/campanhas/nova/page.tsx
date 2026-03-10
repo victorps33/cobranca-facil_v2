@@ -101,7 +101,7 @@ export default function NovaCampanhaPage() {
 
   // Send initial greeting on mount
   useEffect(() => {
-    sendMessage("Olá, quero criar uma campanha de negociação. Me mostre sugestões baseadas na situação atual das dívidas.", true);
+    sendMessage("Crie campanhas de negociação baseadas nos dados atuais.", true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -204,7 +204,7 @@ export default function NovaCampanhaPage() {
         setMessages([]);
         setDraft({});
         setSuggestions([]);
-        sendMessage("Olá, quero criar uma campanha de negociação. Me mostre sugestões baseadas na situação atual das dívidas.", true);
+        sendMessage("Crie campanhas de negociação baseadas nos dados atuais.", true);
         return;
       }
 
