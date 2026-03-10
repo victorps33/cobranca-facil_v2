@@ -1125,9 +1125,10 @@ function CampaignCard({ campaign }: { campaign: ApiCampaign }) {
   const end = new Date(campaign.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return (
-    <div
+    <Link
+      href={`/reguas/campanhas/${campaign.id}`}
       className={cn(
-        "group/card rounded-2xl border border-gray-100 bg-white transition-colors duration-200 overflow-hidden hover:border-gray-200 min-w-0",
+        "block group/card rounded-2xl border border-gray-100 bg-white transition-colors duration-200 overflow-hidden hover:border-gray-200 min-w-0 cursor-pointer",
         campaign.status === "ENDED" && "opacity-60"
       )}
       style={{ animation: "regua-card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both" }}
@@ -1145,13 +1146,10 @@ function CampaignCard({ campaign }: { campaign: ApiCampaign }) {
             {start} — {end} · {campaign._count.customers} clientes · {campaign.steps.length} etapas
           </p>
         </div>
-        <Link
-          href={`/reguas/campanhas/${campaign.id}`}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:border-gray-300 transition-colors"
-        >
+        <span className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full group-hover/card:bg-gray-50 group-hover/card:border-gray-300 transition-colors">
           <Pencil className="h-3.5 w-3.5" />
           Editar
-        </Link>
+        </span>
       </div>
 
       {/* Commercial terms */}
@@ -1171,7 +1169,7 @@ function CampaignCard({ campaign }: { campaign: ApiCampaign }) {
           </ScrollFadeContainer>
         </div>
       )}
-    </div>
+    </Link>
   );
 }
 
