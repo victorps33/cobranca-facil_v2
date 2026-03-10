@@ -536,10 +536,13 @@ export default function ReguasPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
       <div className="space-y-5 min-w-0 overflow-hidden">
-        <PageHeader title="Réguas de Cobrança" />
+        <PageHeader
+          title="Réguas de Cobrança"
+          primaryAction={activeSection === "campanhas" ? { label: "Nova Campanha", href: "/reguas/campanhas/nova" } : undefined}
+        />
 
         {/* Section tabs */}
-        <div className="border-b border-gray-200 flex items-center justify-between">
+        <div className="border-b border-gray-200">
           <nav className="flex gap-0" role="tablist" aria-label="Seções">
             {[
               { key: "reguas" as const, label: "Réguas Padrão" },
@@ -564,14 +567,6 @@ export default function ReguasPage() {
               </button>
             ))}
           </nav>
-          {activeSection === "campanhas" && (
-            <Link
-              href="/reguas/campanhas/nova"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors mb-1"
-            >
-              Criar campanha
-            </Link>
-          )}
         </div>
 
         {activeSection === "reguas" ? (
