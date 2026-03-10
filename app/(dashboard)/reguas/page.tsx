@@ -433,8 +433,8 @@ export default function ReguasPage() {
         let scores: RiskScoreEntry[] = await scoresRes.json();
         const totalCustomers = customersCountRes.ok ? (await customersCountRes.json()).total : 0;
 
-        // Auto-recalculate risk scores if none exist but customers do
-        if (scores.length === 0 && totalCustomers > 0) {
+        // Auto-recalculate risk scores if fewer scores than customers
+        if (scores.length < totalCustomers && totalCustomers > 0) {
           const recalcRes = await fetch("/api/risk-scores/recalculate", {
             method: "POST",
             headers,

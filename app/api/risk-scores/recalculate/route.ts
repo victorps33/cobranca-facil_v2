@@ -3,7 +3,7 @@ import { requireTenantOrGroup, requireRole } from "@/lib/auth-helpers";
 import { recalculateAllRiskScores } from "@/lib/risk-score";
 
 export async function POST() {
-  const roleCheck = await requireRole(["ADMINISTRADOR"]);
+  const roleCheck = await requireRole(["ADMINISTRADOR", "OPERACIONAL"]);
   if (roleCheck.error) return roleCheck.error;
 
   const { tenantIds, error } = await requireTenantOrGroup();
