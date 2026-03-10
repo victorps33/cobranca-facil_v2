@@ -21,6 +21,8 @@ import {
   Pencil,
   Maximize2,
   X,
+  Loader2,
+  ChevronDown,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -85,6 +87,19 @@ const CAMPAIGN_STATUS: Record<CampaignStatus, { label: string; className: string
   ACTIVE: { label: "Ativa", className: "bg-emerald-50 text-emerald-700" },
   ENDED: { label: "Encerrada", className: "bg-gray-100 text-gray-400" },
 };
+
+interface SegmentationCell {
+  count: number;
+  customers: { id: string; name: string }[];
+}
+
+interface SegmentationData {
+  phases: string[];
+  competencias: string[];
+  matrix: Record<string, Record<string, SegmentationCell>>;
+  totalsByPhase: Record<string, number>;
+  totalsByCompetencia: Record<string, number>;
+}
 
 /* ── Config ── */
 
@@ -727,6 +742,28 @@ function RuleCard({
   onToggle: () => void;
   onExpand: () => void;
 }) {
+  const [segOpen, setSegOpen] = useState(false);
+  const [segData, setSegData] = useState<SegmentationData | null>(null);
+  const [segLoading, setSegLoading] = useState(false);
+  const [expandedCell, setExpandedCell] = useState<string | null>(null);
+
+  const handleToggleSeg = useCallback(() => {
+    if (segOpen) {
+      setSegOpen(false);
+      return;
+    }
+    setSegOpen(true);
+    if (segData) return;
+    setSegLoading(true);
+    fetch(`/api/dunning-rules/${rule.id}/segmentation`, {
+      headers: getFranqueadoraHeaders(),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setSegData(data); })
+      .catch(() => {})
+      .finally(() => setSegLoading(false));
+  }, [segOpen, segData, rule.id]);
+
   const sorted = toTimelineSteps(rule.steps);
   const d0Index = sorted.findIndex((s) => s.days === 0);
 
@@ -743,7 +780,13 @@ function RuleCard({
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-gray-900">{rule.name}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {rule.steps.length} etapas · Até {PHASE_LABELS[rule.maxPhase] || rule.maxPhase} · {customerCount} clientes
+            {rule.steps.length} etapas · Até {PHASE_LABELS[rule.maxPhase] || rule.maxPhase} ·{" "}
+            <button
+              onClick={handleToggleSeg}
+              className="text-gray-500 hover:text-gray-700 underline decoration-dotted underline-offset-2 transition-colors"
+            >
+              {customerCount} clientes
+            </button>
           </p>
         </div>
 
@@ -797,7 +840,46 @@ function RuleCard({
           </ScrollFadeContainer>
         </div>
       </div>
+
+      {/* Segmentation */}
+      {segOpen && (
+        <div className="border-t border-gray-100 px-6 py-4">
+          {segLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            </div>
+          ) : segData && segData.competencias.length > 0 ? (
+            <SegmentationTable
+              data={segData}
+              expandedCell={expandedCell}
+              onToggleCell={(key) => setExpandedCell(expandedCell === key ? null : key)}
+            />
+          ) : (
+            <p className="text-xs text-gray-400 text-center py-4">
+              Nenhuma cobrança encontrada para segmentação.
+            </p>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ── Segmentation Table (placeholder) ── */
+
+function SegmentationTable({
+  data,
+  expandedCell,
+  onToggleCell,
+}: {
+  data: SegmentationData;
+  expandedCell: string | null;
+  onToggleCell: (key: string) => void;
+}) {
+  return (
+    <p className="text-xs text-gray-400 text-center py-4">
+      Carregando tabela de segmentação...
+    </p>
   );
 }
 
