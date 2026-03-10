@@ -145,11 +145,12 @@ const CHANNEL_META: Record<string, { icon: typeof Mail; label: string }> = {
 
 /* ── Helpers ── */
 
-const COMP_MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
 function formatComp(comp: string): string {
-  const [year, month] = comp.split("-");
-  return `${COMP_MONTHS[parseInt(month, 10) - 1]}/${year.slice(2)}`;
+  // Competência is already human-readable (e.g. "Jan/2025", "Fev/2026")
+  // Shorten year if in full format: "Jan/2025" → "Jan/25"
+  const match = comp.match(/^(.+)\/(\d{4})$/);
+  if (match) return `${match[1]}/${match[2].slice(2)}`;
+  return comp;
 }
 
 function formatOffset(trigger: string, offsetDays: number): string {
@@ -429,8 +430,23 @@ export default function ReguasPage() {
       ]);
 
       if (scoresRes.ok) {
-        const scores: RiskScoreEntry[] = await scoresRes.json();
+        let scores: RiskScoreEntry[] = await scoresRes.json();
         const totalCustomers = customersCountRes.ok ? (await customersCountRes.json()).total : 0;
+
+        // Auto-recalculate risk scores if none exist but customers do
+        if (scores.length === 0 && totalCustomers > 0) {
+          const recalcRes = await fetch("/api/risk-scores/recalculate", {
+            method: "POST",
+            headers,
+          });
+          if (recalcRes.ok) {
+            const freshScoresRes = await fetch("/api/risk-scores", { headers });
+            if (freshScoresRes.ok) {
+              scores = await freshScoresRes.json();
+            }
+          }
+        }
+
         const counts: Record<RiskProfileKey, number> = { BOM_PAGADOR: 0, DUVIDOSO: 0, MAU_PAGADOR: 0 };
         for (const s of scores) {
           if (s.riskProfile in counts) counts[s.riskProfile]++;
