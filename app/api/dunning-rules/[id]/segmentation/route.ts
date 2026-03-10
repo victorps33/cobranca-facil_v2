@@ -71,10 +71,16 @@ export async function GET(
   phaseBoundaries.sort((a, b) => a.startDay - b.startDay);
 
   // 3. Fetch customers with matching risk profile
+  // Customers without a risk score default to BOM_PAGADOR
   const customers = await prisma.customer.findMany({
     where: {
       franqueadoraId: tenantId!,
-      riskScore: { riskProfile: rule.riskProfile },
+      OR: [
+        { riskScore: { riskProfile: rule.riskProfile } },
+        ...(rule.riskProfile === "BOM_PAGADOR"
+          ? [{ riskScore: { is: null } }]
+          : []),
+      ],
     },
     select: { id: true, name: true },
   });
@@ -97,7 +103,6 @@ export async function GET(
     where: {
       customerId: { in: customerIds },
       status: { in: ["PENDING", "OVERDUE", "PARTIAL"] },
-      competencia: { not: null },
     },
     select: {
       id: true,
@@ -133,7 +138,7 @@ export async function GET(
   for (const charge of charges) {
     const daysOverdue = differenceInDays(now, new Date(charge.dueDate));
     const phase = determinePhase(daysOverdue);
-    const comp = charge.competencia!;
+    const comp = charge.competencia || "Sem competência";
     competenciasSet.add(comp);
 
     if (!matrix[phase]) matrix[phase] = {};

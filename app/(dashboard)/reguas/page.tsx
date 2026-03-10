@@ -422,17 +422,22 @@ export default function ReguasPage() {
     setLoading(true);
     const headers = getFranqueadoraHeaders();
     try {
-      const [scoresRes, rulesRes] = await Promise.all([
+      const [scoresRes, rulesRes, customersCountRes] = await Promise.all([
         fetch("/api/risk-scores", { headers }),
         fetch("/api/dunning-rules", { headers }),
+        fetch("/api/customers/count", { headers }),
       ]);
 
       if (scoresRes.ok) {
         const scores: RiskScoreEntry[] = await scoresRes.json();
+        const totalCustomers = customersCountRes.ok ? (await customersCountRes.json()).total : 0;
         const counts: Record<RiskProfileKey, number> = { BOM_PAGADOR: 0, DUVIDOSO: 0, MAU_PAGADOR: 0 };
         for (const s of scores) {
           if (s.riskProfile in counts) counts[s.riskProfile]++;
         }
+        // Customers without risk scores default to BOM_PAGADOR
+        const scoredCount = counts.BOM_PAGADOR + counts.DUVIDOSO + counts.MAU_PAGADOR;
+        counts.BOM_PAGADOR += Math.max(0, totalCustomers - scoredCount);
         setProfileCounts(counts);
       }
 
