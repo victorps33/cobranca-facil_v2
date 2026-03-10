@@ -85,7 +85,7 @@ export default function DashboardLayout({
       <FranqueadoraProvider>
         <div className="flex h-screen bg-background overflow-hidden">
           <Sidebar />
-          <div className="flex flex-1 flex-col min-h-0">
+          <div className="flex flex-1 flex-col min-h-0 min-w-0">
             <TopBar
               onOpenJulia={handleOpenJulia}
               onOpenCommandPalette={() => setCommandPaletteOpen(true)}
