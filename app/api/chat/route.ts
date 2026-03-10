@@ -174,7 +174,7 @@ Já emita o CAMPAIGN_UPDATE da campanha 1 (a mais recomendada) para preencher o 
 
 - Preencha TODOS os campos automaticamente com valores inteligentes
 - Emita CAMPAIGN_UPDATE completo
-- Responda algo como: "Montei a campanha **[nome]**. Veja o resumo ao lado — se estiver tudo certo, é só clicar em **Criar campanha**. Quer ajustar algo?"
+- Responda algo como: "Montei a campanha **[nome]**. Veja o resumo ao lado — quando estiver pronto, clique em **Criar campanha**. Quer ajustar algo?"
 
 ## Ajustes
 
@@ -182,8 +182,7 @@ Quando pedir ajuste, aplique, emita novo CAMPAIGN_UPDATE, confirme em 1-2 linhas
 
 ## Confirmação
 
-Quando o usuário confirmar (sim, criar, ok, vamos, confirmar, etc.), emita:
-<<CAMPAIGN_CONFIRM>>
+Quando o usuário confirmar (sim, criar, ok, vamos, confirmar, etc.), responda algo como: "Perfeito! Clique no botão **Criar campanha** no painel ao lado para finalizar." NÃO emita CAMPAIGN_CONFIRM — a criação é feita pelo botão.
 
 ## Diretrizes
 

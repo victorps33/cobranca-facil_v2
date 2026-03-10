@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { getFranqueadoraHeaders } from "@/lib/fetch-with-tenant";
 import { renderSafeMarkdown } from "@/lib/sanitize-markdown";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Send,
   Loader2,
@@ -12,6 +13,9 @@ import {
   Sparkles,
   Check,
   ExternalLink,
+  CheckCircle2,
+  Circle,
+  PartyPopper,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -107,10 +111,14 @@ export default function NovaCampanhaPage() {
   const [draft, setDraft] = useState<CampaignDraft>({});
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
-  const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const hasData = !!(draft.name || draft.startDate || draft.maxCashDiscount);
+  const canCreate = !!(draft.name && draft.startDate && draft.endDate);
 
   // Auto-scroll
   useEffect(() => {
@@ -123,25 +131,9 @@ export default function NovaCampanhaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Create campaign
+  // Create campaign (only called after explicit confirmation)
   const createCampaign = useCallback(async () => {
-    if (!draft.name || !draft.startDate || !draft.endDate) {
-      const missing = [
-        !draft.name && "nome",
-        !draft.startDate && "data de início",
-        !draft.endDate && "data de término",
-      ].filter(Boolean).join(", ");
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `warn-${Date.now()}`,
-          role: "assistant",
-          content: `**Dados incompletos para criar a campanha.** Faltam: ${missing}. Continue a conversa para definir esses campos.`,
-          timestamp: new Date(),
-        },
-      ]);
-      return;
-    }
+    if (!draft.name || !draft.startDate || !draft.endDate) return;
     setCreating(true);
     try {
       const res = await fetch("/api/negotiation-campaigns", {
@@ -168,7 +160,7 @@ export default function NovaCampanhaPage() {
           {
             id: `success-${Date.now()}`,
             role: "assistant",
-            content: `**Campanha "${draft.name}" criada com sucesso!** 🎉\n\nEla já está disponível na aba Campanhas.`,
+            content: `**Campanha "${draft.name}" criada com sucesso!**\n\nEla já está disponível na aba Campanhas.`,
             timestamp: new Date(),
           },
         ]);
@@ -181,13 +173,12 @@ export default function NovaCampanhaPage() {
           errMsg = parsed.error || errMsg;
         } catch {}
         console.error("Campaign creation error:", res.status, errBody);
-        const err = { error: errMsg };
         setMessages((prev) => [
           ...prev,
           {
             id: `error-${Date.now()}`,
             role: "assistant",
-            content: `**Erro ao criar campanha:** ${err.error || "Tente novamente."}`,
+            content: `**Erro ao criar campanha:** ${errMsg}`,
             timestamp: new Date(),
           },
         ]);
@@ -207,14 +198,6 @@ export default function NovaCampanhaPage() {
     }
   }, [draft]);
 
-  // Trigger campaign creation after draft state settles
-  useEffect(() => {
-    if (pendingConfirm) {
-      setPendingConfirm(false);
-      createCampaign();
-    }
-  }, [pendingConfirm, createCampaign]);
-
   // Send message
   const sendMessage = useCallback(
     async (text: string, isSystem = false) => {
@@ -229,6 +212,7 @@ export default function NovaCampanhaPage() {
       if (text === "Criar outra campanha") {
         setMessages([]);
         setDraft({});
+        setCreated(false);
         setSuggestions([]);
         sendMessage("Crie campanhas de negociação baseadas nos dados atuais.", true);
         return;
@@ -335,9 +319,9 @@ export default function NovaCampanhaPage() {
           setDraft((prev) => ({ ...prev, ...campaignUpdate }));
         }
 
-        // Auto-create on confirmation
+        // When AI confirms, show confirmation dialog instead of auto-creating
         if (confirmed) {
-          setPendingConfirm(true);
+          setShowConfirm(true);
         }
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
@@ -351,7 +335,7 @@ export default function NovaCampanhaPage() {
         abortRef.current = null;
       }
     },
-    [loading, messages, createCampaign, router]
+    [loading, messages, router]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -369,23 +353,37 @@ export default function NovaCampanhaPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 lg:-m-8">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 shrink-0">
-        <button
-          onClick={() => router.push("/reguas")}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <div>
-          <h1 className="text-sm font-semibold text-gray-900">Nova Campanha</h1>
-          <p className="text-xs text-gray-400">Converse com a AI para criar sua campanha</p>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/reguas?tab=campanhas")}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <h1 className="text-sm font-semibold text-gray-900">Nova Campanha</h1>
+            <p className="text-xs text-gray-400">Converse com a AI para criar sua campanha</p>
+          </div>
         </div>
+        {/* Mobile preview toggle */}
+        {hasData && (
+          <button
+            onClick={() => setShowMobilePreview(!showMobilePreview)}
+            className="lg:hidden px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+          >
+            {showMobilePreview ? "Ver chat" : "Ver preview"}
+          </button>
+        )}
       </div>
 
       {/* Split layout */}
       <div className="flex flex-1 min-h-0">
-        {/* Chat (left) */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-gray-100">
+        {/* Chat (left) — hidden on mobile when preview is open */}
+        <div className={cn(
+          "flex-1 flex flex-col min-w-0 lg:border-r border-gray-100",
+          showMobilePreview && "hidden lg:flex"
+        )}>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {messages.map((msg) => (
@@ -434,6 +432,29 @@ export default function NovaCampanhaPage() {
             </div>
           )}
 
+          {/* Mobile floating CTA */}
+          {!showMobilePreview && (
+            <div className="lg:hidden px-6 pb-2">
+              {created ? (
+                <button
+                  onClick={() => router.push("/reguas?tab=campanhas")}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ver campanhas criadas
+                </button>
+              ) : canCreate && !creating ? (
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  <Check className="h-4 w-4" />
+                  Criar campanha
+                </button>
+              ) : null}
+            </div>
+          )}
+
           {/* Input */}
           <form onSubmit={handleSubmit} className="px-6 py-4 border-t border-gray-100 shrink-0">
             <div className="flex items-end gap-2">
@@ -457,8 +478,11 @@ export default function NovaCampanhaPage() {
           </form>
         </div>
 
-        {/* Preview (right) — hidden on mobile */}
-        <div className="hidden lg:block w-[400px] shrink-0 overflow-y-auto p-6 bg-gray-50/50">
+        {/* Preview (right on desktop, full-screen toggle on mobile) */}
+        <div className={cn(
+          "w-full lg:w-[400px] shrink-0 overflow-y-auto p-6 bg-gray-50/50",
+          showMobilePreview ? "block" : "hidden lg:block"
+        )}>
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-gray-400" />
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Preview</h2>
@@ -467,10 +491,61 @@ export default function NovaCampanhaPage() {
             draft={draft}
             creating={creating}
             created={created}
-            onCreateCampaign={createCampaign}
+            onCreateCampaign={() => setShowConfirm(true)}
             onViewCampaigns={() => router.push("/reguas?tab=campanhas")}
           />
         </div>
+      </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Criar campanha?"
+        description={`A campanha "${draft.name || ""}" será criada e ficará disponível para ativação na aba Campanhas.`}
+        confirmLabel="Criar campanha"
+        cancelLabel="Revisar"
+        onConfirm={createCampaign}
+      />
+    </div>
+  );
+}
+
+/* ── Progress Checklist ── */
+
+function ProgressChecklist({ draft }: { draft: CampaignDraft }) {
+  const fields = [
+    { label: "Nome", done: !!draft.name },
+    { label: "Período", done: !!(draft.startDate && draft.endDate) },
+    { label: "Condições", done: draft.maxCashDiscount !== undefined || draft.maxInstallments !== undefined },
+    { label: "Público-alvo", done: !!(draft.targetFilters && Object.keys(draft.targetFilters).length > 0) },
+  ];
+
+  const doneCount = fields.filter((f) => f.done).length;
+  const allDone = doneCount === fields.length;
+
+  return (
+    <div className="px-5 py-3 border-t border-gray-50">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] text-gray-400 font-medium">Progresso</p>
+        <span className={cn(
+          "text-[10px] font-semibold",
+          allDone ? "text-emerald-600" : "text-gray-400"
+        )}>
+          {doneCount}/{fields.length}
+        </span>
+      </div>
+      <div className="space-y-1">
+        {fields.map((f) => (
+          <div key={f.label} className="flex items-center gap-2 text-[11px]">
+            {f.done ? (
+              <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+            ) : (
+              <Circle className="h-3 w-3 text-gray-300 shrink-0" />
+            )}
+            <span className={f.done ? "text-gray-600" : "text-gray-400"}>{f.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -504,6 +579,46 @@ function CampaignPreview({
     );
   }
 
+  // Success state
+  if (created) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 overflow-hidden">
+          <div className="flex flex-col items-center py-8 px-5 text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+              <PartyPopper className="h-6 w-6 text-emerald-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">Campanha criada!</h3>
+            <p className="text-xs text-gray-500">{draft.name}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {draft.startDate && new Date(draft.startDate).toLocaleDateString("pt-BR")} — {draft.endDate && new Date(draft.endDate).toLocaleDateString("pt-BR")}
+            </p>
+          </div>
+          {/* Summary */}
+          <div className="px-5 pb-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-emerald-700">
+            {draft.maxCashDiscount !== undefined && (
+              <span>Desconto até {(draft.maxCashDiscount * 100).toFixed(0)}%</span>
+            )}
+            {draft.maxInstallments !== undefined && <span>Até {draft.maxInstallments}x</span>}
+          </div>
+        </div>
+        <button
+          onClick={onViewCampaigns}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ver campanhas criadas
+        </button>
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-gray-700 text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors"
+        >
+          Criar outra campanha
+        </button>
+      </div>
+    );
+  }
+
   const start = draft.startDate
     ? new Date(draft.startDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
     : "—";
@@ -513,20 +628,13 @@ function CampaignPreview({
 
   return (
     <div className="space-y-3">
-      <div className={cn(
-        "rounded-2xl border bg-white overflow-hidden transition-all duration-300",
-        created ? "border-green-200" : "border-gray-200",
-        creating && "opacity-60"
-      )}>
+      <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden transition-all duration-300">
         {/* Header */}
         <div className="px-5 py-4">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-gray-900">{draft.name || "Sem nome"}</h3>
-            <span className={cn(
-              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
-              created ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"
-            )}>
-              {created ? "Criada" : "Rascunho"}
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600">
+              Rascunho
             </span>
           </div>
           {draft.description && (
@@ -588,6 +696,9 @@ function CampaignPreview({
           </div>
         )}
 
+        {/* Progress checklist */}
+        <ProgressChecklist draft={draft} />
+
         {/* Creating state */}
         {creating && (
           <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-400">
@@ -597,16 +708,8 @@ function CampaignPreview({
         )}
       </div>
 
-      {/* Action buttons */}
-      {created ? (
-        <button
-          onClick={onViewCampaigns}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" />
-          Ver campanhas criadas
-        </button>
-      ) : canCreate && !creating ? (
+      {/* Create button */}
+      {canCreate && !creating && (
         <button
           onClick={onCreateCampaign}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -614,7 +717,7 @@ function CampaignPreview({
           <Check className="h-4 w-4" />
           Criar campanha
         </button>
-      ) : null}
+      )}
     </div>
   );
 }
