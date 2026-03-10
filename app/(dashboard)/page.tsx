@@ -21,6 +21,12 @@ import {
   AlertTriangle,
   FileText,
   Users,
+  Trophy,
+  CheckCircle,
+  ArrowUpRight,
+  ShieldAlert,
+  SmilePlus,
+  Frown,
 } from "lucide-react";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 
@@ -40,6 +46,13 @@ interface DashboardData {
     revenueData: { month: string; revenue: number; projected: number }[];
     chargesStatusData: { month: string; pagas: number; pendentes: number; vencidas: number }[];
     paymentMethodsData: { month: string; boleto: number; pix: number; cartao: number }[];
+  };
+  impact?: {
+    redeEmDia: number;
+    recuperadosEsteMes: number;
+    emRisco: number;
+    melhorando: number;
+    piorando: number;
   };
 }
 
@@ -231,19 +244,69 @@ export default function DashboardPage() {
         />
       </div>
 
+      {data.impact && (
+        <div className="animate-in stagger-5 rounded-2xl border border-gray-100 bg-white overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-50">
+            <Trophy className="h-4 w-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900">Resumo de Impacto</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            <div className="flex items-center justify-between px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                <span className="text-sm text-gray-700">Rede em dia</span>
+              </div>
+              <span className="text-sm font-semibold text-emerald-600">{data.impact.redeEmDia}%</span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                <span className="text-sm text-gray-700">Recuperados este mês</span>
+              </div>
+              <span className="text-sm font-semibold text-emerald-600">
+                R$ {(data.impact.recuperadosEsteMes / 100).toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-4 w-4 text-red-400" />
+                <span className="text-sm text-gray-700">Em risco</span>
+              </div>
+              <span className="text-sm font-semibold text-red-500">
+                R$ {(data.impact.emRisco / 100).toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <SmilePlus className="h-4 w-4 text-emerald-500" />
+                <span className="text-sm text-gray-700">Melhorando</span>
+              </div>
+              <span className="text-sm font-semibold text-emerald-600">{data.impact.melhorando}</span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <Frown className="h-4 w-4 text-red-400" />
+                <span className="text-sm text-gray-700">Piorando</span>
+              </div>
+              <span className="text-sm font-semibold text-red-500">{data.impact.piorando}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {data.charts && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="animate-in stagger-5">
+          <div className="animate-in stagger-6">
             <ChartCard title="Recebido vs. Emitido" subtitle="Últimos períodos">
               <StripeRevenueChart data={data.charts.revenueData} />
             </ChartCard>
           </div>
-          <div className="animate-in stagger-6">
+          <div className="animate-in stagger-7">
             <ChartCard title="Status das Cobranças" subtitle="Evolução mensal">
               <StripeChargesStatusChart data={data.charts.chargesStatusData} />
             </ChartCard>
           </div>
-          <div className="animate-in stagger-7">
+          <div className="animate-in stagger-8">
             <ChartCard title="Formas de Pagamento" subtitle="Distribuição por mês">
               <StripePaymentMethodsChart data={data.charts.paymentMethodsData} />
             </ChartCard>

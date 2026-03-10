@@ -113,6 +113,61 @@ export async function GET() {
       };
     });
 
+    // ── Impact summary (unfiltered, always shows global picture) ──
+    const now = new Date();
+    const thisMonth = `${meses[now.getMonth()]}/${now.getFullYear()}`;
+
+    // "Rede em dia" — % of customers with no overdue charges
+    const customerIds = new Set(charges.map((c) => c.customerId));
+    const customersWithOverdue = new Set(
+      charges.filter((c) => c.status === "OVERDUE").map((c) => c.customerId)
+    );
+    const redeEmDia = customerIds.size > 0
+      ? Math.round(((customerIds.size - customersWithOverdue.size) / customerIds.size) * 100)
+      : 0;
+
+    // "Recuperados este mês" — value paid this month
+    const recuperadosEsteMes = charges
+      .filter((c) => c.status === "PAID" && c.paidAt && c.paidAt.getMonth() === now.getMonth() && c.paidAt.getFullYear() === now.getFullYear())
+      .reduce((s, c) => s + c.amountCents, 0);
+
+    // "Em risco" — total overdue value
+    const emRisco = charges
+      .filter((c) => c.status === "OVERDUE")
+      .reduce((s, c) => s + c.amountCents, 0);
+
+    // "Melhorando" / "Piorando" — compare each customer's overdue rate between last 2 competências
+    let melhorando = 0;
+    let piorando = 0;
+    if (sortedCompetencias.length >= 2) {
+      const currComp = sortedCompetencias[0];
+      const prevComp = sortedCompetencias[1];
+
+      const customerOverdueRate = (comp: string) => {
+        const rates = new Map<string, { total: number; overdue: number }>();
+        charges.filter((c) => c.competencia === comp).forEach((c) => {
+          const entry = rates.get(c.customerId) || { total: 0, overdue: 0 };
+          entry.total++;
+          if (c.status === "OVERDUE") entry.overdue++;
+          rates.set(c.customerId, entry);
+        });
+        return rates;
+      };
+
+      const currRates = customerOverdueRate(currComp);
+      const prevRates = customerOverdueRate(prevComp);
+
+      for (const custId of Array.from(customerIds)) {
+        const curr = currRates.get(custId);
+        const prev = prevRates.get(custId);
+        if (!curr || !prev) continue;
+        const currRate = curr.overdue / curr.total;
+        const prevRate = prev.overdue / prev.total;
+        if (currRate < prevRate) melhorando++;
+        else if (currRate > prevRate) piorando++;
+      }
+    }
+
     return NextResponse.json({
       empty: false,
       competencias: sortedCompetencias.map((c) => ({
@@ -124,6 +179,13 @@ export async function GET() {
         revenueData,
         chargesStatusData,
         paymentMethodsData,
+      },
+      impact: {
+        redeEmDia,
+        recuperadosEsteMes,
+        emRisco,
+        melhorando,
+        piorando,
       },
     });
   } catch (err) {
