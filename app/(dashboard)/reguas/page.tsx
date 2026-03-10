@@ -370,6 +370,7 @@ export default function ReguasPage() {
     profile: RiskProfileKey;
   } | null>(null);
   const [fullscreenRule, setFullscreenRule] = useState<ApiDunningRule | null>(null);
+  const [activeSection, setActiveSection] = useState<"reguas" | "campanhas">("reguas");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -464,49 +465,81 @@ export default function ReguasPage() {
       <div className="space-y-5 min-w-0 overflow-hidden">
         <PageHeader title="Réguas de Cobrança" />
 
-        {RISK_PROFILES.map((profile) => {
-          const rule = rulesByProfile[profile.key];
-          return (
-            <div key={profile.key}>
-              {rule ? (
-                <RuleCard
-                  rule={rule}
-                  profile={profile}
-                  customerCount={profileCounts[profile.key]}
-                  onToggle={() =>
-                    setConfirmToggle({
-                      id: rule.id,
-                      name: rule.name,
-                      active: rule.active,
-                      profile: profile.key,
-                    })
-                  }
-                  onExpand={() => setFullscreenRule(rule)}
-                />
-              ) : (
-                <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                  <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-50">
-                    <span
-                      className="h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: profile.dot }}
+        {/* Section tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="flex gap-0" aria-label="Seções">
+            {[
+              { key: "reguas" as const, label: "Réguas Padrão" },
+              { key: "campanhas" as const, label: "Campanhas" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveSection(tab.key)}
+                className={cn(
+                  "relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap",
+                  activeSection === tab.key
+                    ? "text-gray-900"
+                    : "text-gray-400 hover:text-gray-600"
+                )}
+              >
+                {tab.label}
+                {activeSection === tab.key && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {activeSection === "reguas" ? (
+          <>
+            {RISK_PROFILES.map((profile) => {
+              const rule = rulesByProfile[profile.key];
+              return (
+                <div key={profile.key}>
+                  {rule ? (
+                    <RuleCard
+                      rule={rule}
+                      profile={profile}
+                      customerCount={profileCounts[profile.key]}
+                      onToggle={() =>
+                        setConfirmToggle({
+                          id: rule.id,
+                          name: rule.name,
+                          active: rule.active,
+                          profile: profile.key,
+                        })
+                      }
+                      onExpand={() => setFullscreenRule(rule)}
                     />
-                    <span className="text-xs text-gray-400 font-medium">{profile.label}</span>
-                    <span className="text-gray-200">·</span>
-                    <span className="text-xs text-gray-400">{profileCounts[profile.key]} clientes</span>
-                  </div>
-                  <div className="px-6 py-8">
-                    <FilterEmptyState
-                      message={`Nenhuma régua configurada para "${profile.label}".`}
-                      suggestion="Crie uma régua para automatizar cobranças desse perfil."
-                      actionLabel="Criar régua"
-                      actionHref="/reguas/nova"
-                    />
-                  </div>
+                  ) : (
+                    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                      <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-50">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: profile.dot }}
+                        />
+                        <span className="text-xs text-gray-400 font-medium">{profile.label}</span>
+                        <span className="text-gray-200">·</span>
+                        <span className="text-xs text-gray-400">{profileCounts[profile.key]} clientes</span>
+                      </div>
+                      <div className="px-6 py-8">
+                        <FilterEmptyState
+                          message={`Nenhuma régua configurada para "${profile.label}".`}
+                          suggestion="Crie uma régua para automatizar cobranças desse perfil."
+                          actionLabel="Criar régua"
+                          actionHref="/reguas/nova"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </>
+        ) : (
+          <CampaignsSection />
+        )}
 
         <ConfirmDialog
           open={!!confirmToggle}
@@ -748,6 +781,19 @@ function RuleCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Campaigns Section ── */
+
+function CampaignsSection() {
+  return (
+    <FilterEmptyState
+      message="Nenhuma campanha de negociação criada."
+      suggestion="Crie uma campanha para oferecer condições especiais de renegociação."
+      actionLabel="Criar campanha"
+      actionHref="/reguas/campanhas/nova"
+    />
   );
 }
 
