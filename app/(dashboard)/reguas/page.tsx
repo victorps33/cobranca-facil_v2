@@ -62,6 +62,30 @@ interface TimelineStep {
   days: number;
 }
 
+type CampaignStatus = "DRAFT" | "ACTIVE" | "ENDED";
+
+interface ApiCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  status: CampaignStatus;
+  startDate: string;
+  endDate: string;
+  maxCashDiscount: number;
+  maxInstallments: number;
+  monthlyInterestRate: number;
+  minInstallmentCents: number;
+  targetFilters: Record<string, unknown> | null;
+  steps: ApiDunningStep[];
+  _count: { customers: number };
+}
+
+const CAMPAIGN_STATUS: Record<CampaignStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Rascunho", className: "bg-gray-100 text-gray-600" },
+  ACTIVE: { label: "Ativa", className: "bg-emerald-50 text-emerald-700" },
+  ENDED: { label: "Encerrada", className: "bg-gray-100 text-gray-400" },
+};
+
 /* ── Config ── */
 
 const RISK_PROFILES: {
@@ -787,13 +811,109 @@ function RuleCard({
 /* ── Campaigns Section ── */
 
 function CampaignsSection() {
+  const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const headers = getFranqueadoraHeaders();
+    fetch("/api/negotiation-campaigns", { headers })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCampaigns)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-64" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (campaigns.length === 0) {
+    return (
+      <FilterEmptyState
+        message="Nenhuma campanha de negociação criada."
+        suggestion="Crie uma campanha para oferecer condições especiais de renegociação."
+        actionLabel="Criar campanha"
+        actionHref="/reguas/campanhas/nova"
+      />
+    );
+  }
+
   return (
-    <FilterEmptyState
-      message="Nenhuma campanha de negociação criada."
-      suggestion="Crie uma campanha para oferecer condições especiais de renegociação."
-      actionLabel="Criar campanha"
-      actionHref="/reguas/campanhas/nova"
-    />
+    <div className="space-y-5">
+      {campaigns.map((campaign) => (
+        <CampaignCard key={campaign.id} campaign={campaign} />
+      ))}
+    </div>
+  );
+}
+
+/* ── Campaign Card ── */
+
+function CampaignCard({ campaign }: { campaign: ApiCampaign }) {
+  const sorted = toTimelineSteps(campaign.steps);
+  const d0Index = sorted.findIndex((s) => s.days === 0);
+  const status = CAMPAIGN_STATUS[campaign.status];
+  const start = new Date(campaign.startDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  const end = new Date(campaign.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
+  return (
+    <div
+      className={cn(
+        "group/card rounded-2xl border border-gray-100 bg-white transition-colors duration-200 overflow-hidden hover:border-gray-200 min-w-0",
+        campaign.status === "ENDED" && "opacity-60"
+      )}
+      style={{ animation: "regua-card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">{campaign.name}</h3>
+            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold", status.className)}>
+              {status.label}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {start} — {end} · {campaign._count.customers} clientes · {campaign.steps.length} etapas
+          </p>
+        </div>
+        <Link
+          href={`/reguas/campanhas/${campaign.id}`}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:border-gray-300 transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Editar
+        </Link>
+      </div>
+
+      {/* Commercial terms */}
+      <div className="px-6 pb-3 flex gap-4 text-[11px] text-gray-400">
+        <span>Desconto até {(campaign.maxCashDiscount * 100).toFixed(0)}%</span>
+        <span>·</span>
+        <span>Até {campaign.maxInstallments}x</span>
+        <span>·</span>
+        <span>Juros {(campaign.monthlyInterestRate * 100).toFixed(1)}% a.m.</span>
+      </div>
+
+      {/* Timeline */}
+      {sorted.length > 0 && (
+        <div className="border-t border-gray-50">
+          <ScrollFadeContainer className="px-4 py-4">
+            <TimelineView sorted={sorted} d0Index={d0Index} size="compact" />
+          </ScrollFadeContainer>
+        </div>
+      )}
+    </div>
   );
 }
 
