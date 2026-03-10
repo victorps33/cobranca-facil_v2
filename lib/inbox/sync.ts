@@ -10,14 +10,16 @@ interface InteractionLogInput {
   franqueadoraId: string;
 }
 
-function channelToInteractionType(channel: Channel) {
+function channelToInteractionType(channel: Channel): "EMAIL" | "SMS" | "WHATSAPP" | "TELEFONE" {
   switch (channel) {
     case "EMAIL":
-      return "EMAIL" as const;
+      return "EMAIL";
     case "SMS":
-      return "SMS" as const;
+      return "SMS";
     case "WHATSAPP":
-      return "WHATSAPP" as const;
+      return "WHATSAPP";
+    default:
+      return "TELEFONE";
   }
 }
 
