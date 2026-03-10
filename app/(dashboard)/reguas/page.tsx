@@ -741,16 +741,7 @@ function RuleCard({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">{rule.name}</h3>
-            <span className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
-              <span
-                className="h-1.5 w-1.5 rounded-full shrink-0"
-                style={{ backgroundColor: profile.dot }}
-              />
-              {profile.label}
-            </span>
-          </div>
+          <h3 className="text-sm font-semibold text-gray-900">{rule.name}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {rule.steps.length} etapas · Até {PHASE_LABELS[rule.maxPhase] || rule.maxPhase} · {customerCount} clientes
           </p>
