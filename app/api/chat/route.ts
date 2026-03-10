@@ -409,6 +409,7 @@ export async function POST(request: Request) {
     }
 
     const anthropic = getAnthropicClient();
+    console.log("[Julia Debug] API key present:", !!process.env.ANTHROPIC_API_KEY, "client:", !!anthropic);
     const franqueadoraIdForCache = tenantIds.join(",");
 
     // Check preset cache for non-streaming or first message
@@ -464,36 +465,66 @@ export async function POST(request: Request) {
           let fullResponse = "";
           const readableStream = new ReadableStream({
             async start(controller) {
-              try {
-                const stream = await anthropic.messages.create({
-                  model: "claude-haiku-4-5-20251001",
-                  max_tokens: 1024,
-                  system: systemPrompt,
-                  messages: claudeMessages,
-                  stream: true,
-                });
+              const MAX_RETRIES = 3;
+              let lastError: unknown = null;
 
-                for await (const event of stream) {
-                  if (
-                    event.type === "content_block_delta" &&
-                    event.delta.type === "text_delta"
-                  ) {
-                    fullResponse += event.delta.text;
-                    controller.enqueue(
-                      sseEvent(JSON.stringify({ text: event.delta.text }))
-                    );
+              for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                  if (attempt > 0) {
+                    const delay = Math.min(1000 * Math.pow(2, attempt), 4000);
+                    console.log(`[Julia] Retry attempt ${attempt + 1}/${MAX_RETRIES} after ${delay}ms`);
+                    await new Promise((r) => setTimeout(r, delay));
                   }
-                }
 
-                // Cache preset responses
-                if (isPreset && fullResponse) {
-                  setCachedResponse(cacheKey, fullResponse);
+                  const stream = await anthropic.messages.create({
+                    model: "claude-haiku-4-5-20251001",
+                    max_tokens: 1024,
+                    system: systemPrompt,
+                    messages: claudeMessages,
+                    stream: true,
+                  });
+
+                  for await (const event of stream) {
+                    if (
+                      event.type === "content_block_delta" &&
+                      event.delta.type === "text_delta"
+                    ) {
+                      fullResponse += event.delta.text;
+                      controller.enqueue(
+                        sseEvent(JSON.stringify({ text: event.delta.text }))
+                      );
+                    }
+                  }
+
+                  // Cache preset responses
+                  if (isPreset && fullResponse) {
+                    setCachedResponse(cacheKey, fullResponse);
+                  }
+
+                  lastError = null;
+                  break; // Success — exit retry loop
+                } catch (err) {
+                  lastError = err;
+                  const isOverloaded = err instanceof Error &&
+                    (err.message.includes("overloaded") || err.message.includes("529"));
+                  console.error(`[Julia] Stream error (attempt ${attempt + 1}):`, err);
+
+                  // Only retry on overloaded errors
+                  if (!isOverloaded) break;
                 }
-              } catch {
+              }
+
+              if (lastError) {
+                const isOverloaded = lastError instanceof Error &&
+                  (lastError.message.includes("overloaded") || lastError.message.includes("529"));
+                const errorMsg = isOverloaded
+                  ? "A Júlia está com alta demanda no momento. Por favor, tente novamente em alguns segundos. Se o problema persistir, verifique os créditos da API em console.anthropic.com."
+                  : "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.";
                 controller.enqueue(
-                  sseEvent(JSON.stringify({ text: "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente." }))
+                  sseEvent(JSON.stringify({ text: errorMsg }))
                 );
               }
+
               controller.enqueue(sseEvent("[DONE]"));
               controller.close();
             },
@@ -532,25 +563,37 @@ export async function POST(request: Request) {
     }
 
     if (anthropic) {
-      try {
-        const response = await anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: claudeMessages,
-        });
-
-        const textContent = response.content.find((c) => c.type === "text");
-        const reply = textContent?.text ?? "";
-        if (reply) {
-          // Cache preset responses
-          if (isPreset) {
-            setCachedResponse(cacheKey, reply);
+      const MAX_RETRIES = 3;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 4000);
+            console.log(`[Julia] Non-stream retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms`);
+            await new Promise((r) => setTimeout(r, delay));
           }
-          return NextResponse.json({ reply });
+
+          const response = await anthropic.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: claudeMessages,
+          });
+
+          const textContent = response.content.find((c) => c.type === "text");
+          const reply = textContent?.text ?? "";
+          if (reply) {
+            if (isPreset) {
+              setCachedResponse(cacheKey, reply);
+            }
+            return NextResponse.json({ reply });
+          }
+          break; // Empty reply, don't retry
+        } catch (err) {
+          console.error(`[Julia] API error (attempt ${attempt + 1}):`, err);
+          const isOverloaded = err instanceof Error &&
+            (err.message.includes("overloaded") || err.message.includes("529"));
+          if (!isOverloaded || attempt === MAX_RETRIES - 1) break;
         }
-      } catch (err) {
-        console.error("Anthropic API error in chat:", err);
       }
     }
 

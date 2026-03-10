@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type { Franqueado, Cobranca } from "@/lib/types";
 import { KpiSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import { getStatusClasses } from "@/components/ui/status-badge";
 import { MetricCard } from "@/components/ui/metric-card";
 import {
   MapPin,
@@ -37,13 +38,6 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   "Crítico":        { bg: "bg-red-50",     text: "text-red-700",     dot: "bg-red-500" },
 };
 
-const cobrancaStatusColors: Record<string, { bg: string; text: string }> = {
-  Aberta:    { bg: "bg-blue-50",    text: "text-blue-700" },
-  Vencida:   { bg: "bg-red-50",     text: "text-red-700" },
-  Paga:      { bg: "bg-emerald-50", text: "text-emerald-700" },
-  Cancelada: { bg: "bg-gray-100",   text: "text-gray-500" },
-};
-
 export default function ClienteDetalhePage() {
   const params = useParams();
   const router = useRouter();
@@ -72,7 +66,7 @@ export default function ClienteDetalhePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <Breadcrumbs items={[{ label: "Franqueados", href: "/clientes" }, { label: "Carregando..." }]} />
         <KpiSkeleton count={4} />
         <TableSkeleton rows={5} cols={6} />
@@ -82,7 +76,7 @@ export default function ClienteDetalhePage() {
 
   if (!franqueado) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <Breadcrumbs items={[
           { label: "Franqueados", href: "/clientes" },
           { label: "Não encontrado" },
@@ -113,7 +107,7 @@ export default function ClienteDetalhePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Breadcrumbs items={[
         { label: "Franqueados", href: "/clientes" },
         { label: franqueado.nome },
@@ -121,7 +115,7 @@ export default function ClienteDetalhePage() {
 
       <div className="flex items-center justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-gray-900 truncate">
+          <h1 className="text-2xl font-bold text-gray-900 truncate">
             {franqueado.nome}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -183,7 +177,7 @@ export default function ClienteDetalhePage() {
       </div>
 
       {/* Informações */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">Informações</h3>
         <div className="grid gap-3 sm:grid-cols-2 text-sm">
           <div className="flex items-center gap-3 text-gray-600">
@@ -231,26 +225,24 @@ export default function ClienteDetalhePage() {
 
         {cobrancas.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-400">Nenhuma cobrança registrada.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma cobrança registrada.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Descrição</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Categoria</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Vencimento</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Valor</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Aberto</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Pagamento</th>
-                  <th className="px-4 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Descrição</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Categoria</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Vencimento</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Valor</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Aberto</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Pagamento</th>
+                  <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {cobrancas.map((c) => {
-                  const sc2 = cobrancaStatusColors[c.status] ?? cobrancaStatusColors.Aberta;
-                  return (
+                {cobrancas.map((c) => (
                     <tr
                       key={c.id}
                       onClick={() => router.push(`/cobrancas/${c.id}`)}
@@ -258,25 +250,24 @@ export default function ClienteDetalhePage() {
                     >
                       <td className="px-5 py-3">
                         <p className="font-medium text-gray-900 truncate max-w-[200px]">{c.descricao}</p>
-                        <p className="text-xs text-gray-400">{c.competencia}</p>
+                        <p className="text-xs text-muted-foreground">{c.competencia}</p>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{c.categoria}</td>
-                      <td className="px-4 py-3 text-gray-600 tabular-nums">{fmtDate(c.dataVencimento)}</td>
-                      <td className="px-4 py-3 text-right text-gray-900 tabular-nums font-medium">{fmtBRL(c.valorOriginal)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        <span className={c.valorAberto > 0 ? "text-red-600 font-medium" : "text-gray-400"}>
+                      <td className="px-5 py-3 text-gray-600">{c.categoria}</td>
+                      <td className="px-5 py-3 text-gray-600 tabular-nums">{fmtDate(c.dataVencimento)}</td>
+                      <td className="px-5 py-3 text-right text-gray-900 tabular-nums font-medium">{fmtBRL(c.valorOriginal)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">
+                        <span className={c.valorAberto > 0 ? "text-red-600 font-medium" : "text-muted-foreground"}>
                           {c.valorAberto > 0 ? fmtBRL(c.valorAberto) : "—"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{c.formaPagamento}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", sc2.bg, sc2.text)}>
+                      <td className="px-5 py-3 text-gray-600">{c.formaPagamento}</td>
+                      <td className="px-5 py-3">
+                        <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border", getStatusClasses(c.status))}>
                           {c.status}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
               </tbody>
             </table>
           </div>

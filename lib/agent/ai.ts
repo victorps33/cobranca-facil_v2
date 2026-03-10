@@ -4,7 +4,7 @@ import {
   renderDunningPrompt,
   renderInboundPrompt,
 } from "./context-builder";
-import type { AIDecision, CollectionContext, InboundContext } from "./types";
+import type { AIDecision, AIDecisionMetadata, CollectionContext, InboundContext } from "./types";
 
 function getAnthropicClient(): Anthropic | null {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -27,12 +27,22 @@ function parseAIResponse(text: string): AIDecision {
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
+    const metadata: AIDecisionMetadata = {};
+
+    if (parsed.metadata) {
+      if (parsed.metadata.promiseDate) metadata.promiseDate = parsed.metadata.promiseDate;
+      if (typeof parsed.metadata.installments === "number") metadata.installments = parsed.metadata.installments;
+      if (parsed.metadata.callbackDate) metadata.callbackDate = parsed.metadata.callbackDate;
+      if (parsed.metadata.chargeId) metadata.chargeId = parsed.metadata.chargeId;
+    }
+
     return {
       action: parsed.action || "SKIP",
       message: parsed.message || "",
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
       reasoning: parsed.reasoning || "",
       escalationReason: parsed.escalationReason || undefined,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     };
   } catch {
     return {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, requireRole } from "@/lib/auth-helpers";
 
@@ -53,9 +54,20 @@ export async function PUT(request: Request) {
   const { session, error: roleError } = await requireRole(["ADMINISTRADOR"]);
   if (roleError) return roleError;
 
-  const tenantId = session!.user.franqueadoraId;
+  // Support group users: resolve tenant from header or session
+  let tenantId = session!.user.franqueadoraId;
+  if (!tenantId && session!.user.grupoFranqueadoraId) {
+    const headerList = headers();
+    const requestedId = headerList.get("x-franqueadora-id");
+    if (requestedId && requestedId !== "all") {
+      const franqueadora = await prisma.franqueadora.findFirst({
+        where: { id: requestedId, grupoId: session!.user.grupoFranqueadoraId },
+      });
+      if (franqueadora) tenantId = franqueadora.id;
+    }
+  }
   if (!tenantId) {
-    return NextResponse.json({ error: "Tenant não configurado" }, { status: 403 });
+    return NextResponse.json({ error: "Selecione uma franqueadora antes de configurar." }, { status: 403 });
   }
 
   const body = await request.json();
@@ -78,18 +90,33 @@ export async function PUT(request: Request) {
       : null;
   }
 
-  const config = await prisma.agentConfig.upsert({
-    where: { franqueadoraId: tenantId },
-    update: data,
-    create: {
-      franqueadoraId: tenantId,
-      ...data,
-    },
-    select: { whatsappFrom: true, smsFrom: true },
-  });
+  try {
+    const config = await prisma.agentConfig.upsert({
+      where: { franqueadoraId: tenantId },
+      update: data,
+      create: {
+        franqueadoraId: tenantId,
+        ...data,
+      },
+      select: { whatsappFrom: true, smsFrom: true },
+    });
 
-  return NextResponse.json({
-    whatsappFrom: config.whatsappFrom ?? "",
-    smsFrom: config.smsFrom ?? "",
-  });
+    return NextResponse.json({
+      whatsappFrom: config.whatsappFrom ?? "",
+      smsFrom: config.smsFrom ?? "",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("Unique constraint")) {
+      return NextResponse.json(
+        { error: "Este número já está em uso por outra franqueadora." },
+        { status: 409 }
+      );
+    }
+    console.error("[Twilio Config] Error:", err);
+    return NextResponse.json(
+      { error: "Erro ao salvar configuração." },
+      { status: 500 }
+    );
+  }
 }

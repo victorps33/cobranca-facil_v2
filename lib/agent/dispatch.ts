@@ -215,3 +215,20 @@ export async function processPendingQueue(
 
   return { processed: items.length, sent, failed };
 }
+
+/**
+ * Immediately dispatch a just-enqueued message without waiting for cron.
+ * Called inline by the orchestrator after enqueueing an IMMEDIATE-priority message.
+ * If dispatch fails, the item stays in the queue for cron retry.
+ */
+export async function dispatchImmediate(queueItemId: string): Promise<DispatchResult> {
+  const item = await prisma.messageQueue.findUnique({
+    where: { id: queueItemId },
+  });
+
+  if (!item || item.status !== "PENDING") {
+    return { success: false, error: "Queue item not found or not pending" };
+  }
+
+  return dispatchMessage(item);
+}

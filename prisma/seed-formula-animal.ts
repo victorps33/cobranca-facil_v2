@@ -95,7 +95,7 @@ async function main() {
     console.log("  Agent configs created for both");
 
     // 6. Create admin user
-    const hashedPassword = await hashPassword("formula2024");
+    const hashedPassword = await hashPassword("formula2026");
     const user = await tx.user.create({
       data: {
         name: "Admin Fórmula Animal",
@@ -108,7 +108,7 @@ async function main() {
     console.log(`  User: ${user.email} (${user.id})`);
   });
 
-  console.log("\n✓ Done! Login with: admin@formulaanimal.com.br / formula2024");
+  console.log("\n✓ Done! Login with: admin@formulaanimal.com.br / formula2026");
 }
 
 main()

@@ -20,34 +20,10 @@ import {
   Barcode,
 } from "lucide-react";
 import { fmt, fmtDate } from "@/lib/constants";
+import { getStatusClasses, getStatusLabel } from "@/components/ui/status-badge";
 import { NotaFiscalViewerDialog } from "@/components/cobrancas/NotaFiscalViewerDialog";
 import { BoletoViewerDialog } from "@/components/cobrancas/BoletoViewerDialog";
 import { PixComprovanteDialog } from "@/components/cobrancas/PixComprovanteDialog";
-
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-const STATUS_BADGE: Record<
-  string,
-  { label: string; className: string }
-> = {
-  Aberta: {
-    label: "Em aberto",
-    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  },
-  Vencida: {
-    label: "Vencida",
-    className: "bg-red-50 text-red-700 border-red-200",
-  },
-  Paga: {
-    label: "Paga",
-    className: "bg-green-50 text-green-700 border-green-200",
-  },
-  Cancelada: {
-    label: "Cancelada",
-    className: "bg-gray-100 text-gray-500 border-gray-200",
-  },
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -164,7 +140,8 @@ export default function CobrancaDetalhePage() {
   const linhaDigitavelFake = `23793.38128 60000.000003 00000.000401 1 ${vencNum}${valorNum}`;
   const linhaDigitavel = cobranca.linhaDigitavel || linhaDigitavelFake;
 
-  const badge = STATUS_BADGE[cobranca.status] ?? STATUS_BADGE.Aberta;
+  const badgeClassName = getStatusClasses(cobranca.status);
+  const badgeLabel = getStatusLabel(cobranca.status);
 
   function copy(text: string, id: string) {
     navigator.clipboard.writeText(text);
@@ -200,10 +177,10 @@ export default function CobrancaDetalhePage() {
                 <span
                   className={cn(
                     "px-3.5 py-1 text-xs font-semibold rounded-full border",
-                    badge.className,
+                    badgeClassName,
                   )}
                 >
-                  {badge.label}
+                  {badgeLabel}
                 </span>
               </div>
 
@@ -229,14 +206,14 @@ export default function CobrancaDetalhePage() {
               <div className="grid grid-cols-3 gap-6 mb-6">
                 {/* Valor */}
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Valor a pagar</p>
+                  <p className="text-xs text-muted-foreground mb-2">Valor a pagar</p>
                   <p className="text-[2rem] leading-none font-bold text-gray-900 tracking-tight tabular-nums">
                     {fmt(cobranca.valorOriginal)}
                   </p>
                 </div>
                 {/* Vencimento */}
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Vencimento</p>
+                  <p className="text-xs text-muted-foreground mb-2">Vencimento</p>
                   <p className="text-xl font-bold text-gray-900 tabular-nums">
                     {fmtDate(cobranca.dataVencimento)}
                   </p>
@@ -244,10 +221,10 @@ export default function CobrancaDetalhePage() {
                     className={cn(
                       "text-sm mt-0.5",
                       cobranca.status === "Vencida"
-                        ? "text-red-500"
+                        ? "text-danger"
                         : cobranca.status === "Paga"
-                          ? "text-emerald-600"
-                          : "text-gray-400",
+                          ? "text-success"
+                          : "text-muted-foreground",
                     )}
                   >
                     {relativeDate(
@@ -259,7 +236,7 @@ export default function CobrancaDetalhePage() {
                 </div>
                 {/* Competência */}
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Competência</p>
+                  <p className="text-xs text-muted-foreground mb-2">Competência</p>
                   <p className="text-xl font-bold text-gray-900">
                     {cobranca.competencia}
                   </p>
@@ -283,7 +260,7 @@ export default function CobrancaDetalhePage() {
             <div className="border-t border-gray-100" />
             <div className="px-8 py-7 grid grid-cols-2 gap-8">
               <div className="space-y-1">
-                <p className="text-xs text-gray-400 mb-2">Franqueado</p>
+                <p className="text-xs text-muted-foreground mb-2">Franqueado</p>
                 <p className="text-sm font-semibold text-gray-900 leading-snug">
                   {cobranca.cliente}
                 </p>
@@ -299,7 +276,7 @@ export default function CobrancaDetalhePage() {
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-gray-400 mb-2">Franqueadora</p>
+                <p className="text-xs text-muted-foreground mb-2">Franqueadora</p>
                 <p className="text-sm font-semibold text-gray-900">
                   {franqueadora?.nome ?? "—"}
                 </p>
@@ -316,21 +293,21 @@ export default function CobrancaDetalhePage() {
             <div className="border-t border-gray-100" />
             <div className="px-8 py-6 grid grid-cols-4 gap-6">
               <div>
-                <p className="text-xs text-gray-400 mb-1.5">Valor original</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Valor original</p>
                 <p className="text-sm font-semibold text-gray-900 tabular-nums">
                   {fmt(cobranca.valorOriginal)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1.5">Parcela</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Parcela</p>
                 <p className="text-sm font-semibold text-gray-900">1/1</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1.5">Multa</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Multa</p>
                 <p className="text-sm font-semibold text-gray-900">2%</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1.5">Juros</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Juros</p>
                 <p className="text-sm font-semibold text-gray-900">
                   1% ao mês.
                 </p>
@@ -405,7 +382,7 @@ export default function CobrancaDetalhePage() {
         {/* ================================================ */}
         <div className="space-y-6 lg:sticky lg:top-6">
           {/* ── Card Pagamento ── */}
-          <div className="bg-[#E8EFF9] rounded-2xl p-6 space-y-5">
+          <div className="bg-info-bg rounded-2xl p-6 space-y-5">
             <h3 className="text-lg font-bold text-gray-900 tracking-tight">
               Pague em dia e siga fluindo
             </h3>

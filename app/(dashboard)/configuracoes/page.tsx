@@ -34,6 +34,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { usePreferences } from "@/components/providers/PreferencesProvider";
+import { fetchWithTenant } from "@/lib/fetch-with-tenant";
 
 /* ───────────────────── Nav items ───────────────────── */
 
@@ -290,7 +291,7 @@ function TwilioNumbersSection() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/agent-config/twilio")
+    fetchWithTenant("/api/agent-config/twilio")
       .then((res) => res.json())
       .then((data) => {
         setWhatsappFrom(data.whatsappFrom || "");
@@ -305,16 +306,21 @@ function TwilioNumbersSection() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/agent-config/twilio", {
+      const res = await fetchWithTenant("/api/agent-config/twilio", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ whatsappFrom, smsFrom }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Erro ao salvar");
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Resposta inesperada do servidor. Tente novamente.");
       }
-      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao salvar");
+      }
       setWhatsappFrom(data.whatsappFrom || "");
       setSmsFrom(data.smsFrom || "");
       toast({ title: "Salvo", description: "Números Twilio atualizados com sucesso." });

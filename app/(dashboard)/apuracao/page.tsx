@@ -267,14 +267,14 @@ export default function ApuracaoPage() {
                   <table className="w-full text-sm" aria-label="Histórico de ciclos de apuração">
                     <thead>
                       <tr className="border-b border-gray-100 text-left">
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Competência</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Data</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Franqueados</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Faturamento</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">Total cobrado</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-right">NFs</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide">Status</th>
-                        <th className="px-5 py-3 font-medium text-xs text-gray-400 uppercase tracking-wide text-center">Exportar</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Competência</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Data</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Franqueados</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Faturamento</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">Total cobrado</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-right">NFs</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide">Status</th>
+                        <th className="px-5 py-3 font-medium text-xs text-muted-foreground uppercase tracking-wide text-center">Exportar</th>
                       </tr>
                     </thead>
                     <tbody>

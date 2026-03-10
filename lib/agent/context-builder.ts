@@ -112,28 +112,138 @@ export async function buildInboundContext(
 
   if (!conversation || !conversation.customer.franqueadoraId) return null;
 
-  const openCharges = await prisma.charge.findMany({
-    where: {
-      customerId: conversation.customerId,
-      status: { in: ["PENDING", "OVERDUE"] },
-    },
-    orderBy: { dueDate: "asc" },
-    take: 10,
-  });
+  const customerId = conversation.customerId;
+  const franqueadoraId = conversation.customer.franqueadoraId;
 
-  const recentDecisions = await prisma.agentDecisionLog.findMany({
-    where: { customerId: conversation.customerId },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const openTasks = await prisma.collectionTask.findMany({
-    where: {
-      customerId: conversation.customerId,
-      status: { in: ["PENDENTE", "EM_ANDAMENTO"] },
-    },
-    take: 5,
-  });
+  const [
+    openCharges,
+    recentDecisions,
+    openTasks,
+    paidCharges,
+    allChargesCount,
+    promiseDecisions,
+    boletosRaw,
+    agentConfig,
+    overdueCount,
+  ] = await Promise.all([
+    prisma.charge.findMany({
+      where: { customerId, status: { in: ["PENDING", "OVERDUE"] } },
+      orderBy: { dueDate: "asc" },
+      take: 10,
+    }),
+    prisma.agentDecisionLog.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.collectionTask.findMany({
+      where: { customerId, status: { in: ["PENDENTE", "EM_ANDAMENTO"] } },
+      take: 5,
+    }),
+    prisma.charge.findMany({
+      where: { customerId, status: "PAID", paidAt: { gte: sixMonthsAgo } },
+      select: { dueDate: true, paidAt: true },
+    }),
+    prisma.charge.count({
+      where: { customerId, createdAt: { gte: sixMonthsAgo } },
+    }),
+    prisma.agentDecisionLog.findMany({
+      where: { customerId, action: "MARK_PROMISE" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.boleto.findMany({
+      where: {
+        charge: { customerId, status: { in: ["PENDING", "OVERDUE"] } },
+      },
+      select: { chargeId: true, linhaDigitavel: true, publicUrl: true },
+    }),
+    prisma.agentConfig.findUnique({
+      where: { franqueadoraId },
+    }),
+    prisma.charge.count({
+      where: { customerId, status: "OVERDUE" },
+    }),
+  ]);
+
+  // Payment history
+  let totalDaysLate = 0;
+  let lateCount = 0;
+  for (const c of paidCharges) {
+    if (c.paidAt && c.paidAt > c.dueDate) {
+      const daysLate = Math.round(
+        (c.paidAt.getTime() - c.dueDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      totalDaysLate += daysLate;
+      lateCount++;
+    }
+  }
+
+  const paymentHistory: import("./types").PaymentHistory = {
+    totalPaid: paidCharges.length,
+    totalCharges: allChargesCount,
+    averageDaysLate: lateCount > 0 ? Math.round(totalDaysLate / lateCount) : 0,
+    defaultRate:
+      allChargesCount > 0
+        ? Math.round(((overdueCount / allChargesCount) * 100) * 100) / 100
+        : 0,
+  };
+
+  // Promise history
+  let promisesKept = 0;
+  let promisesBroken = 0;
+  for (const p of promiseDecisions) {
+    if (p.chargeId) {
+      const charge = await prisma.charge.findUnique({
+        where: { id: p.chargeId },
+        select: { status: true },
+      });
+      if (charge?.status === "PAID") {
+        promisesKept++;
+      } else {
+        promisesBroken++;
+      }
+    }
+  }
+
+  const promiseHistory: import("./types").PromiseHistory = {
+    total: promiseDecisions.length,
+    kept: promisesKept,
+    broken: promisesBroken,
+  };
+
+  // Risk score (0-100)
+  let riskPoints = 0;
+  riskPoints += Math.min(paymentHistory.averageDaysLate * 2, 30);
+  riskPoints += Math.min(paymentHistory.defaultRate, 30);
+  riskPoints += Math.min(promiseHistory.broken * 10, 20);
+  riskPoints += Math.min(overdueCount * 5, 20);
+  riskPoints = Math.min(riskPoints, 100);
+
+  const riskLabel =
+    riskPoints <= 25 ? "BAIXO"
+      : riskPoints <= 50 ? "MEDIO"
+        : riskPoints <= 75 ? "ALTO"
+          : "CRITICO";
+
+  const riskScore: import("./types").RiskScore = { score: riskPoints, label: riskLabel };
+
+  // Negotiation config
+  const tiers = Array.isArray(agentConfig?.negotiationRules)
+    ? (agentConfig.negotiationRules as unknown as import("./types").NegotiationRuleTier[])
+    : [];
+
+  const negotiationConfig: import("./types").NegotiationConfig = {
+    maxInstallments: agentConfig?.maxInstallments ?? 6,
+    monthlyInterestRate: agentConfig?.monthlyInterestRate ?? 0.02,
+    maxCashDiscount: agentConfig?.maxCashDiscount ?? 0.10,
+    minInstallmentCents: agentConfig?.minInstallmentCents ?? 5000,
+    maxFirstInstallmentDays: agentConfig?.maxFirstInstallmentDays ?? 30,
+    tiers,
+  };
 
   return {
     customer: {
@@ -167,7 +277,16 @@ export async function buildInboundContext(
       status: t.status,
       priority: t.priority,
     })),
-    franqueadoraId: conversation.customer.franqueadoraId,
+    franqueadoraId,
+    boletos: boletosRaw.map((b) => ({
+      chargeId: b.chargeId,
+      linhaDigitavel: b.linhaDigitavel,
+      publicUrl: b.publicUrl,
+    })),
+    paymentHistory,
+    promiseHistory,
+    riskScore,
+    negotiationConfig,
   };
 }
 
@@ -243,17 +362,17 @@ export function renderInboundPrompt(ctx: InboundContext): string {
               `[${formatDate(d.createdAt)}] ${d.action}: ${d.reasoning.slice(0, 150)}`
           )
           .join("\n")
-      : "Nenhuma decisão anterior.";
+      : "Nenhuma decisao anterior.";
 
   const chargesText =
     ctx.openCharges.length > 0
       ? ctx.openCharges
           .map(
             (c) =>
-              `- ${c.description}: ${formatCurrency(c.amountCents)} (venc. ${formatDate(c.dueDate)}, ${c.status})`
+              `- [${c.id}] ${c.description}: ${formatCurrency(c.amountCents)} (venc. ${formatDate(c.dueDate)}, ${c.status})`
           )
           .join("\n")
-      : "Nenhuma cobrança em aberto.";
+      : "Nenhuma cobranca em aberto.";
 
   const tasksText =
     ctx.openTasks.length > 0
@@ -262,10 +381,38 @@ export function renderInboundPrompt(ctx: InboundContext): string {
           .join("\n")
       : "Nenhuma tarefa aberta.";
 
-  return INBOUND_CONTEXT_TEMPLATE.replace(
-    "{{customerName}}",
-    ctx.customer.name
-  )
+  const boletosText =
+    ctx.boletos.length > 0
+      ? ctx.boletos
+          .map(
+            (b) =>
+              `- Cobranca ${b.chargeId}: Link: ${b.publicUrl} | Linha digitavel: ${b.linhaDigitavel}`
+          )
+          .join("\n")
+      : "Nenhum boleto disponivel.";
+
+  const ph = ctx.paymentHistory;
+  const paymentHistoryText = `Pagamentos (6 meses): ${ph.totalPaid}/${ph.totalCharges} pagos | Atraso medio: ${ph.averageDaysLate} dias | Taxa inadimplencia: ${ph.defaultRate}%`;
+
+  const pm = ctx.promiseHistory;
+  const promiseText = `Promessas: ${pm.total} total | ${pm.kept} cumpridas | ${pm.broken} quebradas`;
+
+  const rs = ctx.riskScore;
+  const riskText = `Score de Risco: ${rs.score}/100 (${rs.label})`;
+
+  const nc = ctx.negotiationConfig;
+  let negotiationText = `Regras de Negociacao:\n- Max parcelas: ${nc.maxInstallments}\n- Juros mensal: ${(nc.monthlyInterestRate * 100).toFixed(1)}%\n- Desconto max a vista: ${(nc.maxCashDiscount * 100).toFixed(0)}%\n- Parcela minima: ${formatCurrency(nc.minInstallmentCents)}\n- Prazo max 1a parcela: ${nc.maxFirstInstallmentDays} dias`;
+
+  if (nc.tiers.length > 0) {
+    negotiationText += "\n- Faixas de valor:";
+    for (const tier of nc.tiers) {
+      const max = tier.maxCents ? formatCurrency(tier.maxCents) : "sem limite";
+      negotiationText += `\n  ${formatCurrency(tier.minCents)} a ${max}: ate ${tier.maxInstallments}x, juros ${(tier.interestRate * 100).toFixed(1)}%`;
+    }
+  }
+
+  return INBOUND_CONTEXT_TEMPLATE
+    .replace("{{customerName}}", ctx.customer.name)
     .replace("{{customerEmail}}", ctx.customer.email)
     .replace("{{customerPhone}}", ctx.customer.phone)
     .replace("{{inboundMessage}}", ctx.inboundMessage)
@@ -273,5 +420,10 @@ export function renderInboundPrompt(ctx: InboundContext): string {
     .replace("{{openCharges}}", chargesText)
     .replace("{{recentMessages}}", messagesText)
     .replace("{{recentDecisions}}", decisionsText)
-    .replace("{{openTasks}}", tasksText);
+    .replace("{{openTasks}}", tasksText)
+    .replace("{{boletos}}", boletosText)
+    .replace("{{paymentHistory}}", paymentHistoryText)
+    .replace("{{promiseHistory}}", promiseText)
+    .replace("{{riskScore}}", riskText)
+    .replace("{{negotiationRules}}", negotiationText);
 }
