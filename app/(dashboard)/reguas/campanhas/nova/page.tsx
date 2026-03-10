@@ -107,7 +107,23 @@ export default function NovaCampanhaPage() {
 
   // Create campaign
   const createCampaign = useCallback(async () => {
-    if (!draft.name || !draft.startDate || !draft.endDate) return;
+    if (!draft.name || !draft.startDate || !draft.endDate) {
+      const missing = [
+        !draft.name && "nome",
+        !draft.startDate && "data de início",
+        !draft.endDate && "data de término",
+      ].filter(Boolean).join(", ");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `warn-${Date.now()}`,
+          role: "assistant",
+          content: `**Dados incompletos para criar a campanha.** Faltam: ${missing}. Continue a conversa para definir esses campos.`,
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch("/api/negotiation-campaigns", {
