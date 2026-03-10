@@ -113,19 +113,6 @@ export async function GET() {
       };
     });
 
-    // ── Heatmap data (latest competência) ──
-    const latestComp = sortedCompetencias[0];
-    const latestCharges = charges.filter((c) => c.competencia === latestComp);
-    const byCustomer: Record<string, { name: string; value: number }> = {};
-    latestCharges.forEach((c) => {
-      const key = c.customerId;
-      if (!byCustomer[key]) byCustomer[key] = { name: c.customer.name, value: 0 };
-      byCustomer[key].value += c.amountCents;
-    });
-    const heatmapData = Object.values(byCustomer)
-      .map((d) => ({ name: d.name, value: Math.round(d.value / 100) }))
-      .sort((a, b) => b.value - a.value);
-
     return NextResponse.json({
       empty: false,
       competencias: sortedCompetencias.map((c) => ({
@@ -137,10 +124,6 @@ export async function GET() {
         revenueData,
         chargesStatusData,
         paymentMethodsData,
-      },
-      heatmap: {
-        data: heatmapData,
-        competencia: latestComp ? shortLabel(latestComp) : "",
       },
     });
   } catch (err) {

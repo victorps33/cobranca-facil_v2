@@ -6,7 +6,6 @@ import { useFranqueadora } from "@/components/providers/FranqueadoraProvider";
 import { FilterPillGroup } from "@/components/ui/filter-pills";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard } from "@/components/ui/metric-card";
-import { HeatmapTile } from "@/components/ui/heatmap-tile";
 import { DataEmptyState } from "@/components/layout/DataEmptyState";
 import {
   ChartCard,
@@ -41,10 +40,6 @@ interface DashboardData {
     revenueData: { month: string; revenue: number; projected: number }[];
     chargesStatusData: { month: string; pagas: number; pendentes: number; vencidas: number }[];
     paymentMethodsData: { month: string; boleto: number; pix: number; cartao: number }[];
-  };
-  heatmap?: {
-    data: { name: string; value: number }[];
-    competencia: string;
   };
 }
 
@@ -256,9 +251,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {data.heatmap && data.heatmap.data.length > 0 && (
-        <HeatmapTile data={data.heatmap.data} competencia={data.heatmap.competencia} />
-      )}
     </div>
   );
 }

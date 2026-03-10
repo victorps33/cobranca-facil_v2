@@ -10,6 +10,8 @@ import {
   Loader2,
   ArrowLeft,
   Sparkles,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -100,6 +102,7 @@ export default function NovaCampanhaPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [draft, setDraft] = useState<CampaignDraft>({});
   const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -155,12 +158,13 @@ export default function NovaCampanhaPage() {
 
       if (res.ok) {
         await res.json();
+        setCreated(true);
         setMessages((prev) => [
           ...prev,
           {
             id: `success-${Date.now()}`,
             role: "assistant",
-            content: `**Campanha "${draft.name}" criada com sucesso!** 🎉\n\nVocê pode visualizá-la na aba Campanhas da página de Réguas.`,
+            content: `**Campanha "${draft.name}" criada com sucesso!**\n\nEla já está disponível na aba Campanhas.`,
             timestamp: new Date(),
           },
         ]);
@@ -448,7 +452,13 @@ export default function NovaCampanhaPage() {
             <Sparkles className="h-4 w-4 text-gray-400" />
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Preview</h2>
           </div>
-          <CampaignPreview draft={draft} creating={creating} />
+          <CampaignPreview
+            draft={draft}
+            creating={creating}
+            created={created}
+            onCreateCampaign={createCampaign}
+            onViewCampaigns={() => router.push("/reguas?tab=campanhas")}
+          />
         </div>
       </div>
     </div>
@@ -457,8 +467,21 @@ export default function NovaCampanhaPage() {
 
 /* ── Campaign Preview ── */
 
-function CampaignPreview({ draft, creating }: { draft: CampaignDraft; creating: boolean }) {
+function CampaignPreview({
+  draft,
+  creating,
+  created,
+  onCreateCampaign,
+  onViewCampaigns,
+}: {
+  draft: CampaignDraft;
+  creating: boolean;
+  created: boolean;
+  onCreateCampaign: () => void;
+  onViewCampaigns: () => void;
+}) {
   const hasData = draft.name || draft.startDate || draft.maxCashDiscount;
+  const canCreate = !!(draft.name && draft.startDate && draft.endDate);
 
   if (!hasData) {
     return (
@@ -478,83 +501,109 @@ function CampaignPreview({ draft, creating }: { draft: CampaignDraft; creating: 
     : "—";
 
   return (
-    <div className={cn(
-      "rounded-2xl border border-gray-200 bg-white overflow-hidden transition-all duration-300",
-      creating && "opacity-60"
-    )}>
-      {/* Header */}
-      <div className="px-5 py-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-900">{draft.name || "Sem nome"}</h3>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600">
-            Rascunho
-          </span>
+    <div className="space-y-3">
+      <div className={cn(
+        "rounded-2xl border bg-white overflow-hidden transition-all duration-300",
+        created ? "border-green-200" : "border-gray-200",
+        creating && "opacity-60"
+      )}>
+        {/* Header */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">{draft.name || "Sem nome"}</h3>
+            <span className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
+              created ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"
+            )}>
+              {created ? "Criada" : "Rascunho"}
+            </span>
+          </div>
+          {draft.description && (
+            <p className="text-xs text-gray-500 mt-1">{draft.description}</p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">{start} — {end}</p>
         </div>
-        {draft.description && (
-          <p className="text-xs text-gray-500 mt-1">{draft.description}</p>
+
+        {/* Commercial terms */}
+        <div className="px-5 pb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
+          {draft.maxCashDiscount !== undefined && (
+            <span>Desconto até {(draft.maxCashDiscount * 100).toFixed(0)}%</span>
+          )}
+          {draft.maxInstallments !== undefined && <span>Até {draft.maxInstallments}x</span>}
+          {draft.monthlyInterestRate !== undefined && (
+            <span>Juros {(draft.monthlyInterestRate * 100).toFixed(1)}% a.m.</span>
+          )}
+          {draft.minInstallmentCents !== undefined && (
+            <span>Parcela mín. R$ {(draft.minInstallmentCents / 100).toFixed(0)}</span>
+          )}
+        </div>
+
+        {/* Target filters */}
+        {draft.targetFilters && Object.keys(draft.targetFilters).length > 0 && (
+          <div className="px-5 pb-3 border-t border-gray-50 pt-3">
+            <p className="text-[10px] text-gray-400 font-medium mb-1">Público-alvo</p>
+            <div className="flex flex-wrap gap-1.5">
+              {draft.targetFilters.minDaysOverdue !== undefined && (
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-600">
+                  Atraso &ge; {String(draft.targetFilters.minDaysOverdue)} dias
+                </span>
+              )}
+              {draft.targetFilters.minValueCents !== undefined && (
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-600">
+                  Valor &ge; R$ {(Number(draft.targetFilters.minValueCents) / 100).toFixed(0)}
+                </span>
+              )}
+            </div>
+          </div>
         )}
-        <p className="text-xs text-gray-400 mt-1">{start} — {end}</p>
+
+        {/* Steps */}
+        {draft.steps && draft.steps.length > 0 && (
+          <div className="px-5 pb-4 border-t border-gray-50 pt-3">
+            <p className="text-[10px] text-gray-400 font-medium mb-2">Etapas ({draft.steps.length})</p>
+            <div className="space-y-1.5">
+              {draft.steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px]">
+                  <span className="w-10 text-gray-400 font-mono">
+                    {step.trigger === "BEFORE_DUE" ? `D-${step.offsetDays}` : step.trigger === "ON_DUE" ? "D0" : `D+${step.offsetDays}`}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px]">
+                    {step.channel}
+                  </span>
+                  <span className="text-gray-500 truncate">{step.template.slice(0, 40)}...</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Creating state */}
+        {creating && (
+          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-400">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Criando campanha...
+          </div>
+        )}
       </div>
 
-      {/* Commercial terms */}
-      <div className="px-5 pb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
-        {draft.maxCashDiscount !== undefined && (
-          <span>Desconto até {(draft.maxCashDiscount * 100).toFixed(0)}%</span>
-        )}
-        {draft.maxInstallments !== undefined && <span>Até {draft.maxInstallments}x</span>}
-        {draft.monthlyInterestRate !== undefined && (
-          <span>Juros {(draft.monthlyInterestRate * 100).toFixed(1)}% a.m.</span>
-        )}
-        {draft.minInstallmentCents !== undefined && (
-          <span>Parcela mín. R$ {(draft.minInstallmentCents / 100).toFixed(0)}</span>
-        )}
-      </div>
-
-      {/* Target filters */}
-      {draft.targetFilters && Object.keys(draft.targetFilters).length > 0 && (
-        <div className="px-5 pb-3 border-t border-gray-50 pt-3">
-          <p className="text-[10px] text-gray-400 font-medium mb-1">Público-alvo</p>
-          <div className="flex flex-wrap gap-1.5">
-            {draft.targetFilters.minDaysOverdue !== undefined && (
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-600">
-                Atraso ≥ {String(draft.targetFilters.minDaysOverdue)} dias
-              </span>
-            )}
-            {draft.targetFilters.minValueCents !== undefined && (
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-600">
-                Valor ≥ R$ {(Number(draft.targetFilters.minValueCents) / 100).toFixed(0)}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Steps */}
-      {draft.steps && draft.steps.length > 0 && (
-        <div className="px-5 pb-4 border-t border-gray-50 pt-3">
-          <p className="text-[10px] text-gray-400 font-medium mb-2">Etapas ({draft.steps.length})</p>
-          <div className="space-y-1.5">
-            {draft.steps.map((step, i) => (
-              <div key={i} className="flex items-center gap-2 text-[11px]">
-                <span className="w-10 text-gray-400 font-mono">
-                  {step.trigger === "BEFORE_DUE" ? `D-${step.offsetDays}` : step.trigger === "ON_DUE" ? "D0" : `D+${step.offsetDays}`}
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px]">
-                  {step.channel}
-                </span>
-                <span className="text-gray-500 truncate">{step.template.slice(0, 40)}...</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {creating && (
-        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-400">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Criando campanha...
-        </div>
-      )}
+      {/* Action buttons */}
+      {created ? (
+        <button
+          onClick={onViewCampaigns}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ver campanhas criadas
+        </button>
+      ) : canCreate && !creating ? (
+        <button
+          onClick={onCreateCampaign}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          <Check className="h-4 w-4" />
+          Criar campanha
+        </button>
+      ) : null}
     </div>
   );
 }
