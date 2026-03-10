@@ -412,7 +412,7 @@ async function buildCampaignContext(tenantIds: string[]): Promise<string> {
       customer: { franqueadoraId: { in: tenantIds } },
       status: { in: ["PENDING", "OVERDUE", "PARTIAL"] },
     },
-    include: { customer: { select: { id: true, name: true } } },
+    select: { customerId: true, amountCents: true, dueDate: true },
   });
 
   if (charges.length === 0) {
@@ -430,6 +430,7 @@ async function buildCampaignContext(tenantIds: string[]): Promise<string> {
   for (const c of charges) {
     const days = daysDiff(c.dueDate);
     totalValue += c.amountCents;
+    if (days < 0) continue; // not yet due — skip
     if (days <= 30) { ranges.ate30++; rangesValue.ate30 += c.amountCents; }
     else if (days <= 60) { ranges.de30a60++; rangesValue.de30a60 += c.amountCents; }
     else if (days <= 90) { ranges.de60a90++; rangesValue.de60a90 += c.amountCents; }

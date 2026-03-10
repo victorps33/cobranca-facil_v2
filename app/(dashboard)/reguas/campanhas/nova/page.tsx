@@ -89,6 +89,7 @@ export default function NovaCampanhaPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [draft, setDraft] = useState<CampaignDraft>({});
   const [creating, setCreating] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -126,11 +127,7 @@ export default function NovaCampanhaPage() {
       });
 
       if (res.ok) {
-        const campaign = await res.json();
-        // Add steps if any
-        if (draft.steps && draft.steps.length > 0) {
-          // Steps would need a separate endpoint — for now, campaign is created without steps
-        }
+        await res.json();
         setMessages((prev) => [
           ...prev,
           {
@@ -167,6 +164,14 @@ export default function NovaCampanhaPage() {
       setCreating(false);
     }
   }, [draft]);
+
+  // Trigger campaign creation after draft state settles
+  useEffect(() => {
+    if (pendingConfirm) {
+      setPendingConfirm(false);
+      createCampaign();
+    }
+  }, [pendingConfirm, createCampaign]);
 
   // Send message
   const sendMessage = useCallback(
@@ -290,10 +295,7 @@ export default function NovaCampanhaPage() {
 
         // Auto-create on confirmation
         if (confirmed) {
-          // Use timeout to let state update
-          setTimeout(() => {
-            createCampaign();
-          }, 500);
+          setPendingConfirm(true);
         }
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
@@ -413,8 +415,8 @@ export default function NovaCampanhaPage() {
           </form>
         </div>
 
-        {/* Preview (right) */}
-        <div className="w-[400px] shrink-0 overflow-y-auto p-6 bg-gray-50/50">
+        {/* Preview (right) — hidden on mobile */}
+        <div className="hidden lg:block w-[400px] shrink-0 overflow-y-auto p-6 bg-gray-50/50">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-gray-400" />
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Preview</h2>
