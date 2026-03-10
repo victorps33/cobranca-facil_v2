@@ -197,7 +197,7 @@ export default function NovaCampanhaPage() {
 
       // Handle navigation suggestions
       if (text === "Ver campanhas") {
-        router.push("/reguas");
+        router.push("/reguas?tab=campanhas");
         return;
       }
       if (text === "Criar outra campanha") {

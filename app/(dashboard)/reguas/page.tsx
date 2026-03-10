@@ -417,7 +417,13 @@ export default function ReguasPage() {
     profile: RiskProfileKey;
   } | null>(null);
   const [fullscreenRule, setFullscreenRule] = useState<ApiDunningRule | null>(null);
-  const [activeSection, setActiveSection] = useState<"reguas" | "campanhas">("reguas");
+  const [activeSection, setActiveSection] = useState<"reguas" | "campanhas">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("tab") === "campanhas" ? "campanhas" : "reguas";
+    }
+    return "reguas";
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
