@@ -149,6 +149,7 @@ export default function NovaCampanhaPage() {
           monthlyInterestRate: draft.monthlyInterestRate ?? 0.02,
           minInstallmentCents: draft.minInstallmentCents ?? 5000,
           targetFilters: draft.targetFilters,
+          steps: draft.steps,
         }),
       });
 

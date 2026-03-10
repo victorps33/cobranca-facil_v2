@@ -54,6 +54,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const stepsData = Array.isArray(body.steps) && body.steps.length > 0
+      ? body.steps.map((s: { trigger: string; offsetDays: number; channel: string; template: string }) => ({
+          trigger: s.trigger || "AFTER_DUE",
+          offsetDays: s.offsetDays || 0,
+          channel: s.channel || "EMAIL",
+          template: s.template || "",
+        }))
+      : undefined;
+
     const campaign = await prisma.negotiationCampaign.create({
       data: {
         name: body.name,
@@ -66,6 +75,7 @@ export async function POST(req: Request) {
         minInstallmentCents: body.minInstallmentCents ?? 5000,
         targetFilters: body.targetFilters || null,
         franqueadoraId: tenantIds[0],
+        ...(stepsData && { steps: { create: stepsData } }),
       },
       include: { steps: true },
     });
