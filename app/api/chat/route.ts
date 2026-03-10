@@ -154,6 +154,64 @@ Quando os dados contêm múltiplas subsidiárias:
 - Na visão consolidada, apresente totais gerais E quebra por subsidiária
 - Se perguntarem sobre uma subsidiária específica, foque nela`;
 
+const CAMPAIGN_SYSTEM_PROMPT = `Você é a assistente de criação de campanhas de negociação da Menlo.
+
+**Seu papel:** Guiar o usuário na criação de uma campanha de renegociação de dívidas, passo a passo.
+
+**Dados disponíveis abaixo:** cobranças pendentes, perfis de risco, métricas de inadimplência.
+
+**Ao iniciar a conversa:**
+1. Analise os dados e sugira 3 campanhas baseadas na situação real das dívidas
+2. Cada sugestão deve ter: nome, público-alvo, condições comerciais sugeridas
+
+**Durante a conversa, defina com o usuário:**
+- Nome da campanha
+- Período (startDate e endDate)
+- Condições comerciais: desconto à vista (maxCashDiscount, ex: 0.15 = 15%), parcelas máximas (maxInstallments), juros mensais (monthlyInterestRate, ex: 0.02 = 2%), parcela mínima em centavos (minInstallmentCents, ex: 5000 = R$50)
+- Público-alvo (filtros: dias de atraso mínimo, faixa de valor)
+- Etapas de comunicação (steps): canal (EMAIL, SMS, WHATSAPP), trigger (BEFORE_DUE, ON_DUE, AFTER_DUE), offsetDays, template da mensagem
+
+**IMPORTANTE — Atualização do preview:**
+A cada decisão do usuário, emita um bloco de atualização no formato:
+<<CAMPAIGN_UPDATE>>
+{"field": "value", ...}
+<<END>>
+
+O JSON deve conter APENAS os campos já definidos até o momento. Campos possíveis:
+- name (string)
+- description (string)
+- startDate (string ISO)
+- endDate (string ISO)
+- maxCashDiscount (float, ex: 0.15)
+- maxInstallments (int)
+- monthlyInterestRate (float, ex: 0.02)
+- minInstallmentCents (int, ex: 5000)
+- targetFilters (object: { minDaysOverdue?: number, minValueCents?: number, maxValueCents?: number })
+- steps (array: [{ trigger: "AFTER_DUE", offsetDays: 0, channel: "WHATSAPP", template: "texto..." }])
+- status: sempre "DRAFT"
+
+Emita o bloco CAMPAIGN_UPDATE sempre que um campo for definido ou alterado, mesmo que parcial.
+
+**Confirmação final:**
+Quando todos os campos estiverem definidos, apresente um resumo completo e pergunte: "Deseja criar esta campanha?"
+Se o usuário confirmar, emita:
+<<CAMPAIGN_CONFIRM>>
+
+**Diretrizes:**
+- Seja conciso e direto
+- Sugira valores realistas baseados nos dados
+- Use **negrito** para destaques
+- Máximo 200 palavras por mensagem
+- Não crie a campanha sem confirmação explícita`;
+
+const CAMPAIGN_SUGGESTIONS_INSTRUCTION = `
+
+Ao final da sua resposta, após uma linha em branco, adicione 2-3 sugestões curtas de próximo passo (máx 50 caracteres cada):
+<<SUGESTÕES>>
+Sugestão 1
+Sugestão 2
+Sugestão 3`;
+
 // ── Build data context from real Prisma data ──
 
 async function buildDataContext(tenantIds: string[]): Promise<string> {
@@ -343,6 +401,58 @@ ${regiaoDetail || "  Sem dados regionais."}
 ===`;
 }
 
+// ── Build campaign context ──
+
+async function buildCampaignContext(tenantIds: string[]): Promise<string> {
+  const fmtBRL = (cents: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+  const charges = await prisma.charge.findMany({
+    where: {
+      customer: { franqueadoraId: { in: tenantIds } },
+      status: { in: ["PENDING", "OVERDUE", "PARTIAL"] },
+    },
+    include: { customer: { select: { id: true, name: true } } },
+  });
+
+  if (charges.length === 0) {
+    return "\n=== DADOS PARA CAMPANHA ===\nNenhuma cobrança pendente encontrada.\n===";
+  }
+
+  const now = new Date();
+  const daysDiff = (d: Date) => Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Group by overdue ranges
+  const ranges = { ate30: 0, de30a60: 0, de60a90: 0, acima90: 0 };
+  const rangesValue = { ate30: 0, de30a60: 0, de60a90: 0, acima90: 0 };
+  let totalValue = 0;
+
+  for (const c of charges) {
+    const days = daysDiff(c.dueDate);
+    totalValue += c.amountCents;
+    if (days <= 30) { ranges.ate30++; rangesValue.ate30 += c.amountCents; }
+    else if (days <= 60) { ranges.de30a60++; rangesValue.de30a60 += c.amountCents; }
+    else if (days <= 90) { ranges.de60a90++; rangesValue.de60a90 += c.amountCents; }
+    else { ranges.acima90++; rangesValue.acima90 += c.amountCents; }
+  }
+
+  // Unique customers
+  const uniqueCustomers = new Set(charges.map((c) => c.customerId)).size;
+
+  return `
+=== DADOS PARA CAMPANHA ===
+Total de cobranças pendentes: ${charges.length}
+Clientes afetados: ${uniqueCustomers}
+Valor total pendente: ${fmtBRL(totalValue)}
+
+Distribuição por atraso:
+- Até 30 dias: ${ranges.ate30} cobranças (${fmtBRL(rangesValue.ate30)})
+- 30-60 dias: ${ranges.de30a60} cobranças (${fmtBRL(rangesValue.de30a60)})
+- 60-90 dias: ${ranges.de60a90} cobranças (${fmtBRL(rangesValue.de60a90)})
+- Acima de 90 dias: ${ranges.acima90} cobranças (${fmtBRL(rangesValue.acima90)})
+===`;
+}
+
 // ── SSE helpers ──
 
 function sseHeaders() {
@@ -386,6 +496,7 @@ export async function POST(request: Request) {
       message,
       stream: isStreaming = false,
       detailLevel = "resumido",
+      pageContext,
     } = body;
 
     // Build Claude messages from history or single message
@@ -426,20 +537,27 @@ export async function POST(request: Request) {
       isPreset,
     }));
 
-    const dataContext = anonymizeContext(await buildDataContext(tenantIds));
-    const includeSuggestions = isStreaming;
+    let systemPrompt: string;
 
-    const detailInstruction = detailLevel === "detalhado"
-      ? "\n\n**NÍVEL DE DETALHE: DETALHADO** — Seja completo e aprofundado. Até 500 palavras. Inclua análise detalhada, contexto histórico, comparações e recomendações estratégicas com justificativa."
-      : "\n\n**NÍVEL DE DETALHE: RESUMIDO** — Seja extremamente conciso e direto. Máximo 150 palavras. Apenas os pontos essenciais e números-chave.";
+    if (pageContext === "campaign-creation") {
+      const campaignContext = anonymizeContext(await buildCampaignContext(tenantIds));
+      systemPrompt = CAMPAIGN_SYSTEM_PROMPT + "\n" + campaignContext + "\n" + CAMPAIGN_SUGGESTIONS_INSTRUCTION;
+    } else {
+      const dataContext = anonymizeContext(await buildDataContext(tenantIds));
+      const includeSuggestions = isStreaming;
 
-    const systemPrompt =
-      JULIA_SYSTEM_PROMPT +
-      detailInstruction +
-      (tenantIds.length > 1 ? MULTI_SUBSIDIARY_INSTRUCTION : "") +
-      "\n\n" +
-      dataContext +
-      (includeSuggestions ? SUGGESTIONS_INSTRUCTION + ACTIONS_INSTRUCTION : "");
+      const detailInstruction = detailLevel === "detalhado"
+        ? "\n\n**NÍVEL DE DETALHE: DETALHADO** — Seja completo e aprofundado. Até 500 palavras. Inclua análise detalhada, contexto histórico, comparações e recomendações estratégicas com justificativa."
+        : "\n\n**NÍVEL DE DETALHE: RESUMIDO** — Seja extremamente conciso e direto. Máximo 150 palavras. Apenas os pontos essenciais e números-chave.";
+
+      systemPrompt =
+        JULIA_SYSTEM_PROMPT +
+        detailInstruction +
+        (tenantIds.length > 1 ? MULTI_SUBSIDIARY_INSTRUCTION : "") +
+        "\n\n" +
+        dataContext +
+        (includeSuggestions ? SUGGESTIONS_INSTRUCTION + ACTIONS_INSTRUCTION : "");
+    }
 
     // ── Streaming mode ──
     if (isStreaming) {
