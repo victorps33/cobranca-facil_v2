@@ -77,7 +77,11 @@ function parseCampaignResponse(text: string): {
   const sugIdx = remaining.indexOf("<<SUGESTÕES>>");
   if (sugIdx !== -1) {
     const sugBlock = remaining.slice(sugIdx + "<<SUGESTÕES>>".length).trim();
-    sugBlock.split("\n").map((s) => s.trim()).filter((s) => s.length > 0 && s.length < 60).forEach((s) => suggestions.push(s));
+    sugBlock
+      .split("\n")
+      .map((s) => s.replace(/<<[A-Z_]+>>/g, "").trim())
+      .filter((s) => s.length > 0 && s.length < 60)
+      .forEach((s) => suggestions.push(s));
     remaining = remaining.slice(0, sugIdx);
   }
 
@@ -164,13 +168,20 @@ export default function NovaCampanhaPage() {
           {
             id: `success-${Date.now()}`,
             role: "assistant",
-            content: `**Campanha "${draft.name}" criada com sucesso!**\n\nEla já está disponível na aba Campanhas.`,
+            content: `**Campanha "${draft.name}" criada com sucesso!** 🎉\n\nEla já está disponível na aba Campanhas.`,
             timestamp: new Date(),
           },
         ]);
-        setSuggestions(["Ver campanhas", "Criar outra campanha"]);
+        setSuggestions(["Ver campanhas criadas", "Criar outra campanha"]);
       } else {
-        const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+        const errBody = await res.text();
+        let errMsg = "Erro desconhecido";
+        try {
+          const parsed = JSON.parse(errBody);
+          errMsg = parsed.error || errMsg;
+        } catch {}
+        console.error("Campaign creation error:", res.status, errBody);
+        const err = { error: errMsg };
         setMessages((prev) => [
           ...prev,
           {
@@ -211,7 +222,7 @@ export default function NovaCampanhaPage() {
       if (loading) return;
 
       // Handle navigation suggestions
-      if (text === "Ver campanhas") {
+      if (text === "Ver campanhas" || text === "Ver campanhas criadas") {
         router.push("/reguas?tab=campanhas");
         return;
       }
