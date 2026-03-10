@@ -51,32 +51,43 @@ function parseCampaignResponse(text: string): {
   // Extract CAMPAIGN_CONFIRM
   if (remaining.includes("<<CAMPAIGN_CONFIRM>>")) {
     confirmed = true;
-    remaining = remaining.replace("<<CAMPAIGN_CONFIRM>>", "").trim();
+    remaining = remaining.replace(/<<CAMPAIGN_CONFIRM>>/g, "");
   }
 
-  // Extract CAMPAIGN_UPDATE
-  const updateStart = remaining.indexOf("<<CAMPAIGN_UPDATE>>");
-  const updateEnd = remaining.indexOf("<<END>>");
-  if (updateStart !== -1 && updateEnd !== -1) {
-    const jsonStr = remaining.slice(updateStart + "<<CAMPAIGN_UPDATE>>".length, updateEnd).trim();
+  // Extract all CAMPAIGN_UPDATE blocks (complete: has <<END>>)
+  const updateRegex = /<<CAMPAIGN_UPDATE>>([\s\S]*?)<<END>>/g;
+  let match;
+  while ((match = updateRegex.exec(remaining)) !== null) {
     try {
-      campaignUpdate = JSON.parse(jsonStr);
+      const parsed = JSON.parse(match[1].trim()) as Partial<CampaignDraft>;
+      campaignUpdate = Object.assign({}, campaignUpdate, parsed);
     } catch {}
-    remaining = remaining.slice(0, updateStart) + remaining.slice(updateEnd + "<<END>>".length);
+  }
+  remaining = remaining.replace(updateRegex, "");
+
+  // Strip incomplete CAMPAIGN_UPDATE (started but <<END>> not yet arrived — streaming)
+  const partialIdx = remaining.indexOf("<<CAMPAIGN_UPDATE>>");
+  if (partialIdx !== -1) {
+    remaining = remaining.slice(0, partialIdx);
   }
 
   // Extract suggestions
   const sugIdx = remaining.indexOf("<<SUGESTÕES>>");
-  let cleanText = remaining;
   if (sugIdx !== -1) {
-    cleanText = remaining.slice(0, sugIdx).trimEnd();
     const sugBlock = remaining.slice(sugIdx + "<<SUGESTÕES>>".length).trim();
-    sugBlock.split("\n").map((s) => s.trim()).filter((s) => s.length > 0).forEach((s) => suggestions.push(s));
-  } else {
-    cleanText = remaining.trim();
+    sugBlock.split("\n").map((s) => s.trim()).filter((s) => s.length > 0 && s.length < 60).forEach((s) => suggestions.push(s));
+    remaining = remaining.slice(0, sugIdx);
   }
 
-  return { cleanText, suggestions, campaignUpdate, confirmed };
+  // Clean up any stray markers
+  remaining = remaining
+    .replace(/<<END>>/g, "")
+    .replace(/<<SUGESTÕES>>/g, "")
+    .replace(/<<CAMPAIGN_UPDATE>>/g, "")
+    .replace(/<<CAMPAIGN_CONFIRM>>/g, "")
+    .trim();
+
+  return { cleanText: remaining, suggestions, campaignUpdate, confirmed };
 }
 
 /* ── Page ── */
