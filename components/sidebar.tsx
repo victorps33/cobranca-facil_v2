@@ -18,7 +18,6 @@ import {
   Contact,
   Inbox,
   Building2,
-  AlertTriangle,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import type { UserRole } from "@prisma/client";
@@ -41,7 +40,6 @@ const baseNavigation: Omit<NavItem, "badge">[] = [
   { name: "Cadastro", href: "/clientes", icon: Users, roles: allRoles },
   { name: "Apuração", href: "/apuracao", icon: Calculator, roles: allRoles },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
-  { name: "Escalonamento", href: "/cobrancas/escalonamento", icon: AlertTriangle, roles: ["ADMINISTRADOR", "OPERACIONAL"] },
   { name: "Réguas", href: "/reguas", icon: Bell, roles: allRoles },
   { name: "CRM", href: "/crm", icon: Contact, roles: allRoles },
   { name: "Inbox", href: "/inbox", icon: Inbox, roles: allRoles },
