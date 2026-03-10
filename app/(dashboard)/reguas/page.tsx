@@ -1105,6 +1105,14 @@ function CampaignsSection() {
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        <Link
+          href="/reguas/campanhas/nova"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+        >
+          Criar campanha
+        </Link>
+      </div>
       {campaigns.map((campaign) => (
         <CampaignCard key={campaign.id} campaign={campaign} />
       ))}
