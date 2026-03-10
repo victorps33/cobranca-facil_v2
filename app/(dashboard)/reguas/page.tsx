@@ -539,7 +539,7 @@ export default function ReguasPage() {
         <PageHeader title="Réguas de Cobrança" />
 
         {/* Section tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 flex items-center justify-between">
           <nav className="flex gap-0" role="tablist" aria-label="Seções">
             {[
               { key: "reguas" as const, label: "Réguas Padrão" },
@@ -564,6 +564,14 @@ export default function ReguasPage() {
               </button>
             ))}
           </nav>
+          {activeSection === "campanhas" && (
+            <Link
+              href="/reguas/campanhas/nova"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors mb-1"
+            >
+              Criar campanha
+            </Link>
+          )}
         </div>
 
         {activeSection === "reguas" ? (
@@ -1105,14 +1113,6 @@ function CampaignsSection() {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <Link
-          href="/reguas/campanhas/nova"
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
-        >
-          Criar campanha
-        </Link>
-      </div>
       {campaigns.map((campaign) => (
         <CampaignCard key={campaign.id} campaign={campaign} />
       ))}
