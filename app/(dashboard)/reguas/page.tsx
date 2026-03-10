@@ -145,6 +145,13 @@ const CHANNEL_META: Record<string, { icon: typeof Mail; label: string }> = {
 
 /* ── Helpers ── */
 
+const COMP_MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function formatComp(comp: string): string {
+  const [year, month] = comp.split("-");
+  return `${COMP_MONTHS[parseInt(month, 10) - 1]}/${year.slice(2)}`;
+}
+
 function formatOffset(trigger: string, offsetDays: number): string {
   if (trigger === "ON_DUE" || offsetDays === 0) return "D0";
   if (trigger === "BEFORE_DUE") return `D-${offsetDays}`;
@@ -745,6 +752,7 @@ function RuleCard({
   const [segOpen, setSegOpen] = useState(false);
   const [segData, setSegData] = useState<SegmentationData | null>(null);
   const [segLoading, setSegLoading] = useState(false);
+  const [segError, setSegError] = useState(false);
   const [expandedCell, setExpandedCell] = useState<string | null>(null);
 
   const handleToggleSeg = useCallback(() => {
@@ -755,12 +763,16 @@ function RuleCard({
     setSegOpen(true);
     if (segData) return;
     setSegLoading(true);
+    setSegError(false);
     fetch(`/api/dunning-rules/${rule.id}/segmentation`, {
       headers: getFranqueadoraHeaders(),
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data) setSegData(data); })
-      .catch(() => {})
+      .then((data) => {
+        if (data) setSegData(data);
+        else setSegError(true);
+      })
+      .catch(() => setSegError(true))
       .finally(() => setSegLoading(false));
   }, [segOpen, segData, rule.id]);
 
@@ -848,6 +860,10 @@ function RuleCard({
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
             </div>
+          ) : segError ? (
+            <p className="text-xs text-gray-400 text-center py-4">
+              Erro ao carregar segmentação. Tente novamente.
+            </p>
           ) : segData && segData.competencias.length > 0 ? (
             <SegmentationTable
               data={segData}
@@ -877,12 +893,6 @@ function SegmentationTable({
   onToggleCell: (key: string) => void;
 }) {
   const { phases, competencias, matrix, totalsByPhase, totalsByCompetencia } = data;
-
-  function formatComp(comp: string): string {
-    const [year, month] = comp.split("-");
-    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    return `${months[parseInt(month, 10) - 1]}/${year.slice(2)}`;
-  }
 
   const grandTotal = Object.values(totalsByCompetencia).reduce((a, b) => a + b, 0);
 
@@ -993,7 +1003,7 @@ function SegmentationRow({
           <td colSpan={competencias.length + 2} className="py-2 px-4">
             <div className="bg-gray-50 rounded-lg px-4 py-3">
               <p className="text-[10px] text-gray-400 font-medium mb-2">
-                {phaseLabel} — {expandedComp}
+                {phaseLabel} — {formatComp(expandedComp)}
               </p>
               <div className="flex flex-wrap gap-2">
                 {expandedCustomers.map((c) => (
