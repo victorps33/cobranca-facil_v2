@@ -538,7 +538,8 @@ export default function ReguasPage() {
       <div className="space-y-5 min-w-0 overflow-hidden">
         <PageHeader
           title="Réguas de Cobrança"
-          primaryAction={{ label: "Nova Campanha", href: "/reguas/campanhas/nova" }}
+          primaryAction={activeSection === "campanhas" ? { label: "Nova Campanha", href: "/reguas/campanhas/nova" } : undefined}
+          className="min-h-[40px]"
         />
 
         {/* Section tabs */}
