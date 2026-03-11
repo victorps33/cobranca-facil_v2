@@ -293,7 +293,7 @@ export async function processPendingQueue(
 
 /**
  * Immediately dispatch a just-enqueued message without waiting for cron.
- * Called inline by the orchestrator after enqueueing an IMMEDIATE-priority message.
+ * Called inline after enqueueing an IMMEDIATE-priority message.
  * If dispatch fails, the item stays in the queue for cron retry.
  */
 export async function dispatchImmediate(queueItemId: string): Promise<DispatchResult> {
