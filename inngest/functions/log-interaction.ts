@@ -17,6 +17,7 @@ export const logInteraction = inngest.createFunction(
   {
     id: "log-interaction",
     retries: 3,
+    concurrency: [{ key: "event.data.customerId", limit: 1 }],
   },
   [
     { event: "message/sent" },

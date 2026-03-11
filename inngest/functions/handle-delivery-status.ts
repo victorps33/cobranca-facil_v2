@@ -5,6 +5,7 @@ export const handleDeliveryStatus = inngest.createFunction(
   {
     id: "handle-delivery-status",
     retries: 3,
+    concurrency: [{ key: "event.data.providerMsgId", limit: 1 }],
   },
   [
     { event: "message/delivered" },

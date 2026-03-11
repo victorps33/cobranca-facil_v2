@@ -6,6 +6,7 @@ export const logAgentDecision = inngest.createFunction(
   {
     id: "log-agent-decision",
     retries: 3,
+    concurrency: [{ key: "event.data.customerId", limit: 1 }],
   },
   [
     { event: "ai/collection-decided" },

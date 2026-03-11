@@ -6,6 +6,7 @@ export const updateRiskScore = inngest.createFunction(
   {
     id: "update-risk-score",
     retries: 3,
+    concurrency: [{ key: "event.data.customerId", limit: 1 }],
   },
   [
     { event: "charge/paid" },

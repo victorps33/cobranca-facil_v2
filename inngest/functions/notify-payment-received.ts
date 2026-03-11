@@ -5,6 +5,7 @@ export const notifyPaymentReceived = inngest.createFunction(
   {
     id: "notify-payment-received",
     retries: 3,
+    concurrency: [{ key: "event.data.chargeId", limit: 1 }],
   },
   { event: "charge/paid" },
   async ({ event }) => {

@@ -6,6 +6,7 @@ export const handleEscalation = inngest.createFunction(
   {
     id: "handle-escalation",
     retries: 5,
+    concurrency: [{ key: "event.data.conversationId || event.data.customerId", limit: 1 }],
   },
   { event: "ai/escalation-triggered" },
   async ({ event }) => {

@@ -5,6 +5,7 @@ export const dispatchOnSend = inngest.createFunction(
   {
     id: "dispatch-on-send",
     retries: 3,
+    concurrency: [{ key: "event.data.messageId", limit: 1 }],
   },
   { event: "message/sent" },
   async ({ event }) => {
