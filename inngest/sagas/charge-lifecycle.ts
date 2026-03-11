@@ -6,6 +6,26 @@ export const chargeLifecycle = inngest.createFunction(
     id: "charge-lifecycle",
     retries: 3,
     concurrency: [{ key: "event.data.chargeId", limit: 1 }],
+    onFailure: async ({ event, error }) => {
+      const { prisma: p } = await import("@/lib/prisma");
+      const data = event.data.event.data;
+      const systemUser = await p.user.findFirst({
+        where: { role: "ADMINISTRADOR" },
+        select: { id: true },
+      });
+      if (systemUser && data.customerId) {
+        await p.collectionTask.create({
+          data: {
+            title: `[FALHA LIFECYCLE] Ciclo da cobrança ${data.chargeId} falhou`,
+            description: `Erro: ${error.message}`,
+            priority: "ALTA",
+            status: "PENDENTE",
+            customerId: data.customerId,
+            createdById: systemUser.id,
+          },
+        });
+      }
+    },
   },
   { event: "charge/created" },
   async ({ event, step }) => {
