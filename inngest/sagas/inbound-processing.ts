@@ -9,6 +9,7 @@ export const inboundProcessing = inngest.createFunction(
   {
     id: "inbound-processing-saga",
     retries: 2,
+    concurrency: [{ key: "event.data.conversationId || event.data.from", limit: 1 }],
     onFailure: async ({ event }) => {
       const { prisma: p } = await import("@/lib/prisma");
       const conversationId = event.data.event.data.conversationId;

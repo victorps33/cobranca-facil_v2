@@ -6,6 +6,7 @@ export const omieSync = inngest.createFunction(
   {
     id: "omie-sync-saga",
     retries: 5,
+    concurrency: [{ key: "event.data.topic", limit: 3 }],
   },
   { event: "integration/omie-webhook-received" },
   async ({ event, step }) => {

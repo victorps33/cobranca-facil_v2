@@ -8,6 +8,7 @@ export const dunningSaga = inngest.createFunction(
   {
     id: "dunning-saga",
     retries: 3,
+    concurrency: [{ key: "event.data.chargeId", limit: 1 }],
     onFailure: async ({ event, error }) => {
       const chargeId = event.data.event.data.chargeId;
       const { prisma: p } = await import("@/lib/prisma");

@@ -5,6 +5,7 @@ export const chargeLifecycle = inngest.createFunction(
   {
     id: "charge-lifecycle",
     retries: 3,
+    concurrency: [{ key: "event.data.chargeId", limit: 1 }],
   },
   { event: "charge/created" },
   async ({ event, step }) => {
