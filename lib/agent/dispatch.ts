@@ -5,8 +5,8 @@ import type { Channel } from "@prisma/client";
 import type { DispatchResult, WorkingHours } from "./types";
 
 // ---------------------------------------------------------------------------
-// DispatchRequest – a plain object so Inngest sagas (and other callers) can
-// dispatch without depending on a MessageQueue row.
+// DispatchRequest – a plain object used by Inngest sagas and other callers to
+// dispatch messages via the appropriate provider.
 // ---------------------------------------------------------------------------
 export interface DispatchRequest {
   channel: Channel;
@@ -29,8 +29,8 @@ export function isWithinWorkingHours(config: WorkingHours): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// dispatchMessage – provider-only dispatch for Inngest sagas & other callers
-// that don't have a MessageQueue row.
+// dispatchMessage – sends a message via the appropriate provider (WhatsApp,
+// SMS, or Email) and optionally updates the Message record with the provider ID.
 // ---------------------------------------------------------------------------
 export async function dispatchMessage(request: DispatchRequest): Promise<DispatchResult> {
   const { channel, content, customerId, franqueadoraId } = request;

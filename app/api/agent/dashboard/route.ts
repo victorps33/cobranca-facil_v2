@@ -65,10 +65,24 @@ export async function GET() {
       }),
     ]);
 
-    // MessageQueue was removed; message stats now tracked via Inngest.
-    const messagesSent = 0;
-    const messagesFailed = 0;
-    const messagesQueued = 0;
+    // Message stats from the Message model
+    const [messagesSent, messagesFailed] = await Promise.all([
+      prisma.message.count({
+        where: {
+          conversation: { franqueadoraId: tenantId! },
+          createdAt: { gte: last30Days },
+          sender: "AI",
+        },
+      }),
+      prisma.message.count({
+        where: {
+          conversation: { franqueadoraId: tenantId! },
+          createdAt: { gte: last30Days },
+          metadata: { contains: '"deliveryStatus":"FAILED"' },
+        },
+      }),
+    ]);
+    const messagesQueued = 0; // No longer applicable with Inngest
 
     const config = await prisma.agentConfig.findUnique({
       where: { franqueadoraId: tenantId! },

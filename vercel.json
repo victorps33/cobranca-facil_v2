@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/integrations/omie/sync",
-      "schedule": "0 8 * * *"
-    }
-  ]
-}
+{}

@@ -84,23 +84,20 @@ export async function POST(request: Request) {
           franqueadoraId: customer.franqueadoraId,
         });
 
-        // Fire-and-forget AI processing
-        const baseUrl =
-          process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
-        if (baseUrl) {
-          const processUrl = `${baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`}/api/agent/process-inbound`;
-          fetch(processUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.CRON_SECRET || ""}`,
-            },
-            body: JSON.stringify({
-              conversationId: conversation.id,
-              messageId: message.id,
-            }),
-          }).catch(console.error);
-        }
+        // Emit inbound event for async AI processing
+        await inngest.send({
+          name: "inbound/received",
+          data: {
+            from: email,
+            body: replyBody,
+            channel: "EMAIL" as const,
+            providerMsgId: payload.data?.delivery_id || payload.delivery_id || "",
+            customerId: customer.id,
+            conversationId: conversation.id,
+            messageId: message.id,
+            franqueadoraId: customer.franqueadoraId,
+          },
+        });
         break;
       }
 

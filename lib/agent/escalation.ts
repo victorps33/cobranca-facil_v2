@@ -92,12 +92,40 @@ export function shouldForceEscalate(
   return { shouldEscalate: false };
 }
 
-// TODO: Refactor to check consecutive failures using Message.metadata or
-// Inngest function run history instead of the removed MessageQueue model.
 export async function checkConsecutiveFailures(
-  _customerId: string,
-  _threshold: number = 3
+  customerId: string,
+  threshold: number = 3
 ): Promise<EscalationCheck> {
+  // Check recent outbound messages for consecutive delivery failures
+  const recentMessages = await prisma.message.findMany({
+    where: {
+      conversation: { customerId },
+      sender: "AI",
+      metadata: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    take: threshold,
+    select: { metadata: true },
+  });
+
+  if (recentMessages.length >= threshold) {
+    const allFailed = recentMessages.every((m) => {
+      try {
+        const meta = JSON.parse(m.metadata || "{}");
+        return meta.deliveryStatus === "FAILED";
+      } catch {
+        return false;
+      }
+    });
+    if (allFailed) {
+      return {
+        shouldEscalate: true,
+        reason: "REPEATED_FAILURE",
+        details: `${threshold} falhas consecutivas de entrega`,
+      };
+    }
+  }
+
   return { shouldEscalate: false };
 }
 
