@@ -308,10 +308,24 @@ export type Events = {
   "ai/inbound-decided": AIInboundDecidedEvent;
   "ai/escalation-triggered": AIEscalationTriggeredEvent;
   "integration/omie-webhook-received": OmieWebhookReceivedEvent;
+  // Negotiation events (emitted by dunning-saga)
+  "negotiation/offered": NegotiationEvent;
+  "negotiation/promise-made": NegotiationEvent;
+  "negotiation/callback-scheduled": NegotiationEvent;
+};
+
+// --- Negotiation Events ---
+type NegotiationEvent = {
+  data: {
+    chargeId: string;
+    customerId: string;
+    franqueadoraId: string;
+    details: string;
+  };
 };
 ```
 
-**Note:** This covers the 18 most critical events. Additional events (task/*, conversation/*, config/*, negotiation/*) can be added incrementally as their producers/consumers are implemented. Start with the core flow.
+**Note:** This covers the 21 most critical events. Additional events (task/*, conversation/*, config/*) can be added incrementally as their producers/consumers are implemented. Start with the core flow.
 
 - [ ] **Step 2: Verify TypeScript compiles**
 
@@ -765,6 +779,7 @@ Create `inngest/functions/log-agent-decision.ts`:
 ```typescript
 import { inngest } from "../client";
 import { prisma } from "@/lib/prisma";
+import type { AgentAction } from "@prisma/client";
 
 export const logAgentDecision = inngest.createFunction(
   {
@@ -783,7 +798,7 @@ export const logAgentDecision = inngest.createFunction(
         chargeId: "chargeId" in event.data ? event.data.chargeId : undefined,
         conversationId: "conversationId" in event.data ? event.data.conversationId : undefined,
         customerId: event.data.customerId,
-        action,
+        action: action as AgentAction,
         confidence,
         reasoning,
         inputContext: JSON.stringify(event.data),
@@ -940,10 +955,11 @@ export const checkPendingCharges = inngest.createFunction(
       });
     });
 
-    // Emit charge/overdue event for each
+    // Emit charge/overdue event for each (filter out charges without franqueadoraId)
+    const validCharges = overdueCharges.filter((c) => c.customer.franqueadoraId != null);
     await step.sendEvent(
       "emit-overdue-events",
-      overdueCharges.map((charge) => ({
+      validCharges.map((charge) => ({
         name: "charge/overdue" as const,
         data: {
           chargeId: charge.id,
@@ -951,7 +967,7 @@ export const checkPendingCharges = inngest.createFunction(
           daysPastDue: Math.floor(
             (Date.now() - new Date(charge.dueDate).getTime()) / (1000 * 60 * 60 * 24)
           ),
-          franqueadoraId: charge.customer.franqueadoraId,
+          franqueadoraId: charge.customer.franqueadoraId!,
         },
       }))
     );
@@ -1226,7 +1242,7 @@ export const dunningSaga = inngest.createFunction(
       const decision = await step.run(`ai-decide-${dunningStep.id}`, async () => {
         const ctx = await buildCollectionContext(chargeId, dunningStep.channel);
         if (!ctx) return null;
-        return decideCollectionAction(ctx);
+        return decideCollectionAction(ctx, agentConfig?.systemPromptOverride);
       });
 
       if (!decision) {
@@ -1283,6 +1299,15 @@ export const dunningSaga = inngest.createFunction(
       }
 
       if (decision.action === "SEND_COLLECTION" && decision.message) {
+        // Check for duplicate notification (idempotency)
+        const existing = await step.run(`check-dup-${dunningStep.id}`, async () => {
+          return prisma.notificationLog.findFirst({
+            where: { chargeId, stepId: dunningStep.id },
+          });
+        });
+
+        if (existing) continue; // Already sent for this step
+
         // Dispatch the message
         const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
           // Find or create conversation
@@ -1309,6 +1334,24 @@ export const dunningSaga = inngest.createFunction(
               content: decision.message!,
               contentType: "text",
               channel: dunningStep.channel,
+            },
+          });
+
+          // Create NotificationLog for audit trail (used by buildCollectionContext)
+          await prisma.notificationLog.create({
+            data: {
+              chargeId,
+              stepId: dunningStep.id,
+              channel: dunningStep.channel,
+              status: "SENT",
+              scheduledFor: new Date(),
+              renderedMessage: decision.message!,
+              metaJson: JSON.stringify({
+                trigger: dunningStep.trigger,
+                offsetDays: dunningStep.offsetDays,
+                aiConfidence: decision.confidence,
+                aiAction: decision.action,
+              }),
             },
           });
 
@@ -1589,6 +1632,7 @@ Create `inngest/sagas/omie-sync.ts`:
 ```typescript
 import { inngest } from "../client";
 import { processOmieWebhook } from "@/lib/integrations/omie/processWebhook";
+import type { OmieWebhookPayload } from "@/lib/integrations/omie/types";
 
 export const omieSync = inngest.createFunction(
   {
@@ -1600,8 +1644,9 @@ export const omieSync = inngest.createFunction(
     const { topic, payload, franqueadoraId } = event.data;
 
     // Step 1: Process the webhook (reuse existing logic)
+    // Note: payload is the full OmieWebhookPayload body as stored by the producer
     const result = await step.run("process-webhook", async () => {
-      return processOmieWebhook({ topic, ...payload });
+      return processOmieWebhook(payload as OmieWebhookPayload);
     });
 
     // Step 2: Emit downstream events based on topic
@@ -1808,9 +1853,14 @@ export async function dispatchMessage(request: DispatchRequest): Promise<Dispatc
   const { channel, content, customerId, franqueadoraId } = request;
 
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-    });
+    // Fetch customer and agent config (for provider from-numbers) in parallel
+    const [customer, agentConfig] = await Promise.all([
+      prisma.customer.findUnique({ where: { id: customerId } }),
+      prisma.agentConfig.findFirst({
+        where: { franqueadoraId, enabled: true },
+        select: { whatsappFrom: true, smsFrom: true },
+      }),
+    ]);
 
     if (!customer) {
       return { success: false, error: "Customer not found" };
@@ -1820,13 +1870,21 @@ export async function dispatchMessage(request: DispatchRequest): Promise<Dispatc
 
     switch (channel) {
       case "WHATSAPP":
-        result = await sendWhatsApp(customer.whatsappPhone || customer.phone, content, franqueadoraId);
+        result = await sendWhatsApp(
+          customer.whatsappPhone || customer.phone,
+          content,
+          agentConfig?.whatsappFrom ?? undefined
+        );
         break;
       case "SMS":
-        result = await sendSms(customer.phone, content, franqueadoraId);
+        result = await sendSms(
+          customer.phone,
+          content,
+          agentConfig?.smsFrom ?? undefined
+        );
         break;
       case "EMAIL":
-        result = await sendRawEmail(customer.email, content, franqueadoraId);
+        result = await sendRawEmail(customer.email, "Notificação de cobrança", content);
         break;
       default:
         return { success: false, error: `Unsupported channel: ${channel}` };
