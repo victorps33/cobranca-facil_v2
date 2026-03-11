@@ -136,55 +136,55 @@ export async function executeEscalation(
   details: string,
   franqueadoraId: string
 ): Promise<void> {
-  // 1. Update conversation status
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: { status: "PENDENTE_HUMANO" },
-  });
+  // Fetch conversation channel and system user before transaction
+  const [conversation, systemUser] = await Promise.all([
+    prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { channel: true },
+    }),
+    prisma.user.findFirst({
+      where: { franqueadoraId, role: "ADMINISTRADOR" },
+      select: { id: true },
+    }),
+  ]);
 
-  // 2. Create critical task
-  const systemUser = await prisma.user.findFirst({
-    where: { franqueadoraId, role: "ADMINISTRADOR" },
-  });
+  if (!conversation) return;
 
-  if (systemUser) {
-    await prisma.collectionTask.create({
+  await prisma.$transaction(async (tx) => {
+    // 1. Update conversation status
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: { status: "PENDENTE_HUMANO" },
+    });
+
+    // 2. Create critical task
+    if (systemUser) {
+      await tx.collectionTask.create({
+        data: {
+          customerId,
+          title: `[ESCALAÇÃO] ${reason}: ${details.slice(0, 100)}`,
+          description: `Escalação automática da IA.\n\nMotivo: ${reason}\nDetalhes: ${details}\n\nConversation ID: ${conversationId}`,
+          status: "PENDENTE",
+          priority: "CRITICA",
+          createdById: systemUser.id,
+        },
+      });
+    }
+
+    // 3. Create internal note message
+    await tx.message.create({
       data: {
-        customerId,
-        title: `[ESCALAÇÃO] ${reason}: ${details.slice(0, 100)}`,
-        description: `Escalação automática da IA.\n\nMotivo: ${reason}\nDetalhes: ${details}\n\nConversation ID: ${conversationId}`,
-        status: "PENDENTE",
-        priority: "CRITICA",
-        createdById: systemUser.id,
+        conversationId,
+        sender: "SYSTEM",
+        content: `⚠️ Escalação automática: ${reason}\n${details}`,
+        contentType: "text",
+        channel: conversation.channel,
+        isInternal: true,
       },
     });
-  }
 
-  // 3. Create internal note message
-  await prisma.message.create({
-    data: {
-      conversationId,
-      sender: "SYSTEM",
-      content: `⚠️ Escalação automática: ${reason}\n${details}`,
-      contentType: "text",
-      channel: (
-        await prisma.conversation.findUnique({
-          where: { id: conversationId },
-          select: { channel: true },
-        })
-      )!.channel,
-      isInternal: true,
-    },
-  });
-
-  // 4. Send holding message to customer
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    select: { channel: true },
-  });
-
-  if (conversation) {
-    await prisma.message.create({
+    // 4. Send holding message to customer
+    await tx.message.create({
       data: {
         conversationId,
         sender: "AI",
@@ -195,5 +195,5 @@ export async function executeEscalation(
         isInternal: false,
       },
     });
-  }
+  });
 }
