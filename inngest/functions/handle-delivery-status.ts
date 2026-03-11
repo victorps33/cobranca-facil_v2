@@ -26,16 +26,31 @@ export const handleDeliveryStatus = inngest.createFunction(
     }
 
     // Note: Message model has no `status` field — use `metadata` JSON to track delivery
+    const existingMeta = message.metadata ? JSON.parse(message.metadata) : {};
+
     if (isDelivered) {
       await prisma.message.update({
         where: { id: message.id },
-        data: { metadata: JSON.stringify({ deliveryStatus: "DELIVERED", deliveredAt: new Date().toISOString() }) },
+        data: {
+          metadata: JSON.stringify({
+            ...existingMeta,
+            deliveryStatus: "DELIVERED",
+            deliveredAt: new Date().toISOString(),
+          }),
+        },
       });
     } else {
       const error = (event.data as { error: string }).error;
       await prisma.message.update({
         where: { id: message.id },
-        data: { metadata: JSON.stringify({ deliveryStatus: "FAILED", error, failedAt: new Date().toISOString() }) },
+        data: {
+          metadata: JSON.stringify({
+            ...existingMeta,
+            deliveryStatus: "FAILED",
+            error,
+            failedAt: new Date().toISOString(),
+          }),
+        },
       });
 
       // Create collection task for failed delivery review

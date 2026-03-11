@@ -155,15 +155,6 @@ export const dunningSaga = inngest.createFunction(
       }
 
       if (decision.action === "SEND_COLLECTION" && decision.message) {
-        // Check for duplicate notification (idempotency)
-        const existing = await step.run(`check-dup-${dunningStep.id}`, async () => {
-          return prisma.notificationLog.findFirst({
-            where: { chargeId, stepId: dunningStep.id },
-          });
-        });
-
-        if (existing) continue; // Already sent for this step
-
         // Dispatch the message
         const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
           // Find or create conversation
@@ -194,8 +185,11 @@ export const dunningSaga = inngest.createFunction(
           });
 
           // Create NotificationLog for audit trail (used by buildCollectionContext)
-          await prisma.notificationLog.create({
-            data: {
+          await prisma.notificationLog.upsert({
+            where: {
+              chargeId_stepId: { chargeId, stepId: dunningStep.id },
+            },
+            create: {
               chargeId,
               stepId: dunningStep.id,
               channel: dunningStep.channel,
@@ -209,6 +203,7 @@ export const dunningSaga = inngest.createFunction(
                 aiAction: decision.action,
               }),
             },
+            update: {},
           });
 
           // Dispatch via provider

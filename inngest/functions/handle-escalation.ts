@@ -32,15 +32,17 @@ export const handleEscalation = inngest.createFunction(
   async ({ event }) => {
     const { conversationId, customerId, reason, details, franqueadoraId } = event.data;
 
-    if (conversationId) {
-      await executeEscalation(
-        conversationId,
-        customerId,
-        reason as EscalationReason,
-        details || "",
-        franqueadoraId
-      );
+    if (!conversationId) {
+      return { escalated: false, reason: "no-conversation-id" };
     }
+
+    await executeEscalation(
+      conversationId,
+      customerId,
+      reason as EscalationReason,
+      details || "",
+      franqueadoraId
+    );
 
     return { escalated: true, conversationId, reason };
   }
