@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/auth-helpers";
-import { dispatchMessage } from "@/lib/agent/dispatch";
+import { dispatchQueueItem } from "@/lib/agent/dispatch";
 import { createInteractionLog } from "@/lib/inbox/sync";
 
 export async function GET(
@@ -123,7 +123,7 @@ export async function POST(
       });
 
       // Dispatch immediately (fire-and-forget)
-      dispatchMessage(queueItem).catch((err) =>
+      dispatchQueueItem(queueItem).catch((err) =>
         console.error("[Inbox] Dispatch error:", err)
       );
 
