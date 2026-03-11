@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/all",
-      "schedule": "0 12 * * *"
-    },
-    {
       "path": "/api/integrations/omie/sync",
       "schedule": "0 8 * * *"
     }
