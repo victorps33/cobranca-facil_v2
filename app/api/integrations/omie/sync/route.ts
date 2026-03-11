@@ -5,7 +5,8 @@ export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
 // POST /api/integrations/omie/sync
-// Cron job (every 4h) or manual trigger to sync Omie data.
+// Manual trigger to run a full Omie data sync. Incremental updates are handled
+// by the omie-sync Inngest saga via integration/omie-webhook-received events.
 // Auth: Bearer token via INTERNAL_CRON_SECRET or CRON_SECRET.
 // ---------------------------------------------------------------------------
 

@@ -19,9 +19,6 @@ export async function GET() {
       decisions7d,
       escalationsActive,
       escalationsTotal,
-      messagesSent,
-      messagesFailed,
-      messagesQueued,
       conversationsOpen,
       conversationsPendingHuman,
       avgConfidence,
@@ -43,24 +40,6 @@ export async function GET() {
         where: {
           franqueadoraId: tenantId!,
           action: "ESCALATE_HUMAN",
-        },
-      }),
-      prisma.messageQueue.count({
-        where: {
-          franqueadoraId: tenantId!,
-          status: { in: ["SENT", "DELIVERED"] },
-        },
-      }),
-      prisma.messageQueue.count({
-        where: {
-          franqueadoraId: tenantId!,
-          status: { in: ["FAILED", "DEAD_LETTER"] },
-        },
-      }),
-      prisma.messageQueue.count({
-        where: {
-          franqueadoraId: tenantId!,
-          status: "PENDING",
         },
       }),
       prisma.conversation.count({
@@ -85,6 +64,25 @@ export async function GET() {
         _count: true,
       }),
     ]);
+
+    // Message stats from the Message model
+    const [messagesSent, messagesFailed] = await Promise.all([
+      prisma.message.count({
+        where: {
+          conversation: { franqueadoraId: tenantId! },
+          createdAt: { gte: last30Days },
+          sender: "AI",
+        },
+      }),
+      prisma.message.count({
+        where: {
+          conversation: { franqueadoraId: tenantId! },
+          createdAt: { gte: last30Days },
+          metadata: { contains: '"deliveryStatus":"FAILED"' },
+        },
+      }),
+    ]);
+    const messagesQueued = 0; // No longer applicable with Inngest
 
     const config = await prisma.agentConfig.findUnique({
       where: { franqueadoraId: tenantId! },

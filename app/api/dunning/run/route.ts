@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, requireRole } from "@/lib/auth-helpers";
+import { inngest } from "@/inngest";
 
-// POST /api/dunning/run — Executar régua de cobrança
+// POST /api/dunning/run — Trigger dunning for overdue charges via events
 export async function POST() {
   const { error, tenantId } = await requireTenant();
   if (error) return error;
@@ -11,79 +12,61 @@ export async function POST() {
   if (roleCheck.error) return roleCheck.error;
 
   try {
-    // Busca a data atual (simulada ou real)
-    const appState = await prisma.appState.findFirst({ where: { id: 1 } });
-    const now = appState?.simulatedNow || new Date();
-
-    // Busca steps habilitados da franqueadora
-    const steps = await prisma.dunningStep.findMany({
-      where: { enabled: true, rule: { active: true, franqueadoraId: tenantId! } },
-      include: { rule: { select: { active: true } } },
-    });
-
-    // Busca cobranças pendentes ou vencidas da franqueadora
+    // Find overdue and pending charges for this tenant
+    const now = new Date();
     const charges = await prisma.charge.findMany({
       where: {
         status: { in: ["PENDING", "OVERDUE"] },
         customer: { franqueadoraId: tenantId! },
+        dueDate: { lt: now },
       },
-      include: { customer: true },
+      select: {
+        id: true,
+        customerId: true,
+        dueDate: true,
+        status: true,
+        customer: { select: { franqueadoraId: true } },
+      },
     });
 
-    let notificationsCreated = 0;
+    if (charges.length === 0) {
+      return NextResponse.json({
+        success: true,
+        eventsEmitted: 0,
+        processedCharges: 0,
+      });
+    }
 
-    for (const charge of charges) {
-      const dueDate = new Date(charge.dueDate);
-      const diffDays = Math.round((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Mark PENDING charges as OVERDUE
+    const pendingIds = charges.filter((c) => c.status === "PENDING").map((c) => c.id);
+    if (pendingIds.length > 0) {
+      await prisma.charge.updateMany({
+        where: { id: { in: pendingIds }, status: "PENDING" },
+        data: { status: "OVERDUE" },
+      });
+    }
 
-      // Marca como OVERDUE se vencida
-      if (diffDays > 0 && charge.status === "PENDING") {
-        await prisma.charge.update({
-          where: { id: charge.id },
-          data: { status: "OVERDUE" },
-        });
-      }
-
-      for (const step of steps) {
-        let shouldTrigger = false;
-        if (step.trigger === "BEFORE_DUE" && diffDays === -step.offsetDays) shouldTrigger = true;
-        if (step.trigger === "ON_DUE" && diffDays === 0) shouldTrigger = true;
-        if (step.trigger === "AFTER_DUE" && diffDays === step.offsetDays) shouldTrigger = true;
-
-        if (shouldTrigger) {
-          // Verifica se já existe log para esta combinação
-          const existing = await prisma.notificationLog.findFirst({
-            where: { chargeId: charge.id, stepId: step.id },
-          });
-
-          if (!existing) {
-            const rendered = step.template
-              .replace("{{nome}}", charge.customer.name)
-              .replace("{{valor}}", `R$ ${(charge.amountCents / 100).toFixed(2)}`)
-              .replace("{{vencimento}}", dueDate.toLocaleDateString("pt-BR"))
-              .replace("{{descricao}}", charge.description);
-
-            await prisma.notificationLog.create({
-              data: {
-                chargeId: charge.id,
-                stepId: step.id,
-                channel: step.channel,
-                status: "SENT",
-                scheduledFor: now,
-                sentAt: now,
-                renderedMessage: rendered,
-                metaJson: JSON.stringify({ trigger: step.trigger, offsetDays: step.offsetDays }),
-              },
-            });
-            notificationsCreated++;
-          }
-        }
-      }
+    // Emit charge/overdue events — the dunning-saga handles the rest
+    const validCharges = charges.filter((c) => c.customer.franqueadoraId != null);
+    if (validCharges.length > 0) {
+      await inngest.send(
+        validCharges.map((charge) => ({
+          name: "charge/overdue" as const,
+          data: {
+            chargeId: charge.id,
+            customerId: charge.customerId,
+            daysPastDue: Math.floor(
+              (now.getTime() - new Date(charge.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+            ),
+            franqueadoraId: charge.customer.franqueadoraId!,
+          },
+        }))
+      );
     }
 
     return NextResponse.json({
       success: true,
-      notificationsCreated,
+      eventsEmitted: validCharges.length,
       processedCharges: charges.length,
     });
   } catch {

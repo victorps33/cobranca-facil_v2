@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, requireRole } from "@/lib/auth-helpers";
+import { inngest } from "@/inngest";
 
 // GET /api/charges/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -39,6 +40,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data: body,
       include: { customer: true },
     });
+
+    if (body.status === "CANCELED") {
+      await inngest.send({
+        name: "charge/canceled",
+        data: {
+          chargeId: charge.id,
+          customerId: charge.customerId,
+          franqueadoraId: tenantId!,
+        },
+      });
+    } else {
+      await inngest.send({
+        name: "charge/updated",
+        data: {
+          chargeId: charge.id,
+          franqueadoraId: tenantId!,
+        },
+      });
+    }
+
     return NextResponse.json(charge);
   } catch {
     return NextResponse.json({ error: "Erro ao atualizar cobrança" }, { status: 500 });
@@ -60,6 +81,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!existing) return NextResponse.json({ error: "Cobrança não encontrada" }, { status: 404 });
 
     await prisma.charge.delete({ where: { id: params.id } });
+
+    await inngest.send({
+      name: "charge/canceled",
+      data: {
+        chargeId: params.id,
+        customerId: existing.customerId,
+        franqueadoraId: tenantId!,
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Erro ao excluir cobrança" }, { status: 500 });

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { normalizePhone, verifyTwilioSignature } from "@/lib/agent/providers/twilio";
 import { createInteractionLog } from "@/lib/inbox/sync";
+import { inngest } from "@/inngest";
+import type { Channel } from "@prisma/client";
 
 export async function POST(request: Request) {
   try {
@@ -199,24 +201,20 @@ export async function POST(request: Request) {
       franqueadoraId: customer.franqueadoraId,
     });
 
-    // Fire-and-forget AI processing
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
-    if (baseUrl) {
-      const processUrl = `${baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`}/api/agent/process-inbound`;
-      fetch(processUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.CRON_SECRET || ""}`,
-        },
-        body: JSON.stringify({
-          conversationId: conversation.id,
-          messageId: message.id,
-        }),
-      }).catch((err) =>
-        console.error("[Webhook Twilio] Fire-and-forget failed:", err)
-      );
-    }
+    // Emit inbound event for async processing
+    await inngest.send({
+      name: "inbound/received",
+      data: {
+        from: normalizedPhone,
+        body: messageBody,
+        channel: (isWhatsApp ? "WHATSAPP" : "SMS") as Channel,
+        providerMsgId: messageSid,
+        customerId: customer.id,
+        conversationId: conversation.id,
+        messageId: message.id,
+        franqueadoraId: customer.franqueadoraId,
+      },
+    });
 
     return new Response(
       '<Response></Response>',

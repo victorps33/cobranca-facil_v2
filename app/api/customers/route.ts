@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, requireTenantOrGroup, requireRole } from "@/lib/auth-helpers";
 import { headers } from "next/headers";
+import { inngest } from "@/inngest";
 
 // GET /api/customers — Lista clientes com métricas computadas
 export async function GET() {
@@ -116,6 +117,15 @@ export async function POST(req: NextRequest) {
         franqueadoraId: tenantId!,
       },
     });
+
+    await inngest.send({
+      name: "customer/created",
+      data: {
+        customerId: customer.id,
+        franqueadoraId: tenantId!,
+      },
+    });
+
     return NextResponse.json(customer, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Falha ao criar cliente" }, { status: 500 });

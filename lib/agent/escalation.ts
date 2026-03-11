@@ -96,16 +96,27 @@ export async function checkConsecutiveFailures(
   customerId: string,
   threshold: number = 3
 ): Promise<EscalationCheck> {
-  const recentQueue = await prisma.messageQueue.findMany({
-    where: { customerId },
+  // Check recent outbound messages for consecutive delivery failures
+  const recentMessages = await prisma.message.findMany({
+    where: {
+      conversation: { customerId },
+      sender: "AI",
+      metadata: { not: null },
+    },
     orderBy: { createdAt: "desc" },
     take: threshold,
+    select: { metadata: true },
   });
 
-  if (recentQueue.length >= threshold) {
-    const allFailed = recentQueue.every(
-      (q) => q.status === "FAILED" || q.status === "DEAD_LETTER"
-    );
+  if (recentMessages.length >= threshold) {
+    const allFailed = recentMessages.every((m) => {
+      try {
+        const meta = JSON.parse(m.metadata || "{}");
+        return meta.deliveryStatus === "FAILED";
+      } catch {
+        return false;
+      }
+    });
     if (allFailed) {
       return {
         shouldEscalate: true,

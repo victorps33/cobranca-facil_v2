@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/auth-helpers";
-import { dispatchMessage } from "@/lib/agent/dispatch";
-import { createInteractionLog } from "@/lib/inbox/sync";
+import { inngest } from "@/inngest";
 
 export async function GET(
   request: Request,
@@ -107,33 +106,19 @@ export async function POST(
       data: { lastMessageAt: new Date(), status: "ABERTA" },
     });
 
-    // If not internal, dispatch via provider
+    // If not internal, emit message/sent event for async dispatch
     if (!isInternal) {
-      const queueItem = await prisma.messageQueue.create({
+      await inngest.send({
+        name: "message/sent",
         data: {
-          customerId: conversation.customerId,
-          conversationId: params.id,
+          messageId: message.id,
+          conversationId: conversation.id,
+          chargeId: undefined,
           channel: conversation.channel,
-          content,
-          status: "PENDING",
-          priority: 3, // High priority for human responses
-          scheduledFor: new Date(),
+          content: message.content,
+          customerId: conversation.customerId,
           franqueadoraId: tenantId!,
         },
-      });
-
-      // Dispatch immediately (fire-and-forget)
-      dispatchMessage(queueItem).catch((err) =>
-        console.error("[Inbox] Dispatch error:", err)
-      );
-
-      // Sync to InteractionLog
-      await createInteractionLog({
-        customerId: conversation.customerId,
-        channel: conversation.channel,
-        content,
-        direction: "OUTBOUND",
-        franqueadoraId: tenantId!,
       });
     } else {
       // Internal note — create NOTA_INTERNA in InteractionLog
