@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { inngest } from "@/inngest";
 
 export async function POST(request: Request) {
   try {
@@ -16,22 +15,20 @@ export async function POST(request: Request) {
       return new Response("OK", { status: 200 });
     }
 
-    // Map Twilio status to our status
-    let newStatus: "DELIVERED" | "FAILED" | undefined;
-    if (messageStatus === "delivered" || messageStatus === "read") {
-      newStatus = "DELIVERED";
-    } else if (
-      messageStatus === "failed" ||
-      messageStatus === "undelivered"
-    ) {
-      newStatus = "FAILED";
-    }
-
-    if (newStatus) {
-      // Update MessageQueue by providerMsgId
-      await prisma.messageQueue.updateMany({
-        where: { providerMsgId: messageSid },
-        data: { status: newStatus },
+    if (["delivered", "read"].includes(messageStatus)) {
+      await inngest.send({
+        name: "message/delivered",
+        data: {
+          providerMsgId: messageSid,
+        },
+      });
+    } else if (["failed", "undelivered"].includes(messageStatus)) {
+      await inngest.send({
+        name: "message/failed",
+        data: {
+          providerMsgId: messageSid,
+          error: `Twilio status: ${messageStatus}`,
+        },
       });
     }
 

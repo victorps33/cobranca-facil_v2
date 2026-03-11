@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processOmieWebhook } from "@/lib/integrations/omie";
 import type { OmieWebhookPayload } from "@/lib/integrations/omie";
+import { inngest } from "@/inngest";
 
 // ---------------------------------------------------------------------------
 // POST /api/integrations/omie/webhook
@@ -26,10 +26,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, detail: "Invalid payload" }, { status: 200 });
     }
 
-    const result = await processOmieWebhook(body);
-    console.log("[Omie Webhook] Result:", result);
+    const { topic } = body;
+    const franqueadoraId = (body as unknown as Record<string, unknown>).franqueadoraId as string || "default";
 
-    return NextResponse.json({ ok: true, ...result }, { status: 200 });
+    await inngest.send({
+      name: "integration/omie-webhook-received",
+      data: {
+        topic,
+        payload: body as unknown as Record<string, unknown>,
+        franqueadoraId,
+      },
+    });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
     console.error("[Omie Webhook] Unhandled error:", err);
     return NextResponse.json({ ok: false, detail: "Internal error" }, { status: 200 });

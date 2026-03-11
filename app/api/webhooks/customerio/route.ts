@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature } from "@/lib/agent/providers/customerio";
 import { createInteractionLog } from "@/lib/inbox/sync";
+import { inngest } from "@/inngest";
 
 export async function POST(request: Request) {
   try {
@@ -104,22 +105,22 @@ export async function POST(request: Request) {
       }
 
       case "email_bounced": {
-        const deliveryId = payload.data?.delivery_id || payload.delivery_id;
-        if (deliveryId) {
-          await prisma.messageQueue.updateMany({
-            where: { providerMsgId: deliveryId },
-            data: { status: "FAILED", lastError: "Email bounced" },
+        const bouncedDeliveryId = payload.data?.delivery_id || payload.delivery_id;
+        if (bouncedDeliveryId) {
+          await inngest.send({
+            name: "message/failed",
+            data: { providerMsgId: bouncedDeliveryId, error: "Email bounced" },
           });
         }
         break;
       }
 
       case "email_delivered": {
-        const deliveryId = payload.data?.delivery_id || payload.delivery_id;
-        if (deliveryId) {
-          await prisma.messageQueue.updateMany({
-            where: { providerMsgId: deliveryId },
-            data: { status: "DELIVERED" },
+        const deliveredDeliveryId = payload.data?.delivery_id || payload.delivery_id;
+        if (deliveredDeliveryId) {
+          await inngest.send({
+            name: "message/delivered",
+            data: { providerMsgId: deliveredDeliveryId },
           });
         }
         break;
