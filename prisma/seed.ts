@@ -354,7 +354,6 @@ async function main() {
   await prisma.conversationRead.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agentDecisionLog.deleteMany();
-  await prisma.messageQueue.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.agentConfig.deleteMany();
   await prisma.collectionTask.deleteMany();
@@ -1026,43 +1025,6 @@ async function main() {
   }
 
   console.log(`✅ Created ${convCount} conversations, ${msgCount} messages, ${decCount} agent decisions`);
-
-  // ── MessageQueue seed (some pending, some sent) ──
-  const queueCustomerIdxs = [2, 0, 7];
-  let queueCount = 0;
-  for (const idx of queueCustomerIdxs) {
-    const cust = customers[idx];
-    await prisma.messageQueue.create({
-      data: {
-        customerId: cust.id,
-        channel: "WHATSAPP",
-        content: `Lembrete: sua cobrança está pendente. Entre em contato.`,
-        status: "SENT",
-        priority: 0,
-        scheduledFor: subDays(now, 1),
-        sentAt: subDays(now, 1),
-        franqueadoraId: franqueadora.id,
-        providerMsgId: `mock-wa-seed-${idx}`,
-      },
-    });
-    queueCount++;
-  }
-
-  // A few pending in queue
-  await prisma.messageQueue.create({
-    data: {
-      customerId: customers[15].id,
-      channel: "WHATSAPP",
-      content: "Lucia, gostaríamos de confirmar o parcelamento. Podemos seguir?",
-      status: "PENDING",
-      priority: 1,
-      scheduledFor: addDays(now, 0),
-      franqueadoraId: franqueadora.id,
-    },
-  });
-  queueCount++;
-
-  console.log(`✅ Created ${queueCount} message queue items`);
 
   console.log("\n📋 Test users:");
   console.log("  admin@menlo.com.br / admin123 (ADMINISTRADOR)");

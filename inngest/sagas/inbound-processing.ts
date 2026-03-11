@@ -127,8 +127,8 @@ export const inboundProcessing = inngest.createFunction(
         return { shouldEscalate: true as const, reason: forceEscalate.reason, details: forceEscalate.details };
       }
 
-      // checkConsecutiveFailures queries MessageQueue, which will be removed later.
-      // Before removing MessageQueue, refactor this to use Message.metadata instead.
+      // TODO: checkConsecutiveFailures is currently stubbed (returns false).
+      // Refactor to use Message.metadata or Inngest run history for failure tracking.
       const consecutiveCheck = await checkConsecutiveFailures(custId!);
       if (consecutiveCheck.shouldEscalate) {
         return { shouldEscalate: true as const, reason: consecutiveCheck.reason, details: consecutiveCheck.details };

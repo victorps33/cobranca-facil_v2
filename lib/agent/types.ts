@@ -4,7 +4,6 @@ import type {
   EscalationReason,
   MessageSender,
   ConversationStatus,
-  MessageQueueStatus,
 } from "@prisma/client";
 
 export interface AIDecisionMetadata {
