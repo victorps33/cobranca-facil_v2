@@ -434,13 +434,13 @@ export const updateRiskScore = inngest.createFunction(
         customerId,
         defaultRate: result.defaultRate,
         avgDaysLate: result.avgDaysLate,
-        totalOutstandingCents: result.totalOutstanding,
+        totalOutstanding: result.totalOutstanding,
         riskProfile: result.riskProfile,
       },
       update: {
         defaultRate: result.defaultRate,
         avgDaysLate: result.avgDaysLate,
-        totalOutstandingCents: result.totalOutstanding,
+        totalOutstanding: result.totalOutstanding,
         riskProfile: result.riskProfile,
       },
     });
@@ -491,6 +491,18 @@ Create `inngest/functions/log-interaction.ts`:
 ```typescript
 import { inngest } from "../client";
 import { prisma } from "@/lib/prisma";
+import type { InteractionType } from "@prisma/client";
+
+// Map Channel to InteractionType (they share EMAIL, WHATSAPP, SMS)
+function channelToInteractionType(channel: string): InteractionType {
+  const map: Record<string, InteractionType> = {
+    EMAIL: "EMAIL",
+    WHATSAPP: "WHATSAPP",
+    SMS: "SMS",
+    LIGACAO: "TELEFONE",
+  };
+  return map[channel] || "SMS";
+}
 
 export const logInteraction = inngest.createFunction(
   {
@@ -503,17 +515,32 @@ export const logInteraction = inngest.createFunction(
   ],
   async ({ event }) => {
     const isInbound = event.name === "inbound/received";
+    const customerId = event.data.customerId;
+
+    if (!customerId) {
+      return { logged: false, reason: "no customerId" };
+    }
+
+    // Find a system user to attribute the log to
+    const systemUser = await prisma.user.findFirst({
+      where: { role: "ADMINISTRADOR" },
+      select: { id: true },
+    });
+
+    if (!systemUser) {
+      return { logged: false, reason: "no system user found" };
+    }
 
     await prisma.interactionLog.create({
       data: {
-        customerId: event.data.customerId,
-        chargeId: "chargeId" in event.data ? event.data.chargeId : undefined,
-        type: event.data.channel,
+        customerId,
+        chargeId: "chargeId" in event.data ? (event.data as { chargeId?: string }).chargeId : undefined,
+        type: channelToInteractionType(event.data.channel),
         direction: isInbound ? "INBOUND" : "OUTBOUND",
         content: isInbound
           ? (event.data as { body: string }).body
           : (event.data as { content: string }).content,
-        franqueadoraId: event.data.franqueadoraId,
+        createdById: systemUser.id,
       },
     });
 
@@ -636,16 +663,24 @@ export const handleDeliveryStatus = inngest.createFunction(
       });
 
       // Create collection task for failed delivery review
-      await prisma.collectionTask.create({
-        data: {
-          title: `[FALHA ENVIO] Mensagem para conversa ${message.conversationId}`,
-          description: `Entrega falhou: ${error}`,
-          priority: "ALTA",
-          status: "PENDENTE",
-          customerId: message.conversation?.customerId || "",
-          franqueadoraId: message.conversation?.franqueadoraId || "",
-        },
+      // Find system user for createdById (required field)
+      const systemUser = await prisma.user.findFirst({
+        where: { role: "ADMINISTRADOR" },
+        select: { id: true },
       });
+
+      if (systemUser && message.conversation?.customerId) {
+        await prisma.collectionTask.create({
+          data: {
+            title: `[FALHA ENVIO] Mensagem para conversa ${message.conversationId}`,
+            description: `Entrega falhou: ${error}`,
+            priority: "ALTA",
+            status: "PENDENTE",
+            customerId: message.conversation.customerId,
+            createdById: systemUser.id,
+          },
+        });
+      }
     }
 
     return { updated: true, messageId: message.id, status: isDelivered ? "DELIVERED" : "FAILED" };
@@ -750,6 +785,7 @@ export const logAgentDecision = inngest.createFunction(
         action,
         confidence,
         reasoning,
+        inputContext: JSON.stringify(event.data),
         franqueadoraId,
         executedAt: new Date(),
       },
@@ -793,9 +829,65 @@ git commit -m "feat: add log-agent-decision reactive function (all 6 reactors co
 
 ---
 
+### Task 10: Implement dispatch-on-send function
+
+**Files:**
+- Create: `inngest/functions/dispatch-on-send.ts`
+- Modify: `inngest/index.ts`
+
+This function is critical: it dispatches messages to providers (Twilio/Customer.io) when a `message/sent` event is emitted from the inbox route. Without it, human-sent messages would be logged but never actually delivered.
+
+- [ ] **Step 1: Create dispatch-on-send function**
+
+Create `inngest/functions/dispatch-on-send.ts`:
+
+```typescript
+import { inngest } from "../client";
+import { dispatchMessage } from "@/lib/agent/dispatch";
+
+export const dispatchOnSend = inngest.createFunction(
+  {
+    id: "dispatch-on-send",
+    retries: 3,
+  },
+  { event: "message/sent" },
+  async ({ event }) => {
+    const { messageId, channel, content, customerId, conversationId, franqueadoraId } = event.data;
+
+    const result = await dispatchMessage({
+      channel,
+      content,
+      customerId,
+      conversationId,
+      messageId,
+      franqueadoraId,
+    });
+
+    if (!result.success) {
+      throw new Error(`Dispatch failed: ${result.error}`);
+    }
+
+    return { dispatched: true, providerMsgId: result.providerMsgId };
+  }
+);
+```
+
+- [ ] **Step 2: Register in inngest/index.ts**
+
+Add `dispatchOnSend` to imports and `allFunctions`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add inngest/functions/dispatch-on-send.ts inngest/index.ts
+git commit -m "feat: add dispatch-on-send function (delivers human-sent messages)"
+```
+
+---
+
 ## Chunk 3: Scheduled Functions
 
-### Task 10: Implement check-pending-charges scheduled function
+### Task 11: Implement check-pending-charges scheduled function
 
 **Files:**
 - Create: `inngest/scheduled/check-pending-charges.ts`
@@ -881,7 +973,7 @@ git commit -m "feat: add check-pending-charges scheduled function"
 
 ---
 
-### Task 11: Implement recalculate-risk-scores scheduled function
+### Task 12: Implement recalculate-risk-scores scheduled function
 
 **Files:**
 - Create: `inngest/scheduled/recalculate-risk-scores.ts`
@@ -933,7 +1025,7 @@ git commit -m "feat: add recalculate-risk-scores scheduled function"
 
 ## Chunk 4: Sagas
 
-### Task 12: Implement charge-lifecycle saga
+### Task 13: Implement charge-lifecycle saga
 
 **Files:**
 - Create: `inngest/sagas/charge-lifecycle.ts`
@@ -1021,7 +1113,7 @@ git commit -m "feat: add charge-lifecycle saga"
 
 ---
 
-### Task 13: Implement dunning-saga
+### Task 14: Implement dunning-saga
 
 **Files:**
 - Create: `inngest/sagas/dunning-saga.ts`
@@ -1047,6 +1139,12 @@ export const dunningSaga = inngest.createFunction(
     onFailure: async ({ event, error }) => {
       const chargeId = event.data.event.data.chargeId;
       const { prisma: p } = await import("@/lib/prisma");
+      // Find system user for createdById (required field)
+      const systemUser = await p.user.findFirst({
+        where: { role: "ADMINISTRADOR" },
+        select: { id: true },
+      });
+      if (!systemUser) return;
       await p.collectionTask.create({
         data: {
           title: `[FALHA DUNNING] Cobrança ${chargeId}`,
@@ -1054,7 +1152,7 @@ export const dunningSaga = inngest.createFunction(
           priority: "CRITICA",
           status: "PENDENTE",
           customerId: event.data.event.data.customerId,
-          franqueadoraId: event.data.event.data.franqueadoraId,
+          createdById: systemUser.id,
         },
       });
     },
@@ -1214,7 +1312,6 @@ export const dunningSaga = inngest.createFunction(
         // Wait for delivery confirmation (optional, with timeout)
         const delivery = await step.waitForEvent(`delivery-${dunningStep.id}`, {
           event: "message/delivered",
-          match: "data.providerMsgId",
           timeout: "24h",
           if: `async.data.providerMsgId == '${dispatchResult.providerMsgId}'`,
         });
@@ -1246,7 +1343,7 @@ git commit -m "feat: add dunning-saga (replaces processScheduledDunning)"
 
 ---
 
-### Task 14: Implement inbound-processing saga
+### Task 15: Implement inbound-processing saga
 
 **Files:**
 - Create: `inngest/sagas/inbound-processing.ts`
@@ -1454,7 +1551,7 @@ git commit -m "feat: add inbound-processing saga (replaces processInboundMessage
 
 ---
 
-### Task 15: Implement omie-sync saga
+### Task 16: Implement omie-sync saga
 
 **Files:**
 - Create: `inngest/sagas/omie-sync.ts`
@@ -1523,7 +1620,7 @@ export const omieSync = inngest.createFunction(
 
 - [ ] **Step 2: Register in inngest/index.ts — final state with all functions**
 
-Update `inngest/index.ts` to its final state with all 12 functions:
+Update `inngest/index.ts` to its final state with all 13 functions:
 
 ```typescript
 export { inngest } from "./client";
@@ -1535,6 +1632,7 @@ import { handleEscalation } from "./functions/handle-escalation";
 import { handleDeliveryStatus } from "./functions/handle-delivery-status";
 import { notifyPaymentReceived } from "./functions/notify-payment-received";
 import { logAgentDecision } from "./functions/log-agent-decision";
+import { dispatchOnSend } from "./functions/dispatch-on-send";
 
 // Scheduled functions
 import { checkPendingCharges } from "./scheduled/check-pending-charges";
@@ -1554,6 +1652,7 @@ export const allFunctions = [
   handleDeliveryStatus,
   notifyPaymentReceived,
   logAgentDecision,
+  dispatchOnSend,
   // Scheduled
   checkPendingCharges,
   recalculateRiskScores,
@@ -1576,7 +1675,7 @@ git commit -m "feat: add omie-sync saga (all 12 Inngest functions complete)"
 
 ## Chunk 5: Producers — Modify API Routes
 
-### Task 16: Modify charge API routes to emit events
+### Task 17: Modify charge API routes to emit events
 
 **Files:**
 - Modify: `app/api/charges/route.ts:66-106`
@@ -1656,7 +1755,7 @@ git commit -m "feat: emit charge events from API routes"
 
 ---
 
-### Task 17: Refactor dispatch.ts to remove MessageQueue dependency
+### Task 18: Refactor dispatch.ts to remove MessageQueue dependency
 
 **Files:**
 - Modify: `lib/agent/dispatch.ts`
@@ -1742,7 +1841,7 @@ git commit -m "refactor: decouple dispatch.ts from MessageQueue"
 
 ---
 
-### Task 18: Modify webhook routes to emit events
+### Task 19: Modify webhook routes to emit events
 
 **Files:**
 - Modify: `app/api/webhooks/twilio/route.ts`
@@ -1868,7 +1967,7 @@ git commit -m "feat: emit events from webhook routes (replace fire-and-forget)"
 
 ---
 
-### Task 19: Modify inbox messages route
+### Task 20: Modify inbox messages route
 
 **Files:**
 - Modify: `app/api/inbox/conversations/[id]/messages/route.ts:61-164`
@@ -1911,7 +2010,7 @@ git commit -m "feat: emit message/sent event from inbox route"
 
 ---
 
-### Task 20: Modify customer API route
+### Task 21: Modify customer API route
 
 **Files:**
 - Modify: `app/api/customers/route.ts:85-123`
@@ -1944,7 +2043,7 @@ git commit -m "feat: emit customer/created event from API route"
 
 ## Chunk 6: Cleanup
 
-### Task 21: Remove cron routes and process-inbound
+### Task 22: Remove cron routes and process-inbound
 
 **Files:**
 - Remove: `app/api/cron/all/route.ts`
@@ -1964,23 +2063,25 @@ rm app/api/cron/retry-failed/route.ts
 rmdir app/api/cron/all app/api/cron/dunning-run app/api/cron/message-dispatch app/api/cron/retry-failed app/api/cron 2>/dev/null || true
 ```
 
-- [ ] **Step 2: Delete process-inbound route**
+- [ ] **Step 2: Delete process-inbound route only (keep other agent routes)**
 
 ```bash
 rm app/api/agent/process-inbound/route.ts
-rmdir app/api/agent/process-inbound app/api/agent 2>/dev/null || true
+rmdir app/api/agent/process-inbound
 ```
+
+**Note:** Do NOT remove `app/api/agent/` itself — it contains other routes (dashboard, decisions, escalations) that are still needed.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add -A app/api/cron/ app/api/agent/
+git add -A app/api/cron/ app/api/agent/process-inbound/
 git commit -m "chore: remove cron routes and process-inbound (replaced by Inngest)"
 ```
 
 ---
 
-### Task 22: Remove orchestrator.ts
+### Task 23: Remove orchestrator.ts
 
 **Files:**
 - Remove: `lib/agent/orchestrator.ts`
@@ -2010,7 +2111,7 @@ git commit -m "chore: remove orchestrator.ts (logic migrated to Inngest sagas)"
 
 ---
 
-### Task 23: Remove MessageQueue from Prisma schema
+### Task 24: Remove MessageQueue from Prisma schema
 
 **Files:**
 - Modify: `prisma/schema.prisma:421-428,607-633`
@@ -2075,7 +2176,7 @@ git commit -m "chore: remove MessageQueue model from Prisma schema"
 
 ---
 
-### Task 24: Update vercel.json to remove crons
+### Task 25: Update vercel.json to remove crons
 
 **Files:**
 - Modify: `vercel.json`
@@ -2095,7 +2196,7 @@ git commit -m "chore: remove Vercel cron jobs (replaced by Inngest scheduled fun
 
 ---
 
-### Task 25: Final verification
+### Task 26: Final verification
 
 - [ ] **Step 1: Run TypeScript check**
 
@@ -2144,8 +2245,8 @@ git commit -m "feat: complete event-driven architecture migration with Inngest"
 | Chunk | Tasks | What it delivers |
 |-------|-------|-----------------|
 | 1: Foundation | 1-3 | Inngest installed, client, events, serve endpoint, middleware |
-| 2: Reactive Functions | 4-9 | 6 flat functions (risk, logs, escalation, delivery, payment, AI decisions) |
-| 3: Scheduled Functions | 10-11 | 2 scheduled functions (replace Vercel crons) |
-| 4: Sagas | 12-15 | 4 sagas (charge lifecycle, dunning, inbound, omie sync) |
-| 5: Producers | 16-20 | All API routes and webhooks emit events |
-| 6: Cleanup | 21-25 | Remove crons, orchestrator, MessageQueue, verify build |
+| 2: Reactive Functions | 4-10 | 7 flat functions (risk, logs, escalation, delivery, payment, AI decisions, dispatch-on-send) |
+| 3: Scheduled Functions | 11-12 | 2 scheduled functions (replace Vercel crons) |
+| 4: Sagas | 13-16 | 4 sagas (charge lifecycle, dunning, inbound, omie sync) |
+| 5: Producers | 17-21 | All API routes and webhooks emit events |
+| 6: Cleanup | 22-26 | Remove crons, orchestrator, MessageQueue, verify build |
