@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenant, requireTenantOrGroup, requireRole } from "@/lib/auth-helpers";
 import { headers } from "next/headers";
+import { inngest } from "@/inngest";
 
 // GET /api/charges — Lista cobranças enriquecidas
 export async function GET() {
@@ -99,6 +100,18 @@ export async function POST(req: NextRequest) {
       },
       include: { customer: true },
     });
+
+    await inngest.send({
+      name: "charge/created",
+      data: {
+        chargeId: charge.id,
+        customerId: charge.customerId,
+        amountCents: charge.amountCents,
+        dueDate: charge.dueDate.toISOString(),
+        franqueadoraId: tenantId!,
+      },
+    });
+
     return NextResponse.json(charge, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Falha ao criar cobrança" }, { status: 500 });
