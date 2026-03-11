@@ -96,29 +96,37 @@ export async function POST(request: Request) {
         });
 
         // Emit inbound event for async AI processing
-        await inngest.send({
-          name: "inbound/received",
-          data: {
-            from: email,
-            body: replyBody,
-            channel: "EMAIL" as const,
-            providerMsgId: delivery_id || "",
-            customerId: customer.id,
-            conversationId: conversation.id,
-            messageId: message.id,
-            franqueadoraId: customer.franqueadoraId,
-          },
-        });
+        try {
+          await inngest.send({
+            name: "inbound/received",
+            data: {
+              from: email,
+              body: replyBody,
+              channel: "EMAIL" as const,
+              providerMsgId: delivery_id || "",
+              customerId: customer.id,
+              conversationId: conversation.id,
+              messageId: message.id,
+              franqueadoraId: customer.franqueadoraId,
+            },
+          });
+        } catch (inngestErr) {
+          console.error("[inngest] Failed to emit inbound/received:", inngestErr);
+        }
         break;
       }
 
       case "email_bounced": {
         const bouncedDeliveryId = payload.data?.delivery_id || payload.delivery_id;
         if (bouncedDeliveryId) {
-          await inngest.send({
-            name: "message/failed",
-            data: { providerMsgId: bouncedDeliveryId, error: "Email bounced" },
-          });
+          try {
+            await inngest.send({
+              name: "message/failed",
+              data: { providerMsgId: bouncedDeliveryId, error: "Email bounced" },
+            });
+          } catch (inngestErr) {
+            console.error("[inngest] Failed to emit message/failed:", inngestErr);
+          }
         }
         break;
       }
@@ -126,10 +134,14 @@ export async function POST(request: Request) {
       case "email_delivered": {
         const deliveredDeliveryId = payload.data?.delivery_id || payload.delivery_id;
         if (deliveredDeliveryId) {
-          await inngest.send({
-            name: "message/delivered",
-            data: { providerMsgId: deliveredDeliveryId },
-          });
+          try {
+            await inngest.send({
+              name: "message/delivered",
+              data: { providerMsgId: deliveredDeliveryId },
+            });
+          } catch (inngestErr) {
+            console.error("[inngest] Failed to emit message/delivered:", inngestErr);
+          }
         }
         break;
       }

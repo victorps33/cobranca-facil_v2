@@ -212,19 +212,23 @@ export async function POST(request: Request) {
     });
 
     // Emit inbound event for async processing
-    await inngest.send({
-      name: "inbound/received",
-      data: {
-        from: normalizedPhone,
-        body: messageBody,
-        channel: (isWhatsApp ? "WHATSAPP" : "SMS") as Channel,
-        providerMsgId: messageSid,
-        customerId: customer.id,
-        conversationId: conversation.id,
-        messageId: message.id,
-        franqueadoraId: customer.franqueadoraId,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "inbound/received",
+        data: {
+          from: normalizedPhone,
+          body: messageBody,
+          channel: (isWhatsApp ? "WHATSAPP" : "SMS") as Channel,
+          providerMsgId: messageSid,
+          customerId: customer.id,
+          conversationId: conversation.id,
+          messageId: message.id,
+          franqueadoraId: customer.franqueadoraId,
+        },
+      });
+    } catch (inngestErr) {
+      console.error("[inngest] Failed to emit inbound/received:", inngestErr);
+    }
 
     return new Response(
       '<Response></Response>',

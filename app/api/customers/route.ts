@@ -118,13 +118,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await inngest.send({
-      name: "customer/created",
-      data: {
-        customerId: customer.id,
-        franqueadoraId: tenantId!,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "customer/created",
+        data: {
+          customerId: customer.id,
+          franqueadoraId: tenantId!,
+        },
+      });
+    } catch (inngestErr) {
+      console.error("[inngest] Failed to emit customer/created:", inngestErr);
+    }
 
     return NextResponse.json(customer, { status: 201 });
   } catch {

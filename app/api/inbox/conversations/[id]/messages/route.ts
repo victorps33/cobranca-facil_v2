@@ -108,18 +108,22 @@ export async function POST(
 
     // If not internal, emit message/sent event for async dispatch
     if (!isInternal) {
-      await inngest.send({
-        name: "message/sent",
-        data: {
-          messageId: message.id,
-          conversationId: conversation.id,
-          chargeId: undefined,
-          channel: conversation.channel,
-          content: message.content,
-          customerId: conversation.customerId,
-          franqueadoraId: tenantId!,
-        },
-      });
+      try {
+        await inngest.send({
+          name: "message/sent",
+          data: {
+            messageId: message.id,
+            conversationId: conversation.id,
+            chargeId: undefined,
+            channel: conversation.channel,
+            content: message.content,
+            customerId: conversation.customerId,
+            franqueadoraId: tenantId!,
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit message/sent:", inngestErr);
+      }
     } else {
       // Internal note — create NOTA_INTERNA in InteractionLog
       const systemUser = await prisma.user.findFirst({
