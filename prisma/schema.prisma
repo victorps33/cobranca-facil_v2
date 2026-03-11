@@ -112,6 +112,8 @@ model Customer {
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
 
   @@index([franqueadoraId])
+  @@index([phone])
+  @@index([whatsappPhone])
 }
 
 model FranchiseeRiskScore {
@@ -156,6 +158,7 @@ model Charge {
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
+  @@index([status, dueDate])
 }
 
 model EscalationTask {
@@ -168,6 +171,9 @@ model EscalationTask {
   resolvedAt  DateTime?
   resolvedBy  String?
   createdAt   DateTime         @default(now())
+
+  @@index([chargeId])
+  @@index([status])
 }
 
 enum ChargeStatus {
@@ -201,6 +207,7 @@ model DunningRule {
   steps           DunningStep[]
 
   @@index([franqueadoraId])
+  @@index([franqueadoraId, riskProfile, active])
 }
 
 model DunningStep {
@@ -303,6 +310,7 @@ model NotificationLog {
   @@index([chargeId])
   @@index([stepId])
   @@index([scheduledFor])
+  @@unique([chargeId, stepId])
 }
 
 enum NotificationStatus {

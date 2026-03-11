@@ -17,6 +17,7 @@ export const logInteraction = inngest.createFunction(
   {
     id: "log-interaction",
     retries: 3,
+    concurrency: [{ key: "event.data.customerId", limit: 1 }],
   },
   [
     { event: "message/sent" },
@@ -40,15 +41,30 @@ export const logInteraction = inngest.createFunction(
       return { logged: false, reason: "no system user found" };
     }
 
+    // Idempotency: check for recent duplicate
+    const content = isInbound
+      ? (event.data as { body: string }).body
+      : (event.data as { content: string }).content;
+
+    const existing = await prisma.interactionLog.findFirst({
+      where: {
+        customerId,
+        content,
+        createdAt: { gte: new Date(Date.now() - 60000) },
+      },
+    });
+
+    if (existing) {
+      return { logged: false, reason: "duplicate" };
+    }
+
     await prisma.interactionLog.create({
       data: {
         customerId,
         chargeId: "chargeId" in event.data ? (event.data as { chargeId?: string }).chargeId : undefined,
         type: channelToInteractionType(event.data.channel),
         direction: isInbound ? "INBOUND" : "OUTBOUND",
-        content: isInbound
-          ? (event.data as { body: string }).body
-          : (event.data as { content: string }).content,
+        content,
         createdById: systemUser.id,
       },
     });

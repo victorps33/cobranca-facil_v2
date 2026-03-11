@@ -1,6 +1,8 @@
 import { inngest } from "../client";
 import { prisma } from "@/lib/prisma";
-import { recalculateAllRiskScores } from "@/lib/risk-score";
+import { calculateRiskForCustomer } from "@/lib/risk-score";
+
+const BATCH_SIZE = 100;
 
 export const recalculateRiskScores = inngest.createFunction(
   {
@@ -15,10 +17,61 @@ export const recalculateRiskScores = inngest.createFunction(
       });
     });
 
-    const results = await step.run("recalculate-all", async () => {
-      return recalculateAllRiskScores(franqueadoras.map((f) => f.id));
-    });
+    let totalRecalculated = 0;
 
-    return { recalculated: results.length };
+    for (const franqueadora of franqueadoras) {
+      let cursor: string | undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batchResult = await step.run(
+          `recalc-${franqueadora.id}-${totalRecalculated}`,
+          async () => {
+            const customers = await prisma.customer.findMany({
+              where: { franqueadoraId: franqueadora.id },
+              select: { id: true },
+              orderBy: { id: "asc" },
+              take: BATCH_SIZE,
+              ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            });
+
+            let processed = 0;
+            for (const customer of customers) {
+              const result = await calculateRiskForCustomer(customer.id);
+              await prisma.franchiseeRiskScore.upsert({
+                where: { customerId: customer.id },
+                create: {
+                  customerId: customer.id,
+                  defaultRate: result.defaultRate,
+                  avgDaysLate: result.avgDaysLate,
+                  totalOutstanding: result.totalOutstanding,
+                  riskProfile: result.riskProfile,
+                },
+                update: {
+                  defaultRate: result.defaultRate,
+                  avgDaysLate: result.avgDaysLate,
+                  totalOutstanding: result.totalOutstanding,
+                  riskProfile: result.riskProfile,
+                  calculatedAt: new Date(),
+                },
+              });
+              processed++;
+            }
+
+            return {
+              lastId: customers.length > 0 ? customers[customers.length - 1].id : undefined,
+              count: customers.length,
+              processed,
+            };
+          }
+        );
+
+        cursor = batchResult.lastId;
+        hasMore = batchResult.count === BATCH_SIZE;
+        totalRecalculated += batchResult.processed;
+      }
+    }
+
+    return { recalculated: totalRecalculated };
   }
 );

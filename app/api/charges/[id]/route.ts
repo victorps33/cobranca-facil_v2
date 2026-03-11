@@ -42,22 +42,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
 
     if (body.status === "CANCELED") {
-      await inngest.send({
-        name: "charge/canceled",
-        data: {
-          chargeId: charge.id,
-          customerId: charge.customerId,
-          franqueadoraId: tenantId!,
-        },
-      });
+      try {
+        await inngest.send({
+          name: "charge/canceled",
+          data: {
+            chargeId: charge.id,
+            customerId: charge.customerId,
+            franqueadoraId: tenantId!,
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit charge/canceled:", inngestErr);
+      }
     } else {
-      await inngest.send({
-        name: "charge/updated",
-        data: {
-          chargeId: charge.id,
-          franqueadoraId: tenantId!,
-        },
-      });
+      try {
+        await inngest.send({
+          name: "charge/updated",
+          data: {
+            chargeId: charge.id,
+            franqueadoraId: tenantId!,
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit charge/updated:", inngestErr);
+      }
     }
 
     return NextResponse.json(charge);
@@ -82,14 +90,18 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     await prisma.charge.delete({ where: { id: params.id } });
 
-    await inngest.send({
-      name: "charge/canceled",
-      data: {
-        chargeId: params.id,
-        customerId: existing.customerId,
-        franqueadoraId: tenantId!,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "charge/canceled",
+        data: {
+          chargeId: params.id,
+          customerId: existing.customerId,
+          franqueadoraId: tenantId!,
+        },
+      });
+    } catch (inngestErr) {
+      console.error("[inngest] Failed to emit charge/canceled:", inngestErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch {

@@ -6,6 +6,30 @@ export const omieSync = inngest.createFunction(
   {
     id: "omie-sync-saga",
     retries: 5,
+    concurrency: [{ key: "event.data.topic", limit: 3 }],
+    onFailure: async ({ event, error }) => {
+      const { prisma: p } = await import("@/lib/prisma");
+      const data = event.data.event.data;
+      const customer = await p.customer.findFirst({
+        where: { franqueadoraId: data.franqueadoraId },
+      });
+      const systemUser = await p.user.findFirst({
+        where: { role: "ADMINISTRADOR" },
+        select: { id: true },
+      });
+      if (systemUser && customer) {
+        await p.collectionTask.create({
+          data: {
+            title: `[FALHA OMIE] Sync falhou: ${data.topic}`,
+            description: `Erro: ${error.message}`,
+            priority: "ALTA",
+            status: "PENDENTE",
+            customerId: customer.id,
+            createdById: systemUser.id,
+          },
+        });
+      }
+    },
   },
   { event: "integration/omie-webhook-received" },
   async ({ event, step }) => {

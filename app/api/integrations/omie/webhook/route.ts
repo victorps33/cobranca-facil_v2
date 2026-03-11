@@ -29,14 +29,18 @@ export async function POST(req: NextRequest) {
     const { topic } = body;
     const franqueadoraId = (body as unknown as Record<string, unknown>).franqueadoraId as string || "default";
 
-    await inngest.send({
-      name: "integration/omie-webhook-received",
-      data: {
-        topic,
-        payload: body as unknown as Record<string, unknown>,
-        franqueadoraId,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "integration/omie-webhook-received",
+        data: {
+          topic,
+          payload: body as unknown as Record<string, unknown>,
+          franqueadoraId,
+        },
+      });
+    } catch (inngestErr) {
+      console.error("[inngest] Failed to emit integration/omie-webhook-received:", inngestErr);
+    }
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {

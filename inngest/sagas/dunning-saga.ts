@@ -8,6 +8,7 @@ export const dunningSaga = inngest.createFunction(
   {
     id: "dunning-saga",
     retries: 3,
+    concurrency: [{ key: "event.data.chargeId", limit: 1 }],
     onFailure: async ({ event, error }) => {
       const chargeId = event.data.event.data.chargeId;
       const { prisma: p } = await import("@/lib/prisma");
@@ -154,22 +155,12 @@ export const dunningSaga = inngest.createFunction(
       }
 
       if (decision.action === "SEND_COLLECTION" && decision.message) {
-        // Check for duplicate notification (idempotency)
-        const existing = await step.run(`check-dup-${dunningStep.id}`, async () => {
-          return prisma.notificationLog.findFirst({
-            where: { chargeId, stepId: dunningStep.id },
-          });
-        });
-
-        if (existing) continue; // Already sent for this step
-
-        // Dispatch the message
-        const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
+        // Step A: Prepare dispatch (DB writes only)
+        const prepared = await step.run(`prepare-dispatch-${dunningStep.id}`, async () => {
           // Find or create conversation
           let conversation = await prisma.conversation.findFirst({
             where: { customerId, channel: dunningStep.channel, status: { not: "RESOLVIDA" } },
           });
-
           if (!conversation) {
             conversation = await prisma.conversation.create({
               data: {
@@ -192,9 +183,10 @@ export const dunningSaga = inngest.createFunction(
             },
           });
 
-          // Create NotificationLog for audit trail (used by buildCollectionContext)
-          await prisma.notificationLog.create({
-            data: {
+          // Upsert NotificationLog (idempotent via @@unique)
+          await prisma.notificationLog.upsert({
+            where: { chargeId_stepId: { chargeId, stepId: dunningStep.id } },
+            create: {
               chargeId,
               stepId: dunningStep.id,
               channel: dunningStep.channel,
@@ -208,21 +200,25 @@ export const dunningSaga = inngest.createFunction(
                 aiAction: decision.action,
               }),
             },
+            update: {},
           });
 
-          // Dispatch via provider
+          return { conversationId: conversation.id, messageId: message.id };
+        });
+
+        // Step B: External dispatch (provider call only)
+        const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
           return dispatchMessage({
             channel: dunningStep.channel,
             content: decision.message!,
             customerId,
-            conversationId: conversation.id,
-            messageId: message.id,
+            conversationId: prepared.conversationId,
+            messageId: prepared.messageId,
             franqueadoraId,
           });
         });
 
         if (!dispatchResult.success) {
-          // Dispatch failed — Inngest will retry the step
           throw new Error(`Dispatch failed: ${dispatchResult.error}`);
         }
 

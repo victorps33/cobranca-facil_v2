@@ -101,16 +101,20 @@ export async function POST(req: NextRequest) {
       include: { customer: true },
     });
 
-    await inngest.send({
-      name: "charge/created",
-      data: {
-        chargeId: charge.id,
-        customerId: charge.customerId,
-        amountCents: charge.amountCents,
-        dueDate: charge.dueDate.toISOString(),
-        franqueadoraId: tenantId!,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "charge/created",
+        data: {
+          chargeId: charge.id,
+          customerId: charge.customerId,
+          amountCents: charge.amountCents,
+          dueDate: charge.dueDate.toISOString(),
+          franqueadoraId: tenantId!,
+        },
+      });
+    } catch (inngestErr) {
+      console.error("[inngest] Failed to emit charge/created:", inngestErr);
+    }
 
     return NextResponse.json(charge, { status: 201 });
   } catch {

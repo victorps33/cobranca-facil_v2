@@ -6,6 +6,7 @@ export const logAgentDecision = inngest.createFunction(
   {
     id: "log-agent-decision",
     retries: 3,
+    concurrency: [{ key: "event.data.customerId", limit: 1 }],
   },
   [
     { event: "ai/collection-decided" },
@@ -13,6 +14,19 @@ export const logAgentDecision = inngest.createFunction(
   ],
   async ({ event }) => {
     const { action, confidence, reasoning, franqueadoraId } = event.data;
+
+    // Idempotency: check for recent duplicate
+    const existing = await prisma.agentDecisionLog.findFirst({
+      where: {
+        customerId: event.data.customerId,
+        action: action as AgentAction,
+        createdAt: { gte: new Date(Date.now() - 60000) },
+      },
+    });
+
+    if (existing) {
+      return { logged: false, reason: "duplicate" };
+    }
 
     await prisma.agentDecisionLog.create({
       data: {

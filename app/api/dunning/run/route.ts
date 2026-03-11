@@ -49,19 +49,23 @@ export async function POST() {
     // Emit charge/overdue events — the dunning-saga handles the rest
     const validCharges = charges.filter((c) => c.customer.franqueadoraId != null);
     if (validCharges.length > 0) {
-      await inngest.send(
-        validCharges.map((charge) => ({
-          name: "charge/overdue" as const,
-          data: {
-            chargeId: charge.id,
-            customerId: charge.customerId,
-            daysPastDue: Math.floor(
-              (now.getTime() - new Date(charge.dueDate).getTime()) / (1000 * 60 * 60 * 24)
-            ),
-            franqueadoraId: charge.customer.franqueadoraId!,
-          },
-        }))
-      );
+      try {
+        await inngest.send(
+          validCharges.map((charge) => ({
+            name: "charge/overdue" as const,
+            data: {
+              chargeId: charge.id,
+              customerId: charge.customerId,
+              daysPastDue: Math.floor(
+                (now.getTime() - new Date(charge.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+              ),
+              franqueadoraId: charge.customer.franqueadoraId!,
+            },
+          }))
+        );
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit charge/overdue:", inngestErr);
+      }
     }
 
     return NextResponse.json({
