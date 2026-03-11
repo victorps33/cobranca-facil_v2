@@ -75,10 +75,11 @@ export const inboundProcessing = inngest.createFunction(
     });
 
     if (context.skip) {
-      return { result: "skipped", reason: context.reason };
+      return { result: "skipped", reason: (context as { skip: true; reason: string }).reason };
     }
 
     const { customerId: custId, conversationId: convId } = context as {
+      skip: false;
       customerId: string;
       conversationId: string;
     };
@@ -123,17 +124,17 @@ export const inboundProcessing = inngest.createFunction(
       );
 
       if (forceEscalate.shouldEscalate) {
-        return { shouldEscalate: true, reason: forceEscalate.reason, details: forceEscalate.details };
+        return { shouldEscalate: true as const, reason: forceEscalate.reason, details: forceEscalate.details };
       }
 
       // checkConsecutiveFailures queries MessageQueue, which will be removed later.
       // Before removing MessageQueue, refactor this to use Message.metadata instead.
       const consecutiveCheck = await checkConsecutiveFailures(custId!);
       if (consecutiveCheck.shouldEscalate) {
-        return { shouldEscalate: true, reason: consecutiveCheck.reason };
+        return { shouldEscalate: true as const, reason: consecutiveCheck.reason, details: consecutiveCheck.details };
       }
 
-      return { shouldEscalate: false };
+      return { shouldEscalate: false as const, reason: undefined, details: undefined };
     });
 
     // Step 5: Execute action

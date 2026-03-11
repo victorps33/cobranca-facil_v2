@@ -13,24 +13,34 @@ export const omieSync = inngest.createFunction(
 
     // Step 1: Process the webhook (reuse existing logic)
     const result = await step.run("process-webhook", async () => {
-      return processOmieWebhook(payload as OmieWebhookPayload);
+      return processOmieWebhook(payload as unknown as OmieWebhookPayload);
     });
 
     // Step 2: Emit downstream events based on topic
     if (topic.startsWith("financas.contareceber")) {
       if (result.chargeId) {
-        const eventName = result.status === "PAID" ? "charge/paid" : "charge/created";
-        await step.sendEvent("emit-charge-event", {
-          name: eventName as "charge/paid" | "charge/created",
-          data: {
-            chargeId: result.chargeId,
-            customerId: result.customerId || "",
-            ...(eventName === "charge/paid"
-              ? { amountPaidCents: result.amountPaidCents || 0 }
-              : { amountCents: result.amountCents || 0, dueDate: result.dueDate || "" }),
-            franqueadoraId,
-          },
-        });
+        if (result.status === "PAID") {
+          await step.sendEvent("emit-charge-paid", {
+            name: "charge/paid",
+            data: {
+              chargeId: result.chargeId,
+              customerId: result.customerId || "",
+              amountPaidCents: result.amountPaidCents || 0,
+              franqueadoraId,
+            },
+          });
+        } else {
+          await step.sendEvent("emit-charge-created", {
+            name: "charge/created",
+            data: {
+              chargeId: result.chargeId,
+              customerId: result.customerId || "",
+              amountCents: result.amountCents || 0,
+              dueDate: result.dueDate || "",
+              franqueadoraId,
+            },
+          });
+        }
       }
     }
 
