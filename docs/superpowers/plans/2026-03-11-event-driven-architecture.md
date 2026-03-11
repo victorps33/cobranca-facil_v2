@@ -574,7 +574,7 @@ Create `inngest/functions/handle-escalation.ts`:
 
 ```typescript
 import { inngest } from "../client";
-import { executeEscalation } from "@/lib/agent/escalation";
+import { executeEscalation, type EscalationReason } from "@/lib/agent/escalation";
 
 export const handleEscalation = inngest.createFunction(
   {
@@ -589,7 +589,7 @@ export const handleEscalation = inngest.createFunction(
       await executeEscalation(
         conversationId,
         customerId,
-        reason,
+        reason as EscalationReason,
         details || "",
         franqueadoraId
       );
@@ -650,16 +650,17 @@ export const handleDeliveryStatus = inngest.createFunction(
       return { skipped: true, reason: "message not found" };
     }
 
+    // Note: Message model has no `status` field — use `metadata` JSON to track delivery
     if (isDelivered) {
       await prisma.message.update({
         where: { id: message.id },
-        data: { status: "DELIVERED" },
+        data: { metadata: JSON.stringify({ deliveryStatus: "DELIVERED", deliveredAt: new Date().toISOString() }) },
       });
     } else {
       const error = (event.data as { error: string }).error;
       await prisma.message.update({
         where: { id: message.id },
-        data: { status: "FAILED" },
+        data: { metadata: JSON.stringify({ deliveryStatus: "FAILED", error, failedAt: new Date().toISOString() }) },
       });
 
       // Create collection task for failed delivery review
@@ -919,7 +920,7 @@ export const checkPendingCharges = inngest.createFunction(
           id: true,
           customerId: true,
           dueDate: true,
-          franqueadoraId: true,
+          customer: { select: { franqueadoraId: true } },
         },
       });
     });
@@ -950,7 +951,7 @@ export const checkPendingCharges = inngest.createFunction(
           daysPastDue: Math.floor(
             (Date.now() - new Date(charge.dueDate).getTime()) / (1000 * 60 * 60 * 24)
           ),
-          franqueadoraId: charge.franqueadoraId,
+          franqueadoraId: charge.customer.franqueadoraId,
         },
       }))
     );
@@ -1174,7 +1175,7 @@ export const dunningSaga = inngest.createFunction(
         where: {
           franqueadoraId,
           riskProfile,
-          enabled: true,
+          active: true,
         },
         include: {
           steps: {
@@ -1223,7 +1224,8 @@ export const dunningSaga = inngest.createFunction(
 
       // Build context and get AI decision
       const decision = await step.run(`ai-decide-${dunningStep.id}`, async () => {
-        const ctx = await buildCollectionContext(chargeId, customerId, dunningStep.channel, franqueadoraId);
+        const ctx = await buildCollectionContext(chargeId, dunningStep.channel);
+        if (!ctx) return null;
         return decideCollectionAction(ctx);
       });
 
@@ -1247,6 +1249,23 @@ export const dunningSaga = inngest.createFunction(
       // Execute based on decision
       if (decision.action === "SKIP") {
         continue;
+      }
+
+      // Handle negotiation-related actions
+      if (decision.action === "NEGOTIATE" || decision.action === "MARK_PROMISE" || decision.action === "SCHEDULE_CALLBACK") {
+        await step.sendEvent(`negotiation-${dunningStep.id}`, {
+          name: decision.action === "NEGOTIATE" ? "negotiation/offered" as const
+            : decision.action === "MARK_PROMISE" ? "negotiation/promise-made" as const
+            : "negotiation/callback-scheduled" as const,
+          data: {
+            chargeId,
+            customerId,
+            franqueadoraId,
+            details: decision.reasoning,
+          },
+        });
+        // Still dispatch the message if one was generated
+        if (!decision.message) continue;
       }
 
       if (decision.action === "ESCALATE_HUMAN") {
@@ -1443,7 +1462,8 @@ export const inboundProcessing = inngest.createFunction(
 
     // Step 2: Build context and get AI decision
     const decision = await step.run("ai-decide-response", async () => {
-      const ctx = await buildInboundContext(convId!, custId!, channel);
+      const ctx = await buildInboundContext(convId!, body);
+      if (!ctx) return null;
       return decideInboundResponse(ctx);
     });
 
@@ -1473,13 +1493,18 @@ export const inboundProcessing = inngest.createFunction(
       const forceEscalate = shouldForceEscalate(
         decision,
         body,
-        agentConfig || undefined,
+        {
+          escalationThreshold: agentConfig?.escalationThreshold ?? 0.3,
+          highValueThreshold: agentConfig?.highValueThreshold ?? 1000000,
+        },
       );
 
       if (forceEscalate.shouldEscalate) {
         return { shouldEscalate: true, reason: forceEscalate.reason, details: forceEscalate.details };
       }
 
+      // ⚠️ checkConsecutiveFailures queries MessageQueue, which is removed in Task 24.
+      // Before Task 24, refactor this function to check Message.metadata delivery status instead.
       const consecutiveCheck = await checkConsecutiveFailures(custId!);
       if (consecutiveCheck.shouldEscalate) {
         return { shouldEscalate: true, reason: consecutiveCheck.reason };
@@ -1616,7 +1641,7 @@ export const omieSync = inngest.createFunction(
 );
 ```
 
-**Note:** The `processOmieWebhook` function in `lib/integrations/omie/processWebhook.ts` needs to be slightly modified to return `chargeId`, `customerId`, `status`, etc. in its result object. This will be done in Task 18 (Omie webhook refactor).
+**⚠️ Prerequisite:** Before implementing this saga, modify `processOmieWebhook()` in `lib/integrations/omie/processWebhook.ts` to return `chargeId`, `customerId`, `status`, `amountPaidCents`, `amountCents`, and `dueDate` in its result object (currently returns only `{ processed, detail }`). Add a step in this task to make this modification before implementing the saga.
 
 - [ ] **Step 2: Register in inngest/index.ts — final state with all functions**
 
@@ -1668,7 +1693,7 @@ export const allFunctions = [
 
 ```bash
 git add inngest/sagas/omie-sync.ts inngest/index.ts
-git commit -m "feat: add omie-sync saga (all 12 Inngest functions complete)"
+git commit -m "feat: add omie-sync saga (all 13 Inngest functions complete)"
 ```
 
 ---
@@ -1697,7 +1722,7 @@ await inngest.send({
     customerId: charge.customerId,
     amountCents: charge.amountCents,
     dueDate: charge.dueDate.toISOString(),
-    franqueadoraId: tenant.franqueadoraId,
+    franqueadoraId: tenantId!,
   },
 });
 ```
@@ -1717,7 +1742,7 @@ if (body.status === "CANCELED") {
     data: {
       chargeId: updated.id,
       customerId: updated.customerId,
-      franqueadoraId: tenant.franqueadoraId,
+      franqueadoraId: tenantId!,
     },
   });
 } else {
@@ -1725,7 +1750,7 @@ if (body.status === "CANCELED") {
     name: "charge/updated",
     data: {
       chargeId: updated.id,
-      franqueadoraId: tenant.franqueadoraId,
+      franqueadoraId: tenantId!,
     },
   });
 }
@@ -1741,7 +1766,7 @@ await inngest.send({
   data: {
     chargeId: params.id,
     customerId: charge.customerId,
-    franqueadoraId: tenant.franqueadoraId,
+    franqueadoraId: tenantId!,
   },
 });
 ```
@@ -1798,10 +1823,10 @@ export async function dispatchMessage(request: DispatchRequest): Promise<Dispatc
         result = await sendWhatsApp(customer.whatsappPhone || customer.phone, content, franqueadoraId);
         break;
       case "SMS":
-        result = await sendSMS(customer.phone, content, franqueadoraId);
+        result = await sendSms(customer.phone, content, franqueadoraId);
         break;
       case "EMAIL":
-        result = await sendEmail(customer.email, content, franqueadoraId);
+        result = await sendRawEmail(customer.email, content, franqueadoraId);
         break;
       default:
         return { success: false, error: `Unsupported channel: ${channel}` };
@@ -1822,7 +1847,11 @@ export async function dispatchMessage(request: DispatchRequest): Promise<Dispatc
 }
 ```
 
-Keep the existing provider functions (`sendWhatsApp`, `sendSMS`, `sendEmail`) unchanged.
+Keep the existing provider functions (`sendWhatsApp`, `sendSms`, `sendRawEmail`) unchanged. Import them as:
+```typescript
+import { sendWhatsApp, sendSms } from "./providers/twilio";
+import { sendRawEmail } from "./providers/customerio";
+```
 
 Remove the old `dispatchMessage` that takes a `MessageQueue` item, `processPendingQueue`, and `dispatchImmediate` functions.
 
@@ -1995,7 +2024,7 @@ if (!isInternal) {
       channel: conversation.channel,
       content: newMessage.content,
       customerId: conversation.customerId,
-      franqueadoraId: tenant.franqueadoraId,
+      franqueadoraId: tenantId!,
     },
   });
 }
@@ -2027,7 +2056,7 @@ await inngest.send({
   name: "customer/created",
   data: {
     customerId: customer.id,
-    franqueadoraId: tenant.franqueadoraId,
+    franqueadoraId: tenantId!,
   },
 });
 ```
@@ -2221,7 +2250,7 @@ Fix any build errors.
 npm run dev
 ```
 
-1. Visit `http://localhost:3000/api/inngest` — should return introspection JSON listing all 12 functions
+1. Visit `http://localhost:3000/api/inngest` — should return introspection JSON listing all 13 functions
 2. Run `npx inngest-cli@latest dev` in another terminal — should connect to your app and show all functions in the dashboard
 
 - [ ] **Step 4: Test a simple event flow**
