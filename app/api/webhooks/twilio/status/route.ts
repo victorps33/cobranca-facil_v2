@@ -16,20 +16,28 @@ export async function POST(request: Request) {
     }
 
     if (["delivered", "read"].includes(messageStatus)) {
-      await inngest.send({
-        name: "message/delivered",
-        data: {
-          providerMsgId: messageSid,
-        },
-      });
+      try {
+        await inngest.send({
+          name: "message/delivered",
+          data: {
+            providerMsgId: messageSid,
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit message/delivered:", inngestErr);
+      }
     } else if (["failed", "undelivered"].includes(messageStatus)) {
-      await inngest.send({
-        name: "message/failed",
-        data: {
-          providerMsgId: messageSid,
-          error: `Twilio status: ${messageStatus}`,
-        },
-      });
+      try {
+        await inngest.send({
+          name: "message/failed",
+          data: {
+            providerMsgId: messageSid,
+            error: `Twilio status: ${messageStatus}`,
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit message/failed:", inngestErr);
+      }
     }
 
     return new Response("OK", { status: 200 });
