@@ -1,5 +1,17 @@
 export { inngest } from "./client";
 
-// Functions will be added as they are implemented
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const allFunctions: any[] = [];
+import { updateRiskScore } from "./functions/update-risk-score";
+import { logInteraction } from "./functions/log-interaction";
+import { handleEscalation } from "./functions/handle-escalation";
+import { handleDeliveryStatus } from "./functions/handle-delivery-status";
+import { notifyPaymentReceived } from "./functions/notify-payment-received";
+import { logAgentDecision } from "./functions/log-agent-decision";
+
+export const allFunctions = [
+  updateRiskScore,
+  logInteraction,
+  handleEscalation,
+  handleDeliveryStatus,
+  notifyPaymentReceived,
+  logAgentDecision,
+];
