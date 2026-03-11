@@ -412,6 +412,8 @@ git commit -m "feat: add Inngest serve endpoint and middleware exclusion"
 
 ## Chunk 2: Reactive Functions
 
+**⚠️ Execution order:** Implement Task 18 (dispatch.ts refactor from Chunk 5) BEFORE Task 10 in this chunk. Tasks 10, 14, and 15 depend on the new `dispatchMessage` interface created in Task 18.
+
 ### Task 4: Implement update-risk-score function
 
 **Files:**
@@ -588,7 +590,8 @@ Create `inngest/functions/handle-escalation.ts`:
 
 ```typescript
 import { inngest } from "../client";
-import { executeEscalation, type EscalationReason } from "@/lib/agent/escalation";
+import { executeEscalation } from "@/lib/agent/escalation";
+import type { EscalationReason } from "@prisma/client";
 
 export const handleEscalation = inngest.createFunction(
   {
@@ -846,6 +849,8 @@ git commit -m "feat: add log-agent-decision reactive function (all 6 reactors co
 ---
 
 ### Task 10: Implement dispatch-on-send function
+
+**⚠️ Dependency: Execute Task 18 (dispatch.ts refactor) BEFORE this task.** The new `dispatchMessage({ ... })` interface used here requires the refactor from Task 18 to exist. Implement Task 18 first, then return here.
 
 **Files:**
 - Create: `inngest/functions/dispatch-on-send.ts`
@@ -1240,7 +1245,7 @@ export const dunningSaga = inngest.createFunction(
 
       // Build context and get AI decision
       const decision = await step.run(`ai-decide-${dunningStep.id}`, async () => {
-        const ctx = await buildCollectionContext(chargeId, dunningStep.channel);
+        const ctx = await buildCollectionContext(chargeId, dunningStep.channel as "EMAIL" | "SMS" | "WHATSAPP");
         if (!ctx) return null;
         return decideCollectionAction(ctx, agentConfig?.systemPromptOverride);
       });
@@ -1625,7 +1630,26 @@ git commit -m "feat: add inbound-processing saga (replaces processInboundMessage
 - Create: `inngest/sagas/omie-sync.ts`
 - Modify: `inngest/index.ts`
 
-- [ ] **Step 1: Create omie-sync saga**
+- [ ] **Step 1: Modify processOmieWebhook return type**
+
+In `lib/integrations/omie/processWebhook.ts`, update the return type and all return statements to include enriched data. Add this interface at the top:
+
+```typescript
+export interface OmieWebhookResult {
+  processed: boolean;
+  detail: string;
+  chargeId?: string;
+  customerId?: string;
+  status?: string;
+  amountPaidCents?: number;
+  amountCents?: number;
+  dueDate?: string;
+}
+```
+
+Change the function signature return type from `Promise<{ processed: boolean; detail: string }>` to `Promise<OmieWebhookResult>`. Update each `return` statement inside the function to include the relevant IDs from the database operations (e.g., after upserting a charge, include `chargeId: charge.id` in the return).
+
+- [ ] **Step 2: Create omie-sync saga**
 
 Create `inngest/sagas/omie-sync.ts`:
 
