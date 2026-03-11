@@ -155,8 +155,9 @@ export const inboundProcessing = inngest.createFunction(
 
     // Dispatch AI response
     if (decision.message) {
-      await step.run("dispatch-response", async () => {
-        const message = await prisma.message.create({
+      // Step A: Create message record
+      const messageRecord = await step.run("create-response-message", async () => {
+        return prisma.message.create({
           data: {
             conversationId: convId!,
             sender: "AI",
@@ -165,17 +166,19 @@ export const inboundProcessing = inngest.createFunction(
             channel,
           },
         });
+      });
 
+      // Step B: External dispatch + conversation update
+      await step.run("dispatch-response", async () => {
         await dispatchMessage({
           channel,
           content: decision.message!,
           customerId: custId!,
           conversationId: convId!,
-          messageId: message.id,
+          messageId: messageRecord.id,
           franqueadoraId,
         });
 
-        // Update conversation status
         await prisma.conversation.update({
           where: { id: convId! },
           data: { status: "ABERTA", lastMessageAt: new Date() },

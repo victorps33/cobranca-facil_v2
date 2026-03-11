@@ -155,13 +155,12 @@ export const dunningSaga = inngest.createFunction(
       }
 
       if (decision.action === "SEND_COLLECTION" && decision.message) {
-        // Dispatch the message
-        const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
+        // Step A: Prepare dispatch (DB writes only)
+        const prepared = await step.run(`prepare-dispatch-${dunningStep.id}`, async () => {
           // Find or create conversation
           let conversation = await prisma.conversation.findFirst({
             where: { customerId, channel: dunningStep.channel, status: { not: "RESOLVIDA" } },
           });
-
           if (!conversation) {
             conversation = await prisma.conversation.create({
               data: {
@@ -184,11 +183,9 @@ export const dunningSaga = inngest.createFunction(
             },
           });
 
-          // Create NotificationLog for audit trail (used by buildCollectionContext)
+          // Upsert NotificationLog (idempotent via @@unique)
           await prisma.notificationLog.upsert({
-            where: {
-              chargeId_stepId: { chargeId, stepId: dunningStep.id },
-            },
+            where: { chargeId_stepId: { chargeId, stepId: dunningStep.id } },
             create: {
               chargeId,
               stepId: dunningStep.id,
@@ -206,19 +203,22 @@ export const dunningSaga = inngest.createFunction(
             update: {},
           });
 
-          // Dispatch via provider
+          return { conversationId: conversation.id, messageId: message.id };
+        });
+
+        // Step B: External dispatch (provider call only)
+        const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
           return dispatchMessage({
             channel: dunningStep.channel,
             content: decision.message!,
             customerId,
-            conversationId: conversation.id,
-            messageId: message.id,
+            conversationId: prepared.conversationId,
+            messageId: prepared.messageId,
             franqueadoraId,
           });
         });
 
         if (!dispatchResult.success) {
-          // Dispatch failed — Inngest will retry the step
           throw new Error(`Dispatch failed: ${dispatchResult.error}`);
         }
 
