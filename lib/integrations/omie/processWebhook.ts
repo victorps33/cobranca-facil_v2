@@ -8,6 +8,17 @@ import type { OmieWebhookPayload } from "./types";
 // Process incoming Omie webhook events
 // ---------------------------------------------------------------------------
 
+export interface OmieWebhookResult {
+  processed: boolean;
+  detail: string;
+  chargeId?: string;
+  customerId?: string;
+  status?: string;
+  amountPaidCents?: number;
+  amountCents?: number;
+  dueDate?: string;
+}
+
 function parseOmieDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
   const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
@@ -109,7 +120,7 @@ async function syncBoleto(chargeId: string, codigoLancamento: number): Promise<v
 
 export async function processOmieWebhook(
   payload: OmieWebhookPayload
-): Promise<{ processed: boolean; detail: string }> {
+): Promise<OmieWebhookResult> {
   const { topic, event } = payload;
 
   const topicLower = topic.toLowerCase();
@@ -157,8 +168,16 @@ export async function processOmieWebhook(
 
       await syncBoleto(charge.id, codigoLancamento);
 
+      const updatedStatus = statusTitulo ? mapOmieStatus(statusTitulo) : charge.status;
       console.log("[Omie Webhook] Updated charge", charge.id, "topic:", topic);
-      return { processed: true, detail: `Updated charge ${charge.id}` };
+      return {
+        processed: true,
+        detail: `Updated charge ${charge.id}`,
+        chargeId: charge.id,
+        customerId: charge.customerId,
+        status: updatedStatus,
+        amountPaidCents: valorPagamento !== undefined ? Math.round(valorPagamento * 100) : undefined,
+      };
     }
 
     // --- CREATE new charge ---
@@ -214,7 +233,16 @@ export async function processOmieWebhook(
     await syncBoleto(newCharge.id, codigoLancamento);
 
     console.log("[Omie Webhook] Created charge", newCharge.id, "for titulo", codigoLancamento);
-    return { processed: true, detail: `Created charge ${newCharge.id}` };
+    return {
+      processed: true,
+      detail: `Created charge ${newCharge.id}`,
+      chargeId: newCharge.id,
+      customerId,
+      status,
+      amountCents,
+      amountPaidCents,
+      dueDate: dueDate?.toISOString(),
+    };
   }
 
   // --- Clientes events ---
@@ -251,13 +279,13 @@ export async function processOmieWebhook(
       });
 
       console.log("[Omie Webhook] Updated customer", customer.id, "topic:", topic);
-      return { processed: true, detail: `Updated customer ${customer.id}` };
+      return { processed: true, detail: `Updated customer ${customer.id}`, customerId: customer.id };
     }
 
     // --- CREATE new customer ---
     try {
-      await findOrCreateCustomer(codigoCliente, franqueadoraId);
-      return { processed: true, detail: `Created customer for omie code ${codigoCliente}` };
+      const newCustomerId = await findOrCreateCustomer(codigoCliente, franqueadoraId);
+      return { processed: true, detail: `Created customer for omie code ${codigoCliente}`, customerId: newCustomerId };
     } catch (err) {
       return {
         processed: false,
