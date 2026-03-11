@@ -7,6 +7,8 @@ import { handleDeliveryStatus } from "./functions/handle-delivery-status";
 import { notifyPaymentReceived } from "./functions/notify-payment-received";
 import { logAgentDecision } from "./functions/log-agent-decision";
 import { dispatchOnSend } from "./functions/dispatch-on-send";
+import { checkPendingCharges } from "./scheduled/check-pending-charges";
+import { recalculateRiskScores } from "./scheduled/recalculate-risk-scores";
 
 export const allFunctions = [
   updateRiskScore,
@@ -16,4 +18,6 @@ export const allFunctions = [
   notifyPaymentReceived,
   logAgentDecision,
   dispatchOnSend,
+  checkPendingCharges,
+  recalculateRiskScores,
 ];
