@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone, verifyTwilioSignature } from "@/lib/agent/providers/twilio";
 import { createInteractionLog } from "@/lib/inbox/sync";
@@ -169,6 +170,15 @@ export async function POST(request: Request) {
           lastMessageAt: new Date(),
         },
       });
+    }
+
+    // Idempotency: check if this MessageSid was already processed
+    const existingMsg = await prisma.message.findFirst({
+      where: { externalId: messageSid },
+    });
+
+    if (existingMsg) {
+      return NextResponse.json({ status: "duplicate", messageId: existingMsg.id });
     }
 
     // Create message

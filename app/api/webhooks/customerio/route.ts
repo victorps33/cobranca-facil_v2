@@ -58,6 +58,17 @@ export async function POST(request: Request) {
           });
         }
 
+        const delivery_id = payload.data?.delivery_id || payload.delivery_id;
+
+        // Idempotency: check if this delivery was already processed
+        const existingMsg = await prisma.message.findFirst({
+          where: { externalId: delivery_id },
+        });
+
+        if (existingMsg) {
+          return NextResponse.json({ status: "duplicate" });
+        }
+
         // Create message
         const message = await prisma.message.create({
           data: {
@@ -66,7 +77,7 @@ export async function POST(request: Request) {
             content: replyBody,
             contentType: "text",
             channel: "EMAIL",
-            externalId: payload.data?.delivery_id || payload.delivery_id,
+            externalId: delivery_id,
           },
         });
 
@@ -91,7 +102,7 @@ export async function POST(request: Request) {
             from: email,
             body: replyBody,
             channel: "EMAIL" as const,
-            providerMsgId: payload.data?.delivery_id || payload.delivery_id || "",
+            providerMsgId: delivery_id || "",
             customerId: customer.id,
             conversationId: conversation.id,
             messageId: message.id,
