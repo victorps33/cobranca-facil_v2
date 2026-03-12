@@ -112,10 +112,15 @@ model Customer {
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
+  updatedAt             DateTime     @updatedAt
+  erpProvider           ERPProvider?
+  erpCustomerId         String?
+  erpLastSyncAt         DateTime?
 
   @@index([franqueadoraId])
   @@index([phone])
   @@index([whatsappPhone])
+  @@index([erpProvider, erpCustomerId])
 }
 
 model FranchiseeRiskScore {
@@ -157,11 +162,19 @@ model Charge {
   omieStatusRaw        String?    @map("omie_status_raw")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
   amountPaidCents      Int        @default(0) @map("amount_paid_cents")
+  erpProvider           ERPProvider?
+  erpChargeId           String?
+  erpLastSyncAt         DateTime?
+  invoiceNumber         String?
+  invoiceStatus         String?
+  invoicePdfUrl         String?
+  invoiceIssuedAt       DateTime?
 
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
   @@index([status, dueDate])
+  @@index([erpProvider, erpChargeId])
 }
 
 model EscalationTask {
@@ -185,6 +198,39 @@ enum ChargeStatus {
   OVERDUE
   CANCELED
   PARTIAL
+}
+
+enum ERPProvider {
+  OMIE
+  CONTA_AZUL
+  NONE
+}
+
+model ERPConfig {
+  id                String       @id @default(cuid())
+  franqueadoraId    String       @unique
+  franqueadora      Franqueadora @relation(fields: [franqueadoraId], references: [id])
+  provider          ERPProvider  @default(NONE)
+
+  // Omie credentials
+  omieAppKey        String?      @db.Text
+  omieAppSecret     String?      @db.Text
+  omieWebhookSecret String?
+
+  // Conta Azul (OAuth2)
+  contaAzulClientId     String?
+  contaAzulClientSecret String?  @db.Text
+  contaAzulAccessToken  String?  @db.Text
+  contaAzulRefreshToken String?  @db.Text
+  contaAzulTokenExpiresAt DateTime?
+
+  // Sync tracking
+  lastSyncAt        DateTime?
+  syncIntervalMin   Int          @default(10)
+  syncEnabled       Boolean      @default(true)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
 model Boleto {
@@ -534,6 +580,7 @@ model Franqueadora {
   dunningRules       DunningRule[]
   conversations      Conversation[]
   agentConfig            AgentConfig?
+  erpConfig              ERPConfig?
   contatos               ContatoFranqueadora[]
   negotiationCampaigns   NegotiationCampaign[]
   engagementEvents       EngagementEvent[]
