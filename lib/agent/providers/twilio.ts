@@ -1,6 +1,12 @@
 import twilio from "twilio";
 import type { DispatchResult } from "../types";
 
+function getWebhookBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
 let _client: twilio.Twilio | null = null;
 
 function getClient(): twilio.Twilio | null {
@@ -46,6 +52,7 @@ export async function sendWhatsApp(
       from: fromAddr,
       to: `whatsapp:${normalized}`,
       body,
+      statusCallback: `${getWebhookBaseUrl()}/api/webhooks/twilio/status`,
     });
     return { success: true, providerMsgId: msg.sid };
   } catch (err: unknown) {
@@ -73,7 +80,12 @@ export async function sendSms(
 
   try {
     const normalized = normalizePhone(to);
-    const msg = await client.messages.create({ from, to: normalized, body });
+    const msg = await client.messages.create({
+      from,
+      to: normalized,
+      body,
+      statusCallback: `${getWebhookBaseUrl()}/api/webhooks/twilio/status`,
+    });
     return { success: true, providerMsgId: msg.sid };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

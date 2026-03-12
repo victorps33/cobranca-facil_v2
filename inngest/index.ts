@@ -8,6 +8,12 @@ import { handleDeliveryStatus } from "./functions/handle-delivery-status";
 import { notifyPaymentReceived } from "./functions/notify-payment-received";
 import { logAgentDecision } from "./functions/log-agent-decision";
 import { dispatchOnSend } from "./functions/dispatch-on-send";
+import {
+  captureEngagementFromDelivery,
+  captureEngagementFromRead,
+  captureEngagementFromReply,
+  captureEngagementFromPayment,
+} from "./functions/capture-engagement";
 
 // Scheduled functions
 import { checkPendingCharges } from "./scheduled/check-pending-charges";
@@ -28,6 +34,10 @@ export const allFunctions = [
   notifyPaymentReceived,
   logAgentDecision,
   dispatchOnSend,
+  captureEngagementFromDelivery,
+  captureEngagementFromRead,
+  captureEngagementFromReply,
+  captureEngagementFromPayment,
   // Scheduled
   checkPendingCharges,
   recalculateRiskScores,

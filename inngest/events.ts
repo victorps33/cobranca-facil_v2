@@ -191,10 +191,45 @@ export type Events = {
   "ai/inbound-decided": AIInboundDecidedEvent;
   "ai/escalation-triggered": AIEscalationTriggeredEvent;
   "integration/omie-webhook-received": OmieWebhookReceivedEvent;
+  // Engagement & Intelligence events
+  "engagement/status.received": EngagementStatusReceivedEvent;
+  "engagement/payment.received": EngagementPaymentReceivedEvent;
+  "intelligence/stats.refresh": IntelligenceRefreshEvent;
+  "intelligence/profiles.refresh": IntelligenceRefreshEvent;
+  "intelligence/variants.evaluate": IntelligenceRefreshEvent;
   // Negotiation events (emitted by dunning-saga)
   "negotiation/offered": NegotiationEvent;
   "negotiation/promise-made": NegotiationEvent;
   "negotiation/callback-scheduled": NegotiationEvent;
+};
+
+// --- Engagement & Intelligence Events ---
+type EngagementStatusReceivedEvent = {
+  data: {
+    providerMsgId: string;
+    status: "delivered" | "read" | "failed" | "undelivered";
+    messageId?: string;
+    customerId?: string;
+    stepId?: string;
+    variantId?: string;
+    channel?: string;
+    franqueadoraId?: string;
+  };
+};
+
+type EngagementPaymentReceivedEvent = {
+  data: {
+    chargeId: string;
+    customerId: string;
+    franqueadoraId: string;
+    amount: number;
+  };
+};
+
+type IntelligenceRefreshEvent = {
+  data: {
+    franqueadoraId?: string;
+  };
 };
 
 // --- Negotiation Events ---
