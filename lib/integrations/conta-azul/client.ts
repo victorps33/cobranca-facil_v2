@@ -10,9 +10,9 @@ import type {
 // OAuth2 with auto-refresh, rate limiting, and pagination
 // ---------------------------------------------------------------------------
 
-const BASE_URL = "https://api-v2.contaazul.com/v1";
-const TOKEN_URL = "https://api-v2.contaazul.com/oauth2/token";
-const AUTHORIZE_URL = "https://api-v2.contaazul.com/oauth2/authorize";
+const BASE_URL = "https://api.contaazul.com/v1";
+const TOKEN_URL = "https://api.contaazul.com/oauth2/token";
+const AUTHORIZE_URL = "https://api.contaazul.com/auth/authorize";
 
 const REQUEST_DELAY_MS = 100; // 10 req/s max
 const REQUEST_TIMEOUT_MS = 30_000;
