@@ -24,6 +24,9 @@ import { getStatusClasses, getStatusLabel } from "@/components/ui/status-badge";
 import { NotaFiscalViewerDialog } from "@/components/cobrancas/NotaFiscalViewerDialog";
 import { BoletoViewerDialog } from "@/components/cobrancas/BoletoViewerDialog";
 import { PixComprovanteDialog } from "@/components/cobrancas/PixComprovanteDialog";
+import { EmitirNfDialog } from "@/components/cobrancas/EmitirNfDialog";
+import { fetchWithTenant } from "@/lib/fetch-with-tenant";
+import { toast } from "@/components/ui/use-toast";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -63,6 +66,8 @@ export default function CobrancaDetalhePage() {
   const [nfViewerOpen, setNfViewerOpen] = useState(false);
   const [boletoViewerOpen, setBoletoViewerOpen] = useState(false);
   const [pixComprovanteOpen, setPixComprovanteOpen] = useState(false);
+  const [emitirNfOpen, setEmitirNfOpen] = useState(false);
+  const [emittingNf, setEmittingNf] = useState(false);
 
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [franqueado, setFranqueado] = useState<Franqueado | null>(null);
@@ -147,6 +152,33 @@ export default function CobrancaDetalhePage() {
     navigator.clipboard.writeText(text);
     setCopiedField(id);
     setTimeout(() => setCopiedField(null), 2000);
+  }
+
+  async function handleEmitirNf(cobrancaId: string, comBoleto: boolean) {
+    setEmittingNf(true);
+    try {
+      const res = await fetchWithTenant(`/api/charges/${cobrancaId}/invoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comBoleto }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao emitir NF");
+      }
+      toast({ title: "NF solicitada", description: "A nota fiscal está sendo emitida." });
+      setCobranca((prev) =>
+        prev ? { ...prev, invoiceStatus: "PENDENTE" } : prev
+      );
+    } catch (err: any) {
+      toast({
+        title: "Erro",
+        description: err.message || "Falha ao solicitar emissão de NF.",
+        variant: "destructive",
+      });
+    } finally {
+      setEmittingNf(false);
+    }
   }
 
   return (
@@ -484,13 +516,62 @@ export default function CobrancaDetalhePage() {
 
             {/* Links */}
             <div className="space-y-2.5 pt-1">
-              <button
-                onClick={() => setNfViewerOpen(true)}
-                className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <FileText className="h-4 w-4" />
-                Baixar nota fiscal
-              </button>
+              {/* NF Status + Action */}
+              {cobranca.invoiceStatus === "EMITIDA" ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                      NF {cobranca.invoiceNumber ? `#${cobranca.invoiceNumber}` : "Emitida"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => cobranca.invoicePdfUrl ? window.open(cobranca.invoicePdfUrl, "_blank") : setNfViewerOpen(true)}
+                    className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Baixar NF
+                  </button>
+                </>
+              ) : cobranca.invoiceStatus === "PENDENTE" ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                      Emitindo...
+                    </span>
+                  </div>
+                  <button
+                    disabled
+                    className="flex items-center gap-2.5 text-sm font-medium text-gray-400 cursor-not-allowed"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Emitindo NF...
+                  </button>
+                </>
+              ) : cobranca.invoiceStatus === "CANCELADA" ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+                      NF Cancelada
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setEmitirNfOpen(true)}
+                    className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Emitir nova NF
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setEmitirNfOpen(true)}
+                  disabled={emittingNf}
+                  className="flex items-center gap-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                >
+                  <FileText className="h-4 w-4" />
+                  {emittingNf ? "Solicitando..." : "Emitir NF"}
+                </button>
+              )}
               {paymentTab === "boleto" ? (
                 cobranca.boletoUrl ? (
                   <a
@@ -573,6 +654,12 @@ export default function CobrancaDetalhePage() {
         onOpenChange={setPixComprovanteOpen}
         cobranca={cobranca}
         franqueado={franqueado}
+      />
+      <EmitirNfDialog
+        open={emitirNfOpen}
+        onOpenChange={setEmitirNfOpen}
+        cobranca={cobranca}
+        onEmitir={(cobrancaId, comBoleto) => handleEmitirNf(cobrancaId, comBoleto)}
       />
     </div>
   );
