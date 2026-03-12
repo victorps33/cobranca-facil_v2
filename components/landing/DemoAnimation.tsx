@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Play, Pause } from "lucide-react";
 
 export function DemoAnimation() {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -15,6 +17,7 @@ export function DemoAnimation() {
         if (entry.isIntersecting) {
           setVisible(true);
           videoRef.current?.play();
+          setPlaying(true);
           observer.disconnect();
         }
       },
@@ -23,6 +26,18 @@ export function DemoAnimation() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  function togglePlay() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setPlaying(true);
+    } else {
+      video.pause();
+      setPlaying(false);
+    }
+  }
 
   return (
     <section id="demo" className="bg-menlo-offwhite px-6 py-16 md:py-24">
@@ -45,22 +60,41 @@ export function DemoAnimation() {
             </div>
             <div className="flex-1 ml-3 bg-gray-100 rounded-md h-7 flex items-center px-3">
               <span className="text-xs text-gray-400">
-                app.menlocobranca.com.br
+                app.menlopagamentos.com.br
               </span>
             </div>
           </div>
 
-          {/* Video area */}
-          <video
-            ref={videoRef}
-            className="w-full"
-            muted
-            loop
-            playsInline
-            preload="metadata"
-          >
-            <source src="/videos/demo.webm" type="video/webm" />
-          </video>
+          {/* Video area with custom play/pause */}
+          <div className="relative group cursor-pointer" onClick={togglePlay}>
+            <video
+              ref={videoRef}
+              className="w-full"
+              muted
+              loop
+              playsInline
+              preload="metadata"
+            >
+              <source src="/videos/demo.webm" type="video/webm" />
+            </video>
+
+            {/* Play/Pause overlay — visible when paused, or on hover */}
+            <div
+              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+                playing
+                  ? "opacity-0 group-hover:opacity-100"
+                  : "opacity-100"
+              }`}
+            >
+              <div className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                {playing ? (
+                  <Pause className="w-6 h-6 text-white" />
+                ) : (
+                  <Play className="w-6 h-6 text-white ml-0.5" />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
