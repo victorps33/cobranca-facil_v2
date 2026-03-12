@@ -54,6 +54,10 @@ export async function GET() {
         competencia: c.competencia || "",
         linhaDigitavel: c.boleto?.linhaDigitavel || undefined,
         boletoUrl: c.boleto?.publicUrl || undefined,
+        invoiceNumber: c.invoiceNumber || undefined,
+        invoiceStatus: c.invoiceStatus || undefined,
+        invoicePdfUrl: c.invoicePdfUrl || undefined,
+        invoiceIssuedAt: c.invoiceIssuedAt ? c.invoiceIssuedAt.toISOString() : undefined,
       };
     });
 
