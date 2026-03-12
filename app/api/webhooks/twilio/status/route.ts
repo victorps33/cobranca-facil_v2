@@ -15,18 +15,43 @@ export async function POST(request: Request) {
       return new Response("OK", { status: 200 });
     }
 
-    if (["delivered", "read"].includes(messageStatus)) {
+    if (messageStatus === "delivered") {
       try {
         await inngest.send({
           name: "message/delivered",
           data: {
             providerMsgId: messageSid,
+            status: "delivered",
           },
         });
       } catch (inngestErr) {
         console.error("[inngest] Failed to emit message/delivered:", inngestErr);
       }
-    } else if (["failed", "undelivered"].includes(messageStatus)) {
+    }
+
+    if (messageStatus === "read") {
+      try {
+        await inngest.send({
+          name: "engagement/status.received",
+          data: {
+            providerMsgId: messageSid,
+            status: "read",
+          },
+        });
+        // Also send delivered event for backwards compatibility
+        await inngest.send({
+          name: "message/delivered",
+          data: {
+            providerMsgId: messageSid,
+            status: "delivered",
+          },
+        });
+      } catch (inngestErr) {
+        console.error("[inngest] Failed to emit engagement/status.received:", inngestErr);
+      }
+    }
+
+    if (["failed", "undelivered"].includes(messageStatus)) {
       try {
         await inngest.send({
           name: "message/failed",

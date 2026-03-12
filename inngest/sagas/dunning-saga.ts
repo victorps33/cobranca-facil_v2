@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { decideCollectionAction } from "@/lib/agent/ai";
 import { buildCollectionContext } from "@/lib/agent/context-builder";
 import { dispatchMessage } from "@/lib/agent/dispatch";
+import { resolveTiming } from "@/lib/intelligence/resolvers/timing";
+import { resolveChannel } from "@/lib/intelligence/resolvers/channel";
+import { resolveContent } from "@/lib/intelligence/resolvers/content";
+import type { ResolverContext } from "@/lib/intelligence/resolvers/types";
 
 export const dunningSaga = inngest.createFunction(
   {
@@ -155,17 +159,53 @@ export const dunningSaga = inngest.createFunction(
       }
 
       if (decision.action === "SEND_COLLECTION" && decision.message) {
+        // Resolve timing, channel, and content
+        const resolution = await step.run(`resolve-${dunningStep.id}`, async () => {
+          const resolverCtx: ResolverContext = {
+            customerId,
+            stepId: dunningStep.id,
+            chargeId,
+            franqueadoraId,
+          };
+
+          const timing = await resolveTiming({
+            mode: dunningStep.timingMode,
+            fallbackTime: dunningStep.fallbackTime,
+            offsetDays: dunningStep.offsetDays,
+          }, resolverCtx);
+
+          const channel = await resolveChannel({
+            mode: dunningStep.channelMode,
+            fixedChannel: dunningStep.channel,
+            allowedChannels: dunningStep.allowedChannels,
+          }, resolverCtx);
+
+          const content = await resolveContent({
+            mode: dunningStep.contentMode,
+            fixedTemplate: dunningStep.template,
+            optimizeFor: dunningStep.optimizeFor,
+            stepId: dunningStep.id,
+          }, resolverCtx);
+
+          return { timing, channel, content };
+        });
+
+        const resolvedChannel = resolution.channel.channel;
+        const resolvedMessage = resolution.content.source === "variant"
+          ? resolution.content.template
+          : decision.message!;
+
         // Step A: Prepare dispatch (DB writes only)
         const prepared = await step.run(`prepare-dispatch-${dunningStep.id}`, async () => {
           // Find or create conversation
           let conversation = await prisma.conversation.findFirst({
-            where: { customerId, channel: dunningStep.channel, status: { not: "RESOLVIDA" } },
+            where: { customerId, channel: resolvedChannel, status: { not: "RESOLVIDA" } },
           });
           if (!conversation) {
             conversation = await prisma.conversation.create({
               data: {
                 customerId,
-                channel: dunningStep.channel,
+                channel: resolvedChannel,
                 status: "ABERTA",
                 franqueadoraId,
               },
@@ -177,9 +217,9 @@ export const dunningSaga = inngest.createFunction(
             data: {
               conversationId: conversation.id,
               sender: "AI",
-              content: decision.message!,
+              content: resolvedMessage,
               contentType: "text",
-              channel: dunningStep.channel,
+              channel: resolvedChannel,
             },
           });
 
@@ -189,15 +229,18 @@ export const dunningSaga = inngest.createFunction(
             create: {
               chargeId,
               stepId: dunningStep.id,
-              channel: dunningStep.channel,
+              channel: resolvedChannel,
               status: "SENT",
               scheduledFor: new Date(),
-              renderedMessage: decision.message!,
+              renderedMessage: resolvedMessage,
               metaJson: JSON.stringify({
                 trigger: dunningStep.trigger,
                 offsetDays: dunningStep.offsetDays,
                 aiConfidence: decision.confidence,
                 aiAction: decision.action,
+                resolvedTiming: resolution.timing,
+                resolvedChannel: resolution.channel,
+                variantId: resolution.content.variantId,
               }),
             },
             update: {},
@@ -209,8 +252,8 @@ export const dunningSaga = inngest.createFunction(
         // Step B: External dispatch (provider call only)
         const dispatchResult = await step.run(`dispatch-${dunningStep.id}`, async () => {
           return dispatchMessage({
-            channel: dunningStep.channel,
-            content: decision.message!,
+            channel: resolvedChannel,
+            content: resolvedMessage,
             customerId,
             conversationId: prepared.conversationId,
             messageId: prepared.messageId,
@@ -220,6 +263,16 @@ export const dunningSaga = inngest.createFunction(
 
         if (!dispatchResult.success) {
           throw new Error(`Dispatch failed: ${dispatchResult.error}`);
+        }
+
+        // Track variant sends
+        if (resolution.content.variantId) {
+          await step.run(`track-variant-${dunningStep.id}`, async () => {
+            await prisma.stepVariant.update({
+              where: { id: resolution.content.variantId! },
+              data: { sends: { increment: 1 } },
+            });
+          });
         }
 
         // Wait for delivery confirmation (optional, with timeout)

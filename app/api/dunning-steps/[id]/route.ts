@@ -41,10 +41,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.template !== undefined) data.template = body.template;
     if (body.enabled !== undefined) data.enabled = body.enabled;
     if (body.phase !== undefined) data.phase = body.phase;
+    if (body.timingMode !== undefined) data.timingMode = body.timingMode;
+    if (body.channelMode !== undefined) data.channelMode = body.channelMode;
+    if (body.contentMode !== undefined) data.contentMode = body.contentMode;
+    if (body.fallbackTime !== undefined) data.fallbackTime = body.fallbackTime;
+    if (body.allowedChannels !== undefined) data.allowedChannels = body.allowedChannels;
+    if (body.optimizeFor !== undefined) data.optimizeFor = body.optimizeFor;
 
     const step = await prisma.dunningStep.update({
       where: { id: params.id },
       data,
+      include: { variants: true, resolverStats: true },
     });
     return NextResponse.json(step);
   } catch {

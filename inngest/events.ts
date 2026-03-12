@@ -171,6 +171,36 @@ type OmieWebhookReceivedEvent = {
   };
 };
 
+// --- ERP Integration Events ---
+type ChargeInvoiceRequestedEvent = {
+  data: {
+    chargeId: string;
+    franqueadoraId: string;
+    customerId: string;
+  };
+};
+
+type ChargeInvoiceIssuedEvent = {
+  data: {
+    chargeId: string;
+    invoiceNumber: string;
+    invoicePdfUrl?: string;
+    franqueadoraId: string;
+  };
+};
+
+type ERPSyncCompletedEvent = {
+  data: {
+    franqueadoraId: string;
+    provider: string;
+    customersCreated: number;
+    customersUpdated: number;
+    chargesCreated: number;
+    chargesUpdated: number;
+    errors: number;
+  };
+};
+
 // --- Events Map ---
 export type Events = {
   "charge/created": ChargeCreatedEvent;
@@ -191,10 +221,49 @@ export type Events = {
   "ai/inbound-decided": AIInboundDecidedEvent;
   "ai/escalation-triggered": AIEscalationTriggeredEvent;
   "integration/omie-webhook-received": OmieWebhookReceivedEvent;
+  // Engagement & Intelligence events
+  "engagement/status.received": EngagementStatusReceivedEvent;
+  "engagement/payment.received": EngagementPaymentReceivedEvent;
+  "intelligence/stats.refresh": IntelligenceRefreshEvent;
+  "intelligence/profiles.refresh": IntelligenceRefreshEvent;
+  "intelligence/variants.evaluate": IntelligenceRefreshEvent;
   // Negotiation events (emitted by dunning-saga)
   "negotiation/offered": NegotiationEvent;
   "negotiation/promise-made": NegotiationEvent;
   "negotiation/callback-scheduled": NegotiationEvent;
+  // ERP integration events
+  "charge/invoice-requested": ChargeInvoiceRequestedEvent;
+  "charge/invoice-issued": ChargeInvoiceIssuedEvent;
+  "integration/erp-sync-completed": ERPSyncCompletedEvent;
+};
+
+// --- Engagement & Intelligence Events ---
+type EngagementStatusReceivedEvent = {
+  data: {
+    providerMsgId: string;
+    status: "delivered" | "read" | "failed" | "undelivered";
+    messageId?: string;
+    customerId?: string;
+    stepId?: string;
+    variantId?: string;
+    channel?: string;
+    franqueadoraId?: string;
+  };
+};
+
+type EngagementPaymentReceivedEvent = {
+  data: {
+    chargeId: string;
+    customerId: string;
+    franqueadoraId: string;
+    amount: number;
+  };
+};
+
+type IntelligenceRefreshEvent = {
+  data: {
+    franqueadoraId?: string;
+  };
 };
 
 // --- Negotiation Events ---

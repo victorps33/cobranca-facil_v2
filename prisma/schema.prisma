@@ -107,13 +107,20 @@ model Customer {
   agentDecisions  AgentDecisionLog[]
   negotiationCampaigns NegotiationCampaignCustomer[]
   riskScore       FranchiseeRiskScore?
+  engagementEvents   EngagementEvent[]
+  engagementProfile  CustomerEngagementProfile?
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
+  updatedAt             DateTime     @default(now()) @updatedAt
+  erpProvider           ERPProvider?
+  erpCustomerId         String?
+  erpLastSyncAt         DateTime?
 
   @@index([franqueadoraId])
   @@index([phone])
   @@index([whatsappPhone])
+  @@index([erpProvider, erpCustomerId])
 }
 
 model FranchiseeRiskScore {
@@ -149,16 +156,25 @@ model Charge {
   collectionTasks  CollectionTask[]
   agentDecisions       AgentDecisionLog[]
   escalationTasks      EscalationTask[]
+  engagementEvents     EngagementEvent[]
   omieCodigoTitulo     BigInt?    @unique @map("omie_codigo_titulo")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieStatusRaw        String?    @map("omie_status_raw")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
   amountPaidCents      Int        @default(0) @map("amount_paid_cents")
+  erpProvider           ERPProvider?
+  erpChargeId           String?
+  erpLastSyncAt         DateTime?
+  invoiceNumber         String?
+  invoiceStatus         String?
+  invoicePdfUrl         String?
+  invoiceIssuedAt       DateTime?
 
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
   @@index([status, dueDate])
+  @@index([erpProvider, erpChargeId])
 }
 
 model EscalationTask {
@@ -182,6 +198,39 @@ enum ChargeStatus {
   OVERDUE
   CANCELED
   PARTIAL
+}
+
+enum ERPProvider {
+  OMIE
+  CONTA_AZUL
+  NONE
+}
+
+model ERPConfig {
+  id                String       @id @default(cuid())
+  franqueadoraId    String       @unique
+  franqueadora      Franqueadora @relation(fields: [franqueadoraId], references: [id])
+  provider          ERPProvider  @default(NONE)
+
+  // Omie credentials
+  omieAppKey        String?      @db.Text
+  omieAppSecret     String?      @db.Text
+  omieWebhookSecret String?
+
+  // Conta Azul (OAuth2)
+  contaAzulClientId     String?
+  contaAzulClientSecret String?  @db.Text
+  contaAzulAccessToken  String?  @db.Text
+  contaAzulRefreshToken String?  @db.Text
+  contaAzulTokenExpiresAt DateTime?
+
+  // Sync tracking
+  lastSyncAt        DateTime?
+  syncIntervalMin   Int          @default(10)
+  syncEnabled       Boolean      @default(true)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
 model Boleto {
@@ -222,6 +271,25 @@ model DunningStep {
   enabled          Boolean           @default(true)
   createdAt        DateTime          @default(now())
   notificationLogs NotificationLog[]
+
+  // Intelligence resolver modes
+  timingMode      ResolverMode   @default(MANUAL)
+  channelMode     ResolverMode   @default(MANUAL)
+  contentMode     ResolverMode   @default(MANUAL)
+
+  // Smart timing config
+  fallbackTime    String?        @default("10:00")
+
+  // Smart channel config
+  allowedChannels Channel[]      @default([])
+
+  // Smart content config
+  optimizeFor     OptimizeMetric @default(PAYMENT)
+
+  // Relations
+  variants         StepVariant[]
+  resolverStats    StepResolverStats?
+  engagementEvents EngagementEvent[]
 
   @@index([ruleId])
   @@index([trigger])
@@ -319,6 +387,106 @@ enum NotificationStatus {
   SKIPPED
 }
 
+model EngagementEvent {
+  id             String              @id @default(cuid())
+  customerId     String
+  customer       Customer            @relation(fields: [customerId], references: [id])
+  messageId      String?
+  chargeId       String?
+  charge         Charge?             @relation(fields: [chargeId], references: [id])
+  stepId         String?
+  step           DunningStep?        @relation(fields: [stepId], references: [id])
+  variantId      String?
+  variant        StepVariant?        @relation(fields: [variantId], references: [id])
+
+  channel        Channel
+  eventType      EngagementEventType
+  occurredAt     DateTime
+  metadata       Json?
+
+  franqueadoraId String
+  franqueadora   Franqueadora        @relation(fields: [franqueadoraId], references: [id])
+
+  createdAt      DateTime            @default(now())
+
+  @@index([customerId, eventType, occurredAt])
+  @@index([stepId, eventType, occurredAt])
+  @@index([variantId, eventType])
+  @@index([franqueadoraId, occurredAt])
+}
+
+model StepVariant {
+  id              String        @id @default(cuid())
+  stepId          String
+  step            DunningStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  label           String
+  template        String        @db.Text
+  generatedByAi   Boolean       @default(false)
+  active          Boolean       @default(true)
+
+  sends           Int           @default(0)
+  opens           Int           @default(0)
+  replies         Int           @default(0)
+  conversions     Int           @default(0)
+  openRate        Float         @default(0)
+  replyRate       Float         @default(0)
+  conversionRate  Float         @default(0)
+  isWinner        Boolean       @default(false)
+
+  engagementEvents EngagementEvent[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([stepId, label])
+}
+
+model StepResolverStats {
+  id                String      @id @default(cuid())
+  stepId            String      @unique
+  step              DunningStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  bestHourStart     String?
+  bestHourEnd       String?
+  timingLift        Float?
+  timingSamples     Int         @default(0)
+  timingConfidence  Float       @default(0)
+
+  bestChannel       Channel?
+  channelRates      Json?
+  channelLift       Float?
+  channelSamples    Int         @default(0)
+  channelConfidence Float       @default(0)
+
+  winnerVariantId   String?
+  contentLift       Float?
+  contentSamples    Int         @default(0)
+  contentConfidence Float       @default(0)
+
+  updatedAt         DateTime    @updatedAt
+}
+
+model CustomerEngagementProfile {
+  id              String   @id @default(cuid())
+  customerId      String   @unique
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  bestHour        String?
+  avgReadDelayMin Int?
+  activeHours     Json?
+  bestChannel     Channel?
+  channelRates    Json?
+
+  totalMessages   Int      @default(0)
+  totalOpens      Int      @default(0)
+  totalReplies    Int      @default(0)
+  totalPayments   Int      @default(0)
+  overallResponseRate Float @default(0)
+
+  updatedAt       DateTime @updatedAt
+}
+
 enum RiskProfile {
   BOM_PAGADOR
   DUVIDOSO
@@ -352,6 +520,28 @@ enum CampaignStatus {
   DRAFT
   ACTIVE
   ENDED
+}
+
+enum ResolverMode {
+  MANUAL
+  SMART
+}
+
+enum OptimizeMetric {
+  PAYMENT
+  RESPONSE
+  OPEN
+}
+
+enum EngagementEventType {
+  SENT
+  DELIVERED
+  READ
+  CLICKED
+  REPLIED
+  PAID
+  BOUNCED
+  FAILED
 }
 
 model AppState {
@@ -390,8 +580,10 @@ model Franqueadora {
   dunningRules       DunningRule[]
   conversations      Conversation[]
   agentConfig            AgentConfig?
+  erpConfig              ERPConfig?
   contatos               ContatoFranqueadora[]
   negotiationCampaigns   NegotiationCampaign[]
+  engagementEvents       EngagementEvent[]
 
   @@index([grupoId])
 }

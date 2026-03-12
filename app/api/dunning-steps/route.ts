@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
         template: body.template,
         enabled: body.enabled ?? true,
         phase: body.phase || "LEMBRETE",
+        ...(body.timingMode && { timingMode: body.timingMode }),
+        ...(body.channelMode && { channelMode: body.channelMode }),
+        ...(body.contentMode && { contentMode: body.contentMode }),
+        ...(body.fallbackTime && { fallbackTime: body.fallbackTime }),
+        ...(body.allowedChannels && { allowedChannels: body.allowedChannels }),
+        ...(body.optimizeFor && { optimizeFor: body.optimizeFor }),
       },
     });
     return NextResponse.json(step, { status: 201 });
