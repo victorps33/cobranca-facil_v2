@@ -19,8 +19,8 @@ export const erpPushSync = inngest.createFunction(
         select: { id: true },
       });
       const customerId =
-        data.customerId ||
-        (data.chargeId
+        ("customerId" in data ? data.customerId : null) ||
+        ("chargeId" in data && data.chargeId
           ? (await p.charge.findUnique({ where: { id: data.chargeId }, select: { customerId: true } }))?.customerId
           : null);
       if (systemUser && customerId) {
