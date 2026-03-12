@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { usePreferences } from "@/components/providers/PreferencesProvider";
 import { fetchWithTenant } from "@/lib/fetch-with-tenant";
+import { ERPConfigSection } from "@/components/configuracoes/erp-config-section";
 
 /* ───────────────────── Nav items ───────────────────── */
 
@@ -429,6 +430,10 @@ function IntegracoesContent() {
         <h2 className="text-lg font-semibold text-gray-900">Integrações</h2>
         <p className="text-sm text-gray-500 mt-1">Conecte APIs e fontes de dados externas.</p>
       </div>
+
+      <ERPConfigSection />
+
+      <hr className="border-gray-100" />
 
       <TwilioNumbersSection />
 
