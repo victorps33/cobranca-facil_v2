@@ -1,10 +1,8 @@
 "use client";
 
-import { ResolverMode } from "@prisma/client";
-
 interface ResolverChipProps {
   icon: string;
-  mode: ResolverMode;
+  mode: string;
   label: string;
   lift?: number | null;
   liftLabel?: string;
@@ -43,9 +41,9 @@ export function ResolverChip({
 
 interface ResolverChipRowProps {
   step: {
-    timingMode: ResolverMode;
-    channelMode: ResolverMode;
-    contentMode: ResolverMode;
+    timingMode: string;
+    channelMode: string;
+    contentMode: string;
     fallbackTime?: string | null;
     channel: string;
     resolverStats?: {
