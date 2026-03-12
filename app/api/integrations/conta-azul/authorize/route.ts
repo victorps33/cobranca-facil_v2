@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const redirectUri = `${appUrl}/api/integrations/conta-azul/callback`;
-  const scope = "sales receivables customers services";
+  const scope = "sales";
 
   const params = new URLSearchParams({
     client_id: clientId,
