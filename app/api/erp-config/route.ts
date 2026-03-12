@@ -153,6 +153,16 @@ export async function PATCH(req: NextRequest) {
   if (roleCheck.error) return roleCheck.error;
 
   try {
+    const existing = await prisma.eRPConfig.findUnique({
+      where: { franqueadoraId: tenantId! },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Nenhuma configuração de ERP encontrada." },
+        { status: 404 }
+      );
+    }
+
     const body = await req.json();
 
     const updateData: Record<string, unknown> = {};
