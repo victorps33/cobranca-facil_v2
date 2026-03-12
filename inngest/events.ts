@@ -171,6 +171,36 @@ type OmieWebhookReceivedEvent = {
   };
 };
 
+// --- ERP Integration Events ---
+type ChargeInvoiceRequestedEvent = {
+  data: {
+    chargeId: string;
+    franqueadoraId: string;
+    customerId: string;
+  };
+};
+
+type ChargeInvoiceIssuedEvent = {
+  data: {
+    chargeId: string;
+    invoiceNumber: string;
+    invoicePdfUrl?: string;
+    franqueadoraId: string;
+  };
+};
+
+type ERPSyncCompletedEvent = {
+  data: {
+    franqueadoraId: string;
+    provider: string;
+    customersCreated: number;
+    customersUpdated: number;
+    chargesCreated: number;
+    chargesUpdated: number;
+    errors: number;
+  };
+};
+
 // --- Events Map ---
 export type Events = {
   "charge/created": ChargeCreatedEvent;
@@ -201,6 +231,10 @@ export type Events = {
   "negotiation/offered": NegotiationEvent;
   "negotiation/promise-made": NegotiationEvent;
   "negotiation/callback-scheduled": NegotiationEvent;
+  // ERP integration events
+  "charge/invoice-requested": ChargeInvoiceRequestedEvent;
+  "charge/invoice-issued": ChargeInvoiceIssuedEvent;
+  "integration/erp-sync-completed": ERPSyncCompletedEvent;
 };
 
 // --- Engagement & Intelligence Events ---
