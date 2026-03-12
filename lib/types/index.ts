@@ -41,6 +41,10 @@ export interface Cobranca {
   competencia: string;
   linhaDigitavel?: string;
   boletoUrl?: string;
+  invoiceNumber?: string;
+  invoiceStatus?: string;    // "EMITIDA" | "CANCELADA" | "PENDENTE" | null
+  invoicePdfUrl?: string;
+  invoiceIssuedAt?: string;
 }
 
 export interface ApuracaoDetalhe {
