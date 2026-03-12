@@ -465,6 +465,23 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes crossfade {
+  0%, 30% { opacity: 1; }
+  33.33%, 96.66% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Landing page demo animation */
+.landing-screen {
+  animation: crossfade 9s infinite;
+}
+.landing-screen:nth-child(2) {
+  animation-delay: -3s;
+}
+.landing-screen:nth-child(3) {
+  animation-delay: -6s;
+}
+
 /* Stagger delays (60ms intervals) */
 .stagger-1 { animation-delay: 0ms; }
 .stagger-2 { animation-delay: 60ms; }
