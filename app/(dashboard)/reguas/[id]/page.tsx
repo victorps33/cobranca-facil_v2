@@ -22,6 +22,9 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/use-toast";
 import { TEMPLATE_PRESETS } from "@/lib/utils";
+import { ResolverChipRow } from "@/components/reguas/resolver-chips";
+import { IntelligenceBanner } from "@/components/reguas/intelligence-banner";
+import { StepEditorModal } from "@/components/reguas/step-editor-modal";
 import {
   ArrowLeft,
   Plus,
@@ -40,6 +43,7 @@ import {
   FileText,
   Scale,
   Info,
+  Sparkles,
 } from "lucide-react";
 
 // ============================================
@@ -54,6 +58,32 @@ interface DunningStep {
   template: string;
   enabled: boolean;
   phase: string;
+  timingMode: string;
+  channelMode: string;
+  contentMode: string;
+  fallbackTime: string | null;
+  allowedChannels: string[];
+  optimizeFor: string;
+  resolverStats?: {
+    bestHourStart?: string | null;
+    bestChannel?: string | null;
+    timingLift?: number | null;
+    channelLift?: number | null;
+    contentLift?: number | null;
+    winnerVariantId?: string | null;
+    timingConfidence?: number;
+    channelConfidence?: number;
+  } | null;
+  variants?: {
+    id: string;
+    label: string;
+    template: string;
+    active: boolean;
+    sends: number;
+    conversionRate: number;
+    isWinner: boolean;
+    generatedByAi: boolean;
+  }[];
 }
 
 interface DunningRule {
@@ -200,6 +230,9 @@ export default function ReguaDetalhePage() {
   // Confirm dialogs
   const [confirmDeleteRule, setConfirmDeleteRule] = useState(false);
   const [confirmDeleteStepId, setConfirmDeleteStepId] = useState<string | null>(null);
+
+  // Intelligence modal
+  const [intelligenceStep, setIntelligenceStep] = useState<DunningStep | null>(null);
 
   // ── Headers ──
   const headers = useCallback(() => {
@@ -603,6 +636,20 @@ export default function ReguaDetalhePage() {
         </div>
       </div>
 
+      {/* ── Intelligence Banner ── */}
+      <IntelligenceBanner
+        ruleId={rule.id}
+        smartStepCount={
+          rule.steps.filter(
+            (s) =>
+              s.timingMode === "SMART" ||
+              s.channelMode === "SMART" ||
+              s.contentMode === "SMART"
+          ).length
+        }
+        totalStepCount={rule.steps.length}
+      />
+
       {/* ── Phase Accordion ── */}
       <div className="space-y-3">
         {PHASE_ORDER.map((phase) => {
@@ -649,6 +696,7 @@ export default function ReguaDetalhePage() {
                           }
                           onEdit={() => openEditStep(step)}
                           onDelete={() => setConfirmDeleteStepId(step.id)}
+                          onConfigureIntelligence={() => setIntelligenceStep(step)}
                         />
                       )}
                     </div>
@@ -709,6 +757,18 @@ export default function ReguaDetalhePage() {
           if (confirmDeleteStepId) handleDeleteStep(confirmDeleteStepId);
         }}
       />
+
+      {/* Intelligence Modal */}
+      {intelligenceStep && (
+        <StepEditorModal
+          open={!!intelligenceStep}
+          onOpenChange={(open) => {
+            if (!open) setIntelligenceStep(null);
+          }}
+          step={intelligenceStep}
+          onSaved={fetchRule}
+        />
+      )}
     </div>
   );
 }
@@ -802,81 +862,107 @@ function StepCard({
   onToggleEnabled,
   onEdit,
   onDelete,
+  onConfigureIntelligence,
 }: {
   step: DunningStep;
   onToggleEnabled: (enabled: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onConfigureIntelligence: () => void;
 }) {
   const ChannelIcon = CHANNEL_ICONS[step.channel] || Mail;
   const channelLabel = CHANNEL_META[step.channel]?.label || step.channel;
   const isEscalation = ESCALATION_CHANNELS.includes(step.channel);
 
+  const isSmart =
+    step.timingMode === "SMART" ||
+    step.channelMode === "SMART" ||
+    step.contentMode === "SMART";
+
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+        "rounded-lg border px-3 py-2.5 transition-colors",
         step.enabled
-          ? "bg-white border-gray-200"
+          ? isSmart
+            ? "bg-white border-purple-200"
+            : "bg-white border-gray-200"
           : "bg-gray-50 border-gray-100 opacity-60"
       )}
     >
-      {/* Day offset */}
-      <span className="font-mono font-bold text-sm w-12 shrink-0 text-center">
-        {formatStepLabel(step)}
-      </span>
-
-      {/* Channel icon + label */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        <ChannelIcon className="h-4 w-4 text-gray-500" aria-hidden="true" />
-        <span className="text-sm font-medium text-gray-700">
-          {channelLabel}
+      <div className="flex items-center gap-3">
+        {/* Day offset */}
+        <span className="font-mono font-bold text-sm w-12 shrink-0 text-center">
+          {formatStepLabel(step)}
         </span>
+
+        {/* Channel icon + label */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ChannelIcon className="h-4 w-4 text-gray-500" aria-hidden="true" />
+          <span className="text-sm font-medium text-gray-700">
+            {channelLabel}
+          </span>
+        </div>
+
+        {/* Template preview */}
+        <div className="flex-1 min-w-0">
+          {isEscalation ? (
+            <span className="text-xs text-amber-600 italic">
+              Tarefa de aprovacao
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500 truncate block">
+              {step.template
+                ? step.template.substring(0, 80) +
+                  (step.template.length > 80 ? "..." : "")
+                : "Sem template"}
+            </span>
+          )}
+        </div>
+
+        {/* Toggle enabled */}
+        <Switch
+          checked={step.enabled}
+          onCheckedChange={onToggleEnabled}
+          className="shrink-0"
+        />
+
+        {/* Intelligence config */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onConfigureIntelligence}
+          aria-label="Configurar inteligencia"
+          className={cn("shrink-0", isSmart && "text-purple-600")}
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+
+        {/* Edit */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          aria-label="Editar step"
+          className="shrink-0"
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+
+        {/* Delete */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          aria-label="Excluir step"
+          className="shrink-0"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+        </Button>
       </div>
 
-      {/* Template preview */}
-      <div className="flex-1 min-w-0">
-        {isEscalation ? (
-          <span className="text-xs text-amber-600 italic">
-            Tarefa de aprovacao
-          </span>
-        ) : (
-          <span className="text-xs text-gray-500 truncate block">
-            {step.template
-              ? step.template.substring(0, 80) + (step.template.length > 80 ? "..." : "")
-              : "Sem template"}
-          </span>
-        )}
-      </div>
-
-      {/* Toggle enabled */}
-      <Switch
-        checked={step.enabled}
-        onCheckedChange={onToggleEnabled}
-        className="shrink-0"
-      />
-
-      {/* Edit */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onEdit}
-        aria-label="Editar step"
-        className="shrink-0"
-      >
-        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-      </Button>
-
-      {/* Delete */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onDelete}
-        aria-label="Excluir step"
-        className="shrink-0"
-      >
-        <Trash2 className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
-      </Button>
+      {/* Resolver chips */}
+      <ResolverChipRow step={step} />
     </div>
   );
 }
