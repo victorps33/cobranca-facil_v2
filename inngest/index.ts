@@ -18,6 +18,9 @@ import {
 // Scheduled functions
 import { checkPendingCharges } from "./scheduled/check-pending-charges";
 import { recalculateRiskScores } from "./scheduled/recalculate-risk-scores";
+import { refreshResolverStats } from "./scheduled/refresh-resolver-stats";
+import { refreshCustomerProfiles } from "./scheduled/refresh-customer-profiles";
+import { evaluateVariants } from "./scheduled/evaluate-variants";
 
 // Sagas
 import { chargeLifecycle } from "./sagas/charge-lifecycle";
@@ -41,6 +44,9 @@ export const allFunctions = [
   // Scheduled
   checkPendingCharges,
   recalculateRiskScores,
+  refreshResolverStats,
+  refreshCustomerProfiles,
+  evaluateVariants,
   // Sagas
   chargeLifecycle,
   dunningSaga,
