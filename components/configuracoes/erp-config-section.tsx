@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Database, Loader2 } from "lucide-react";
+import { Database, Loader2, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { fetchWithTenant } from "@/lib/fetch-with-tenant";
 import { OmieConfigDialog } from "./omie-config-dialog";
+import { ContaAzulConfigDialog } from "./conta-azul-config-dialog";
 
 interface ERPConfigState {
   provider: string;
@@ -29,6 +30,7 @@ export function ERPConfigSection() {
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [omieDialogOpen, setOmieDialogOpen] = useState(false);
+  const [contaAzulDialogOpen, setContaAzulDialogOpen] = useState(false);
 
   const fetchConfig = useCallback(() => {
     fetchWithTenant("/api/erp-config")
@@ -42,7 +44,8 @@ export function ERPConfigSection() {
     fetchConfig();
   }, [fetchConfig]);
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setDisconnecting(true);
     try {
       const res = await fetchWithTenant("/api/erp-config", {
@@ -58,10 +61,6 @@ export function ERPConfigSection() {
     } finally {
       setDisconnecting(false);
     }
-  };
-
-  const handleContaAzulConnect = () => {
-    window.location.href = "/api/integrations/conta-azul/authorize";
   };
 
   if (loading) {
@@ -95,14 +94,17 @@ export function ERPConfigSection() {
         </p>
       </div>
 
-      {/* Omie row */}
-      <div
-        className={`rounded-xl border p-4 flex items-center justify-between transition-colors ${
+      {/* Omie row — clickable */}
+      <button
+        type="button"
+        onClick={() => setOmieDialogOpen(true)}
+        disabled={hasActive && !isOmieActive}
+        className={`w-full rounded-xl border p-4 flex items-center justify-between transition-colors text-left ${
           isOmieActive
             ? "bg-emerald-50 border-emerald-200"
             : hasActive
-              ? "bg-white border-gray-200 opacity-50 pointer-events-none"
-              : "bg-white border-gray-200"
+              ? "bg-white border-gray-200 opacity-50 cursor-not-allowed"
+              : "bg-white border-gray-200 hover:bg-gray-50 cursor-pointer"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -123,6 +125,7 @@ export function ERPConfigSection() {
         </div>
         {isOmieActive ? (
           <button
+            type="button"
             onClick={handleDisconnect}
             disabled={disconnecting}
             className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
@@ -130,23 +133,21 @@ export function ERPConfigSection() {
             {disconnecting ? "..." : "Desconectar"}
           </button>
         ) : (
-          <button
-            onClick={() => setOmieDialogOpen(true)}
-            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Configurar
-          </button>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
         )}
-      </div>
+      </button>
 
-      {/* Conta Azul row */}
-      <div
-        className={`rounded-xl border p-4 flex items-center justify-between transition-colors ${
+      {/* Conta Azul row — clickable */}
+      <button
+        type="button"
+        onClick={() => setContaAzulDialogOpen(true)}
+        disabled={hasActive && !isContaAzulActive}
+        className={`w-full rounded-xl border p-4 flex items-center justify-between transition-colors text-left ${
           isContaAzulActive
             ? "bg-emerald-50 border-emerald-200"
             : hasActive
-              ? "bg-white border-gray-200 opacity-50 pointer-events-none"
-              : "bg-white border-gray-200"
+              ? "bg-white border-gray-200 opacity-50 cursor-not-allowed"
+              : "bg-white border-gray-200 hover:bg-gray-50 cursor-pointer"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -167,6 +168,7 @@ export function ERPConfigSection() {
         </div>
         {isContaAzulActive ? (
           <button
+            type="button"
             onClick={handleDisconnect}
             disabled={disconnecting}
             className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
@@ -174,19 +176,18 @@ export function ERPConfigSection() {
             {disconnecting ? "..." : "Desconectar"}
           </button>
         ) : (
-          <button
-            onClick={handleContaAzulConnect}
-            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Conectar
-          </button>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
         )}
-      </div>
+      </button>
 
       <OmieConfigDialog
         open={omieDialogOpen}
         onOpenChange={setOmieDialogOpen}
         onSaved={fetchConfig}
+      />
+      <ContaAzulConfigDialog
+        open={contaAzulDialogOpen}
+        onOpenChange={setContaAzulDialogOpen}
       />
     </div>
   );
