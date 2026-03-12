@@ -112,7 +112,7 @@ model Customer {
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
-  updatedAt             DateTime     @updatedAt
+  updatedAt             DateTime     @default(now()) @updatedAt
   erpProvider           ERPProvider?
   erpCustomerId         String?
   erpLastSyncAt         DateTime?
