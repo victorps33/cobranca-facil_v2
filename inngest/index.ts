@@ -21,6 +21,10 @@ import { recalculateRiskScores } from "./scheduled/recalculate-risk-scores";
 import { refreshResolverStats } from "./scheduled/refresh-resolver-stats";
 import { refreshCustomerProfiles } from "./scheduled/refresh-customer-profiles";
 import { evaluateVariants } from "./scheduled/evaluate-variants";
+import { erpPollSync } from "./scheduled/erp-poll-sync";
+
+import { erpPushSync } from "./functions/erp-push-sync";
+import { erpCreateInvoice } from "./functions/erp-create-invoice";
 
 // Sagas
 import { chargeLifecycle } from "./sagas/charge-lifecycle";
@@ -41,12 +45,15 @@ export const allFunctions = [
   captureEngagementFromRead,
   captureEngagementFromReply,
   captureEngagementFromPayment,
+  erpPushSync,
+  erpCreateInvoice,
   // Scheduled
   checkPendingCharges,
   recalculateRiskScores,
   refreshResolverStats,
   refreshCustomerProfiles,
   evaluateVariants,
+  erpPollSync,
   // Sagas
   chargeLifecycle,
   dunningSaga,

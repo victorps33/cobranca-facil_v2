@@ -40,6 +40,37 @@ export const omieSync = inngest.createFunction(
       return processOmieWebhook(payload as unknown as OmieWebhookPayload);
     });
 
+    // Populate generic ERP fields for traceability
+    if (result.chargeId) {
+      await step.run("link-erp-fields", async () => {
+        const { prisma: p } = await import("@/lib/prisma");
+        const charge = await p.charge.findUnique({ where: { id: result.chargeId! } });
+        if (charge && !charge.erpProvider) {
+          await p.charge.update({
+            where: { id: result.chargeId! },
+            data: {
+              erpProvider: "OMIE",
+              erpChargeId: charge.omieCodigoTitulo?.toString() || null,
+              erpLastSyncAt: new Date(),
+            },
+          });
+        }
+        if (result.customerId) {
+          const customer = await p.customer.findUnique({ where: { id: result.customerId } });
+          if (customer && !customer.erpProvider) {
+            await p.customer.update({
+              where: { id: result.customerId },
+              data: {
+                erpProvider: "OMIE",
+                erpCustomerId: customer.omieCodigoCliente?.toString() || null,
+                erpLastSyncAt: new Date(),
+              },
+            });
+          }
+        }
+      });
+    }
+
     // Step 2: Emit downstream events based on topic
     if (topic.startsWith("financas.contareceber")) {
       if (result.chargeId) {
