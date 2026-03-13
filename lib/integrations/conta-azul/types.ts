@@ -3,6 +3,48 @@
 // Base URL: https://api-v2.contaazul.com/v1/
 // ---------------------------------------------------------------------------
 
+// ── New API v2 types ──
+
+export interface ContaAzulV2Paginated<T> {
+  itens_totais: number;
+  itens: T[];
+}
+
+export interface ContaAzulV2Pessoa {
+  uuid: string;
+  nome: string;
+  documento: string | null;
+  email: string | null;
+  telefone: string | null;
+  ativo: boolean;
+  id_legado?: number;
+  uuid_legado?: string;
+  perfis: string[]; // ["Cliente"]
+  tipo_pessoa: string; // "JURIDICA" | "FISICA"
+  data_criacao?: string;
+  data_alteracao?: string;
+}
+
+export interface ContaAzulV2Receivable {
+  id: string;
+  status: string; // "PENDING", "OVERDUE", "ACQUITTED", etc.
+  status_traduzido: string; // "EM_ABERTO", "VENCIDO", "LIQUIDADO"
+  total: number;
+  nao_pago: number;
+  pago: number;
+  descricao: string | null;
+  data_vencimento: string; // "2026-03-12"
+  data_criacao: string;
+  data_alteracao: string;
+  data_competencia: string;
+  categorias: { id: string; nome: string }[];
+  centros_de_custo: unknown[];
+  cliente: { id: string; nome: string };
+  renegociacao: unknown | null;
+}
+
+// ── Legacy types (kept for backward compat with old mappers) ──
+
 export interface ContaAzulCustomer {
   id: string;
   name: string;
@@ -104,4 +146,5 @@ export interface ContaAzulError {
   error_description?: string;
   message?: string;
   status?: number;
+  code?: number;
 }

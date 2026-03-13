@@ -10,9 +10,9 @@ import type {
 // OAuth2 with auto-refresh, rate limiting, and pagination
 // ---------------------------------------------------------------------------
 
-const BASE_URL = "https://api.contaazul.com/v1";
-const TOKEN_URL = "https://api.contaazul.com/oauth2/token";
-const AUTHORIZE_URL = "https://api.contaazul.com/auth/authorize";
+const BASE_URL = "https://api-v2.contaazul.com/v1";
+const TOKEN_URL = "https://auth.contaazul.com/oauth2/token";
+const AUTHORIZE_URL = "https://auth.contaazul.com/login";
 
 const REQUEST_DELAY_MS = 100; // 10 req/s max
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -53,14 +53,19 @@ export class ContaAzulClient {
       throw new Error("[Conta Azul] No refresh token available — re-authorize required");
     }
 
+    const basicAuth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
     const res = await fetch(TOKEN_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basicAuth}`,
+      },
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: this.refreshToken,
         client_id: this.clientId,
         client_secret: this.clientSecret,
+        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/integrations/conta-azul/callback`,
       }),
     });
 
@@ -232,9 +237,13 @@ export async function exchangeCodeForTokens(
   clientId: string,
   clientSecret: string
 ): Promise<ContaAzulTokenResponse> {
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const res = await fetch(TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basicAuth}`,
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,

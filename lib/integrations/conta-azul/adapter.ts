@@ -13,13 +13,15 @@ import type { ChargeStatus } from "@prisma/client";
 import { ContaAzulClient } from "./client";
 import { mapContaAzulStatus } from "./status-mapper";
 import type {
-  ContaAzulCustomer,
-  ContaAzulReceivable,
+  ContaAzulV2Paginated,
+  ContaAzulV2Pessoa,
+  ContaAzulV2Receivable,
   ContaAzulServiceInvoice,
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// ContaAzulAdapter — implements ERPAdapter for Conta Azul ERP
+// ContaAzulAdapter — implements ERPAdapter for Conta Azul ERP (API v2)
+// Endpoints: /v1/pessoa, /v1/financeiro/eventos-financeiros/contas-a-receber
 // ---------------------------------------------------------------------------
 
 export class ContaAzulAdapter implements ERPAdapter {
@@ -31,31 +33,24 @@ export class ContaAzulAdapter implements ERPAdapter {
   }
 
   async authenticate(): Promise<void> {
-    // OAuth2 tokens are managed by the client automatically
-    // This call validates the token is usable
-    await this.client.get("/customers?page_size=1");
+    await this.client.get("/pessoa?tamanho_pagina=1");
   }
 
   // ── Customers ──
 
-  async listCustomers(since?: Date): Promise<ERPCustomer[]> {
-    const params: Record<string, string> = { page_size: "200" };
-    if (since) {
-      params.updated_since = since.toISOString();
-    }
-    const customers = await this.client.getAllPages<ContaAzulCustomer>(
-      "/customers",
-      params
+  async listCustomers(_since?: Date): Promise<ERPCustomer[]> {
+    const result = await this.client.get<ContaAzulV2Paginated<ContaAzulV2Pessoa>>(
+      "/pessoa?tamanho_pagina=200&perfil=Cliente"
     );
-    return customers.map(this.mapCustomer);
+    return result.itens.map(this.mapCustomer);
   }
 
   async getCustomer(erpId: string): Promise<ERPCustomer | null> {
     try {
-      const customer = await this.client.get<ContaAzulCustomer>(
-        `/customers/${erpId}`
+      const result = await this.client.get<ContaAzulV2Pessoa>(
+        `/pessoa/${erpId}`
       );
-      return this.mapCustomer(customer);
+      return this.mapCustomer(result);
     } catch {
       return null;
     }
@@ -63,18 +58,14 @@ export class ContaAzulAdapter implements ERPAdapter {
 
   async createCustomer(data: CreateCustomerInput): Promise<ERPCustomer> {
     const body = {
-      name: data.name,
-      company_name: data.razaoSocial || data.name,
-      document: data.doc,
+      nome: data.name,
+      documento: data.doc,
       email: data.email,
-      mobile_phone: data.phone,
-      person_type: data.doc.length > 11 ? "LEGAL" : "NATURAL",
-      address: {
-        city: data.cidade ? { name: data.cidade } : undefined,
-        state: data.estado ? { abbreviation: data.estado } : undefined,
-      },
+      telefone: data.phone,
+      tipo_pessoa: data.doc.length > 11 ? "JURIDICA" : "FISICA",
+      perfis: ["Cliente"],
     };
-    const created = await this.client.post<ContaAzulCustomer>("/customers", body);
+    const created = await this.client.post<ContaAzulV2Pessoa>("/pessoa", body);
     return this.mapCustomer(created);
   }
 
@@ -83,14 +74,13 @@ export class ContaAzulAdapter implements ERPAdapter {
     data: UpdateCustomerInput
   ): Promise<ERPCustomer> {
     const body: Record<string, unknown> = {};
-    if (data.name) body.name = data.name;
-    if (data.doc) body.document = data.doc;
+    if (data.name) body.nome = data.name;
+    if (data.doc) body.documento = data.doc;
     if (data.email) body.email = data.email;
-    if (data.phone) body.mobile_phone = data.phone;
-    if (data.razaoSocial) body.company_name = data.razaoSocial;
+    if (data.phone) body.telefone = data.phone;
 
-    const updated = await this.client.put<ContaAzulCustomer>(
-      `/customers/${erpId}`,
+    const updated = await this.client.put<ContaAzulV2Pessoa>(
+      `/pessoa/${erpId}`,
       body
     );
     return this.mapCustomer(updated);
@@ -99,23 +89,43 @@ export class ContaAzulAdapter implements ERPAdapter {
   // ── Charges (Receivables) ──
 
   async listCharges(since?: Date): Promise<ERPCharge[]> {
-    const params: Record<string, string> = { page_size: "200" };
-    if (since) {
-      params.updated_since = since.toISOString();
+    // API v2 requires data_vencimento_de but we can't use `since` for it —
+    // a receivable created AFTER lastSync can have a due date BEFORE it.
+    // Always fetch a wide range and filter by data_alteracao client-side.
+    const dateFrom = "2020-01-01";
+    const dateTo = "2099-12-31";
+
+    let allItems: ContaAzulV2Receivable[] = [];
+    let pagina = 1;
+    const tamanhoPagina = 200;
+
+    // Paginate through all results
+    while (true) {
+      const result = await this.client.get<ContaAzulV2Paginated<ContaAzulV2Receivable>>(
+        `/financeiro/eventos-financeiros/contas-a-receber/buscar?data_vencimento_de=${dateFrom}&data_vencimento_ate=${dateTo}&pagina=${pagina}&tamanho_pagina=${tamanhoPagina}`
+      );
+      allItems.push(...result.itens);
+
+      if (result.itens.length < tamanhoPagina || allItems.length >= result.itens_totais) {
+        break;
+      }
+      pagina++;
     }
-    const receivables = await this.client.getAllPages<ContaAzulReceivable>(
-      "/receivables",
-      params
-    );
-    return receivables.map(this.mapCharge);
+
+    // Note: we intentionally do NOT filter by data_alteracao here.
+    // The sync engine's upsert handles deduplication, and filtering by
+    // timestamp causes race conditions (items created during sync get missed).
+    // At scale (1000+ records), consider paginating by data_alteracao instead.
+
+    return allItems.map(this.mapCharge);
   }
 
   async getCharge(erpId: string): Promise<ERPCharge | null> {
     try {
-      const receivable = await this.client.get<ContaAzulReceivable>(
-        `/receivables/${erpId}`
+      const result = await this.client.get<ContaAzulV2Receivable>(
+        `/financeiro/eventos-financeiros/contas-a-receber/${erpId}`
       );
-      return this.mapCharge(receivable);
+      return this.mapCharge(result);
     } catch {
       return null;
     }
@@ -123,27 +133,28 @@ export class ContaAzulAdapter implements ERPAdapter {
 
   async createCharge(data: CreateChargeInput): Promise<ERPCharge> {
     const body = {
-      customer_id: data.customerErpId,
-      description: data.description,
-      value: data.amountCents / 100,
-      due_date: data.dueDate.toISOString().split("T")[0],
+      cliente: { id: data.customerErpId },
+      descricao: data.description,
+      total: data.amountCents / 100,
+      data_vencimento: data.dueDate.toISOString().split("T")[0],
     };
-    const created = await this.client.post<ContaAzulReceivable>(
-      "/receivables",
+    const created = await this.client.post<ContaAzulV2Receivable>(
+      "/financeiro/eventos-financeiros/contas-a-receber",
       body
     );
     return this.mapCharge(created);
   }
 
   async updateChargeStatus(erpId: string, status: ChargeStatus): Promise<void> {
-    // Conta Azul uses specific endpoints for status changes
     if (status === "CANCELED") {
-      await this.client.put(`/receivables/${erpId}`, { status: "CANCELLED" });
+      await this.client.put(
+        `/financeiro/eventos-financeiros/contas-a-receber/${erpId}`,
+        { status: "CANCELLED" }
+      );
     }
-    // Other status transitions happen through payment recording
   }
 
-  // ── Invoices ──
+  // ── Invoices (still using old endpoints — may need update) ──
 
   async createInvoice(
     _chargeId: string,
@@ -175,28 +186,25 @@ export class ContaAzulAdapter implements ERPAdapter {
 
   // ── Mappers (private) ──
 
-  private mapCustomer(c: ContaAzulCustomer): ERPCustomer {
+  private mapCustomer(c: ContaAzulV2Pessoa): ERPCustomer {
     return {
-      erpId: c.id,
-      name: c.name || c.company_name || "",
-      doc: c.document || "",
+      erpId: c.uuid,
+      name: c.nome || "",
+      doc: c.documento || "",
       email: c.email || "",
-      phone: c.mobile_phone || c.business_phone || "",
-      razaoSocial: c.company_name || undefined,
-      cidade: c.address?.city?.name || undefined,
-      estado: c.address?.state?.abbreviation || undefined,
+      phone: c.telefone || "",
+      razaoSocial: c.tipo_pessoa === "JURIDICA" ? c.nome : undefined,
     };
   }
 
-  private mapCharge(r: ContaAzulReceivable): ERPCharge {
+  private mapCharge(r: ContaAzulV2Receivable): ERPCharge {
     return {
       erpId: r.id,
-      customerErpId: r.customer_id,
-      description: r.description || r.document_number || "",
-      amountCents: Math.round((r.value || 0) * 100),
-      amountPaidCents: Math.round((r.paid_value || 0) * 100),
-      dueDate: new Date(r.due_date),
-      paidAt: r.payment_date ? new Date(r.payment_date) : undefined,
+      customerErpId: r.cliente.id,
+      description: r.descricao || "",
+      amountCents: Math.round((r.total || 0) * 100),
+      amountPaidCents: Math.round((r.pago || 0) * 100),
+      dueDate: new Date(r.data_vencimento),
       status: mapContaAzulStatus(r.status),
       statusRaw: r.status,
     };

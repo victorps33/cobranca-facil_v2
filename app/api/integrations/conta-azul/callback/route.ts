@@ -5,6 +5,9 @@ import { exchangeCodeForTokens } from "@/lib/integrations/conta-azul/client";
 // GET /api/integrations/conta-azul/callback
 // Receives OAuth code, exchanges for tokens, saves to ERPConfig
 export async function GET(req: NextRequest) {
+  console.log("[Conta Azul Callback] Full URL:", req.nextUrl.toString());
+  console.log("[Conta Azul Callback] Search params:", Object.fromEntries(req.nextUrl.searchParams.entries()));
+
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state"); // franqueadoraId
   const errorParam = req.nextUrl.searchParams.get("error");
@@ -13,7 +16,7 @@ export async function GET(req: NextRequest) {
     const desc = req.nextUrl.searchParams.get("error_description") || errorParam;
     console.error("[Conta Azul Callback] OAuth error:", desc);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || ""}/settings?error=conta_azul_auth_failed`
+      `${process.env.NEXT_PUBLIC_APP_URL || ""}/configuracoes?error=conta_azul_auth_failed`
     );
   }
 
@@ -73,12 +76,12 @@ export async function GET(req: NextRequest) {
     console.log(`[Conta Azul Callback] Tokens saved for franqueadora ${state}`);
 
     return NextResponse.redirect(
-      `${appUrl}/settings?success=conta_azul_connected`
+      `${appUrl}/configuracoes?success=conta_azul_connected`
     );
   } catch (err) {
     console.error("[Conta Azul Callback] Token exchange failed:", err);
     return NextResponse.redirect(
-      `${appUrl}/settings?error=conta_azul_token_failed`
+      `${appUrl}/configuracoes?error=conta_azul_token_failed`
     );
   }
 }
