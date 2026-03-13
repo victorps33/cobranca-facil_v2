@@ -122,10 +122,13 @@ async function upsertCustomer(
   };
 
   if (existing) {
-    // Last-write-wins: only update if ERP data is newer
-    if (existing.updatedAt && existing.erpLastSyncAt && existing.updatedAt > existing.erpLastSyncAt) {
-      // Local is newer — skip ERP update (will be pushed in reverse direction)
-      return;
+    // Last-write-wins: skip if locally edited AFTER the last sync.
+    // Tolerance of 5s for Prisma's @updatedAt vs erpLastSyncAt timing.
+    if (existing.updatedAt && existing.erpLastSyncAt) {
+      const localEditMs = existing.updatedAt.getTime() - existing.erpLastSyncAt.getTime();
+      if (localEditMs > 5000) {
+        return;
+      }
     }
     await prisma.customer.update({
       where: { id: existing.id },
@@ -183,9 +186,14 @@ async function upsertCharge(
   };
 
   if (existing) {
-    // Last-write-wins check
-    if (existing.updatedAt && existing.erpLastSyncAt && existing.updatedAt > existing.erpLastSyncAt) {
-      return;
+    // Last-write-wins: skip if locally edited AFTER the last sync.
+    // Tolerance of 5s to account for Prisma's @updatedAt being set
+    // slightly after erpLastSyncAt within the same DB transaction.
+    if (existing.updatedAt && existing.erpLastSyncAt) {
+      const localEditMs = existing.updatedAt.getTime() - existing.erpLastSyncAt.getTime();
+      if (localEditMs > 5000) {
+        return;
+      }
     }
     await prisma.charge.update({
       where: { id: existing.id },

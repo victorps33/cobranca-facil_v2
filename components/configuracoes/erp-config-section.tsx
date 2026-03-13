@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Database, Loader2, ChevronRight } from "lucide-react";
+import { Database, Loader2, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { fetchWithTenant } from "@/lib/fetch-with-tenant";
 import { OmieConfigDialog } from "./omie-config-dialog";
@@ -29,6 +29,7 @@ export function ERPConfigSection() {
   const [config, setConfig] = useState<ERPConfigState | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [omieDialogOpen, setOmieDialogOpen] = useState(false);
   const [contaAzulDialogOpen, setContaAzulDialogOpen] = useState(false);
 
@@ -43,6 +44,29 @@ export function ERPConfigSection() {
   useEffect(() => {
     fetchConfig();
   }, [fetchConfig]);
+
+  const handleSync = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSyncing(true);
+    try {
+      const res = await fetchWithTenant("/api/integrations/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+      toast({
+        title: "Sincronizado",
+        description: `Clientes: ${data.customersCreated} novos, ${data.customersUpdated} atualizados. Cobranças: ${data.chargesCreated} novas, ${data.chargesUpdated} atualizadas.`,
+      });
+      fetchConfig();
+    } catch (err) {
+      toast({
+        title: "Erro na sincronização",
+        description: err instanceof Error ? err.message : "Falha ao sincronizar.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleDisconnect = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -124,14 +148,25 @@ export function ERPConfigSection() {
           </div>
         </div>
         {isOmieActive ? (
-          <button
-            type="button"
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            {disconnecting ? "..." : "Desconectar"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+            >
+              <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Sincronizar"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              {disconnecting ? "..." : "Desconectar"}
+            </button>
+          </div>
         ) : (
           <ChevronRight className="h-4 w-4 text-gray-400" />
         )}
@@ -167,14 +202,25 @@ export function ERPConfigSection() {
           </div>
         </div>
         {isContaAzulActive ? (
-          <button
-            type="button"
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            {disconnecting ? "..." : "Desconectar"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+            >
+              <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Sincronizar"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              {disconnecting ? "..." : "Desconectar"}
+            </button>
+          </div>
         ) : (
           <ChevronRight className="h-4 w-4 text-gray-400" />
         )}

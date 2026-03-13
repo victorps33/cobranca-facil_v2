@@ -671,6 +671,39 @@ function AparenciaContent() {
 export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("empresa");
 
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success");
+    const error = params.get("error");
+
+    if (success === "conta_azul_connected") {
+      setActiveTab("integracoes");
+      toast({
+        title: "Conta Azul conectada",
+        description: "Integração realizada com sucesso! Seus dados serão sincronizados automaticamente.",
+      });
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (error === "conta_azul_auth_failed") {
+      setActiveTab("integracoes");
+      toast({
+        title: "Erro na conexão",
+        description: "A autorização com o Conta Azul foi cancelada ou falhou. Tente novamente.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (error === "conta_azul_token_failed") {
+      setActiveTab("integracoes");
+      toast({
+        title: "Erro na conexão",
+        description: "Não foi possível completar a autenticação com o Conta Azul. Tente novamente.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
       case "empresa":
