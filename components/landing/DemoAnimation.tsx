@@ -73,17 +73,18 @@ export function DemoAnimation() {
               muted
               loop
               playsInline
-              preload="metadata"
+              autoPlay
+              preload="auto"
             >
               <source src="/videos/demo.webm" type="video/webm" />
             </video>
 
-            {/* Play/Pause overlay — visible when paused, or on hover */}
+            {/* Play overlay — only visible when paused, on hover shows play to resume */}
             <div
               className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
                 playing
                   ? "opacity-0 group-hover:opacity-100"
-                  : "opacity-100"
+                  : "opacity-0 group-hover:opacity-100"
               }`}
             >
               <div className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
