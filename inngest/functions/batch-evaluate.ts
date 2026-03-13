@@ -87,7 +87,7 @@ export const batchEvaluate = inngest.createFunction(
         if (!rule) continue;
 
         const firedStepIds = charge.communicationIntents.map((ci) => ci.stepId);
-        const nextStep = findNextStep(rule.steps, charge.dueDate, runDateObj, firedStepIds);
+        const nextStep = findNextStep(rule.steps, new Date(charge.dueDate), runDateObj, firedStepIds);
         if (!nextStep) continue;
 
         if (isCommunicationChannel(nextStep.channel)) {

@@ -23,7 +23,7 @@ export const cancelIntentsOnPayment = inngest.createFunction(
       });
 
       // 3. Check if any MessageGroups are now fully skipped
-      const groupIds = [...new Set(intents.map((i) => i.messageGroupId).filter(Boolean))] as string[];
+      const groupIds = Array.from(new Set(intents.map((i) => i.messageGroupId).filter(Boolean))) as string[];
       let groupsSkipped = 0;
 
       for (const groupId of groupIds) {

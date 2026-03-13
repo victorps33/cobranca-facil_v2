@@ -21,7 +21,7 @@ export const batchGroup = inngest.createFunction(
         },
       });
 
-      if (intents.length === 0) return { groupsCreated: 0, skipped: 0 };
+      if (intents.length === 0) return { groupsCreated: 0, skipped: 0, groupIds: [] as string[] };
 
       const groups = groupIntentsByRecipient(intents);
       let groupsCreated = 0;
