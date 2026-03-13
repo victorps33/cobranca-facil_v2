@@ -10,7 +10,6 @@ export const updateRiskScore = inngest.createFunction(
   },
   [
     { event: "charge/paid" },
-    { event: "charge/overdue" },
     { event: "charge/partially-paid" },
   ],
   async ({ event }) => {
