@@ -254,7 +254,7 @@ export type Events = {
   "intelligence/stats.refresh": IntelligenceRefreshEvent;
   "intelligence/profiles.refresh": IntelligenceRefreshEvent;
   "intelligence/variants.evaluate": IntelligenceRefreshEvent;
-  // Negotiation events (emitted by dunning-saga)
+  // Negotiation events
   "negotiation/offered": NegotiationEvent;
   "negotiation/promise-made": NegotiationEvent;
   "negotiation/callback-scheduled": NegotiationEvent;

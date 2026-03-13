@@ -77,6 +77,12 @@ export const batchEvaluate = inngest.createFunction(
         rulesByProfile.set(rule.riskProfile, rule);
       }
 
+      // Pre-load system user once (avoid N+1 for LIGACAO channel)
+      const systemUser = await prisma.user.findFirst({
+        where: { role: "ADMINISTRADOR" },
+        select: { id: true },
+      });
+
       let intentsCreated = 0;
       let escalationsCreated = 0;
       let tasksCreated = 0;
@@ -118,10 +124,6 @@ export const batchEvaluate = inngest.createFunction(
             escalationsCreated++;
           }
         } else if (isCallChannel(nextStep.channel)) {
-          const systemUser = await prisma.user.findFirst({
-            where: { role: "ADMINISTRADOR" },
-            select: { id: true },
-          });
           if (systemUser) {
             await prisma.collectionTask.create({
               data: {

@@ -41,7 +41,8 @@ export const batchSend = inngest.createFunction(
   async ({ event, step }) => {
     const { messageGroupId, batchRunId } = event.data;
 
-    const result = await step.run("send", async () => {
+    // Step 1: Load group, circuit breaker, freshness check, prepare message
+    const prepared = await step.run("prepare", async () => {
       // 1. Load group (include step for re-render)
       const group = await prisma.messageGroup.findUnique({
         where: { id: messageGroupId },
@@ -58,7 +59,7 @@ export const batchSend = inngest.createFunction(
       });
 
       if (!group || group.status !== "READY") {
-        return { status: "skipped", reason: "not-ready" };
+        return { skip: true as const, status: "skipped", reason: "not-ready" };
       }
 
       // 2. Circuit breaker (NonRetriableError avoids wasted retries)
@@ -75,18 +76,20 @@ export const batchSend = inngest.createFunction(
           where: { id: batchRunId },
           data: { status: "FAILED" },
         });
-        throw new NonRetriableError("Circuit breaker: failure rate exceeded 20%");
+        throw new NonRetriableError(
+          `Circuit breaker: failure rate ${failed}/${total} (${((failed / total) * 100).toFixed(1)}%) exceeded 20%`
+        );
       }
 
       // 3. Freshness check
-      const activeIntents = [];
+      const activeIntentIds: string[] = [];
       for (const intent of group.intents) {
         const fresh = await prisma.charge.findUnique({
           where: { id: intent.chargeId },
           select: { status: true },
         });
         if (fresh && fresh.status !== "PAID" && fresh.status !== "CANCELED") {
-          activeIntents.push(intent);
+          activeIntentIds.push(intent.id);
         } else {
           await prisma.communicationIntent.update({
             where: { id: intent.id },
@@ -95,15 +98,16 @@ export const batchSend = inngest.createFunction(
         }
       }
 
-      if (activeIntents.length === 0) {
+      if (activeIntentIds.length === 0) {
         await prisma.messageGroup.update({
           where: { id: messageGroupId },
           data: { status: "SKIPPED" },
         });
-        return { status: "skipped", reason: "all-paid" };
+        return { skip: true as const, status: "skipped", reason: "all-paid" };
       }
 
       // Re-render if some charges were removed (use step template, not rendered message)
+      const activeIntents = group.intents.filter((i) => activeIntentIds.includes(i.id));
       let message = group.renderedMessage!;
       if (activeIntents.length !== group.intents.length) {
         const charges = activeIntents.map((i) => ({
@@ -129,17 +133,33 @@ export const batchSend = inngest.createFunction(
         );
       }
 
-      // 4. Create conversation + message
+      return {
+        skip: false as const,
+        message,
+        channel: group.channel,
+        customerId: group.customerId,
+        franqueadoraId: group.franqueadoraId,
+        activeIntentIds,
+      };
+    });
+
+    if (prepared.skip) {
+      return { status: prepared.status, reason: prepared.reason };
+    }
+
+    // Step 2: Create conversation + message + dispatch (retry-safe: if this succeeds, step 3 is safe)
+    const dispatched = await step.run("dispatch", async () => {
+      // Find or create conversation
       let conversation = await prisma.conversation.findFirst({
-        where: { customerId: group.customerId, channel: group.channel, status: { not: "RESOLVIDA" } },
+        where: { customerId: prepared.customerId, channel: prepared.channel, status: { not: "RESOLVIDA" } },
       });
       if (!conversation) {
         conversation = await prisma.conversation.create({
           data: {
-            customerId: group.customerId,
-            channel: group.channel,
+            customerId: prepared.customerId,
+            channel: prepared.channel,
             status: "ABERTA",
-            franqueadoraId: group.franqueadoraId,
+            franqueadoraId: prepared.franqueadoraId,
           },
         });
       }
@@ -148,54 +168,54 @@ export const batchSend = inngest.createFunction(
         data: {
           conversationId: conversation.id,
           sender: "SYSTEM",
-          content: message,
+          content: prepared.message,
           contentType: "text",
-          channel: group.channel,
+          channel: prepared.channel,
         },
       });
 
-      // 5. Dispatch
+      // Dispatch via Twilio/provider
       const dispatchResult = await dispatchMessage({
-        channel: group.channel,
-        content: message,
-        customerId: group.customerId,
+        channel: prepared.channel,
+        content: prepared.message,
+        customerId: prepared.customerId,
         conversationId: conversation.id,
         messageId: msg.id,
-        franqueadoraId: group.franqueadoraId,
+        franqueadoraId: prepared.franqueadoraId,
       });
 
       if (!dispatchResult.success) {
         throw new Error(`Dispatch failed: ${dispatchResult.error}`);
       }
 
-      // 6. Mark success
+      return { messageId: msg.id, providerMsgId: dispatchResult.providerMsgId };
+    });
+
+    // Step 3: Mark success + engagement event (if dispatch step succeeded, this is safe to retry)
+    await step.run("finalize", async () => {
       await prisma.messageGroup.update({
         where: { id: messageGroupId },
         data: { status: "SENT", sentAt: new Date() },
       });
 
       await prisma.communicationIntent.updateMany({
-        where: { id: { in: activeIntents.map((i) => i.id) } },
+        where: { id: { in: prepared.activeIntentIds } },
         data: { status: "SENT" },
       });
 
-      // 7. Create engagement event (NOT message/sent to avoid double-dispatch)
-      if (group.customer.franqueadoraId) {
-        await prisma.engagementEvent.create({
-          data: {
-            customerId: group.customerId,
-            messageId: msg.id,
-            channel: group.channel,
-            eventType: "SENT",
-            occurredAt: new Date(),
-            franqueadoraId: group.customer.franqueadoraId!,
-          },
-        });
-      }
-
-      return { status: "sent", providerMsgId: dispatchResult.providerMsgId };
+      // Create engagement event (NOT message/sent to avoid double-dispatch)
+      await prisma.engagementEvent.create({
+        data: {
+          customerId: prepared.customerId,
+          messageId: dispatched.messageId,
+          channel: prepared.channel,
+          eventType: "SENT",
+          occurredAt: new Date(),
+          franqueadoraId: prepared.franqueadoraId,
+        },
+      });
     });
 
-    return result;
+    return { status: "sent", providerMsgId: dispatched.providerMsgId };
   }
 );

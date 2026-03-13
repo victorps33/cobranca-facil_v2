@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export const cancelIntentsOnPayment = inngest.createFunction(
   { id: "cancel-intents-on-payment", retries: 3 },
-  { event: "charge/paid" },
+  [{ event: "charge/paid" }, { event: "charge/canceled" }],
   async ({ event, step }) => {
     const { chargeId } = event.data;
 
