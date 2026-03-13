@@ -109,6 +109,8 @@ model Customer {
   riskScore       FranchiseeRiskScore?
   engagementEvents   EngagementEvent[]
   engagementProfile  CustomerEngagementProfile?
+  communicationIntents CommunicationIntent[]
+  messageGroups        MessageGroup[]
   omieCodigoCliente    BigInt?    @unique @map("omie_codigo_cliente")
   omieCodigoIntegracao String?    @map("omie_codigo_integracao")
   omieLastSyncAt       DateTime?  @map("omie_last_sync_at")
@@ -169,6 +171,7 @@ model Charge {
   invoiceStatus         String?
   invoicePdfUrl         String?
   invoiceIssuedAt       DateTime?
+  communicationIntents CommunicationIntent[]
 
   @@index([customerId])
   @@index([status])
@@ -290,6 +293,7 @@ model DunningStep {
   variants         StepVariant[]
   resolverStats    StepResolverStats?
   engagementEvents EngagementEvent[]
+  communicationIntents CommunicationIntent[]
 
   @@index([ruleId])
   @@index([trigger])
@@ -544,6 +548,92 @@ enum EngagementEventType {
   FAILED
 }
 
+enum BatchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum IntentStatus {
+  PENDING
+  GROUPED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum GroupStatus {
+  PENDING
+  READY
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model BatchRun {
+  id               String        @id @default(cuid())
+  franqueadoraId   String
+  franqueadora     Franqueadora  @relation(fields: [franqueadoraId], references: [id])
+  runDate          DateTime      @db.Date
+  status           BatchStatus   @default(PENDING)
+  stats            Json?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+
+  intents          CommunicationIntent[]
+  messageGroups    MessageGroup[]
+
+  @@unique([franqueadoraId, runDate])
+  @@index([status])
+}
+
+model CommunicationIntent {
+  id             String          @id @default(cuid())
+  batchRunId     String
+  batchRun       BatchRun        @relation(fields: [batchRunId], references: [id])
+  chargeId       String
+  charge         Charge          @relation(fields: [chargeId], references: [id])
+  customerId     String
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  stepId         String
+  step           DunningStep     @relation(fields: [stepId], references: [id])
+  phase          DunningPhase
+  channel        Channel
+  offsetDays     Int
+  status         IntentStatus    @default(PENDING)
+  messageGroupId String?
+  messageGroup   MessageGroup?   @relation(fields: [messageGroupId], references: [id])
+  createdAt      DateTime        @default(now())
+
+  @@unique([chargeId, stepId])
+  @@index([batchRunId, status])
+  @@index([customerId])
+}
+
+model MessageGroup {
+  id               String          @id @default(cuid())
+  batchRunId       String
+  batchRun         BatchRun        @relation(fields: [batchRunId], references: [id])
+  franqueadoraId   String
+  franqueadora     Franqueadora    @relation(fields: [franqueadoraId], references: [id])
+  customerId       String
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  channel          Channel
+  recipient        String
+  phase            DunningPhase
+  status           GroupStatus     @default(PENDING)
+  renderedMessage  String?         @db.Text
+  sentAt           DateTime?
+  createdAt        DateTime        @default(now())
+
+  intents          CommunicationIntent[]
+
+  @@unique([batchRunId, customerId, channel])
+  @@index([status])
+}
+
 model AppState {
   id           Int       @id @default(1)
   simulatedNow DateTime?
@@ -584,6 +674,8 @@ model Franqueadora {
   contatos               ContatoFranqueadora[]
   negotiationCampaigns   NegotiationCampaign[]
   engagementEvents       EngagementEvent[]
+  batchRuns      BatchRun[]
+  messageGroups  MessageGroup[]
 
   @@index([grupoId])
 }

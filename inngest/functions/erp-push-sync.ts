@@ -7,7 +7,7 @@ export const erpPushSync = inngest.createFunction(
     retries: 3,
     concurrency: [
       {
-        key: "event.data.chargeId ?? event.data.customerId",
+        key: "has(event.data.chargeId) ? event.data.chargeId : event.data.customerId",
         limit: 1,
       },
     ],

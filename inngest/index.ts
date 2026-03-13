@@ -1,3 +1,4 @@
+// inngest/index.ts
 export { inngest } from "./client";
 
 // Reactive functions
@@ -14,21 +15,26 @@ import {
   captureEngagementFromReply,
   captureEngagementFromPayment,
 } from "./functions/capture-engagement";
+import { erpPushSync } from "./functions/erp-push-sync";
+import { erpCreateInvoice } from "./functions/erp-create-invoice";
+
+// Batch communication engine
+import { batchEvaluate } from "./functions/batch-evaluate";
+import { batchGroup } from "./functions/batch-group";
+import { batchSend } from "./functions/batch-send";
+import { cancelIntentsOnPayment } from "./functions/cancel-intents-on-payment";
 
 // Scheduled functions
-import { checkPendingCharges } from "./scheduled/check-pending-charges";
 import { recalculateRiskScores } from "./scheduled/recalculate-risk-scores";
 import { refreshResolverStats } from "./scheduled/refresh-resolver-stats";
 import { refreshCustomerProfiles } from "./scheduled/refresh-customer-profiles";
 import { evaluateVariants } from "./scheduled/evaluate-variants";
 import { erpPollSync } from "./scheduled/erp-poll-sync";
+import { batchOrchestrator } from "./scheduled/batch-orchestrator";
+import { batchFinalizer } from "./scheduled/batch-finalizer";
 
-import { erpPushSync } from "./functions/erp-push-sync";
-import { erpCreateInvoice } from "./functions/erp-create-invoice";
-
-// Sagas
+// Sagas (inbox + ERP only — dunning-saga removed)
 import { chargeLifecycle } from "./sagas/charge-lifecycle";
-import { dunningSaga } from "./sagas/dunning-saga";
 import { inboundProcessing } from "./sagas/inbound-processing";
 import { omieSync } from "./sagas/omie-sync";
 
@@ -47,8 +53,14 @@ export const allFunctions = [
   captureEngagementFromPayment,
   erpPushSync,
   erpCreateInvoice,
+  cancelIntentsOnPayment,
+  // Batch communication engine
+  batchEvaluate,
+  batchGroup,
+  batchSend,
   // Scheduled
-  checkPendingCharges,
+  batchOrchestrator,
+  batchFinalizer,
   recalculateRiskScores,
   refreshResolverStats,
   refreshCustomerProfiles,
@@ -56,7 +68,6 @@ export const allFunctions = [
   erpPollSync,
   // Sagas
   chargeLifecycle,
-  dunningSaga,
   inboundProcessing,
   omieSync,
 ];

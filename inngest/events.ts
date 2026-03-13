@@ -201,10 +201,37 @@ type ERPSyncCompletedEvent = {
   };
 };
 
+// --- Batch Communication Events ---
+type BatchTenantReadyEvent = {
+  data: {
+    franqueadoraId: string;
+    runDate: string; // YYYY-MM-DD
+    dryRun: boolean;
+  };
+};
+
+type BatchEvaluatedEvent = {
+  data: {
+    franqueadoraId: string;
+    runDate: string;
+    batchRunId: string;
+    dryRun: boolean;
+  };
+};
+
+type BatchGroupReadyEvent = {
+  data: {
+    messageGroupId: string;
+    batchRunId: string;
+    franqueadoraId: string;
+  };
+};
+
 // --- Events Map ---
 export type Events = {
   "charge/created": ChargeCreatedEvent;
   "charge/paid": ChargePaidEvent;
+  /** @deprecated — batch evaluates by dueDate + status, not events */
   "charge/overdue": ChargeOverdueEvent;
   "charge/partially-paid": ChargePartiallyPaidEvent;
   "charge/canceled": ChargeCanceledEvent;
@@ -227,7 +254,7 @@ export type Events = {
   "intelligence/stats.refresh": IntelligenceRefreshEvent;
   "intelligence/profiles.refresh": IntelligenceRefreshEvent;
   "intelligence/variants.evaluate": IntelligenceRefreshEvent;
-  // Negotiation events (emitted by dunning-saga)
+  // Negotiation events
   "negotiation/offered": NegotiationEvent;
   "negotiation/promise-made": NegotiationEvent;
   "negotiation/callback-scheduled": NegotiationEvent;
@@ -235,6 +262,10 @@ export type Events = {
   "charge/invoice-requested": ChargeInvoiceRequestedEvent;
   "charge/invoice-issued": ChargeInvoiceIssuedEvent;
   "integration/erp-sync-completed": ERPSyncCompletedEvent;
+  // Batch communication events
+  "batch/tenant.ready": BatchTenantReadyEvent;
+  "batch/evaluated": BatchEvaluatedEvent;
+  "batch/group.ready": BatchGroupReadyEvent;
 };
 
 // --- Engagement & Intelligence Events ---
