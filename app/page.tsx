@@ -8,7 +8,7 @@ const DEMO_URL = "#"; // Replace with Calendly or booking URL
 
 export default function LandingPage() {
   return (
-    <>
+    <div className="min-h-screen bg-menlo-offwhite">
       <LandingNavbar />
       <main>
         <HeroSection demoUrl={DEMO_URL} />
@@ -16,6 +16,6 @@ export default function LandingPage() {
         <FeaturesSection />
         <CTASection demoUrl={DEMO_URL} />
       </main>
-    </>
+    </div>
   );
 }
