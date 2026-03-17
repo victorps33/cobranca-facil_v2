@@ -30,6 +30,13 @@ export interface ERPCharge {
   invoiceUrl?: string;
 }
 
+export interface ERPBoleto {
+  chargeErpId: string;
+  linhaDigitavel: string;
+  barcodeValue: string;
+  publicUrl: string;
+}
+
 export interface ERPInvoice {
   erpId: string;
   number: string;
@@ -106,6 +113,9 @@ export interface ERPAdapter {
   createInvoice(chargeId: string, data: CreateInvoiceInput): Promise<ERPInvoice>;
   getInvoice(erpId: string): Promise<ERPInvoice | null>;
 
+  // Boletos (optional — adapter-specific)
+  listBoletos?(chargeErpIds: string[]): Promise<ERPBoleto[]>;
+
   // Webhook (optional — Conta Azul doesn't support)
   parseWebhook?(payload: unknown): ERPWebhookEvent;
 }
@@ -121,5 +131,7 @@ export interface SyncResult {
   chargesCreated: number;
   chargesUpdated: number;
   chargesErrors: number;
+  boletosFound: number;
+  boletosErrors: number;
   errorDetails: string[];
 }

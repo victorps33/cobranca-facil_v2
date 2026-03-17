@@ -170,6 +170,34 @@ export class ContaAzulClient {
     return this.request<T>("PUT", path, body);
   }
 
+  // Fetch from an external URL (not BASE_URL). Used for services.contaazul.com
+  // and public.contaazul.com endpoints.
+  async fetchExternalUrl<T>(url: string, useAuth = true): Promise<T> {
+    await this.throttle();
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (useAuth) {
+      const token = await this.ensureValidToken();
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        throw new Error(`[Conta Azul] HTTP ${res.status} GET ${url}: ${res.statusText}`);
+      }
+      const text = await res.text();
+      if (!text) return {} as T;
+      return JSON.parse(text) as T;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   // ── Pagination ──
 
   async getAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]> {

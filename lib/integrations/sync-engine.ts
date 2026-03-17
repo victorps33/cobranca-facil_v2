@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ERPProvider } from "@prisma/client";
-import type { ERPAdapter, ERPCustomer, ERPCharge, SyncResult } from "./types";
+import type { ERPAdapter, ERPCustomer, ERPCharge, ERPBoleto, SyncResult } from "./types";
 import { getERPConfig } from "./erp-factory";
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,8 @@ export async function syncFranqueadora(
     chargesCreated: 0,
     chargesUpdated: 0,
     chargesErrors: 0,
+    boletosFound: 0,
+    boletosErrors: 0,
     errorDetails: [],
   };
 
@@ -72,14 +74,37 @@ export async function syncFranqueadora(
     }
   }
 
-  // ── 3. Update lastSyncAt ──
+  // ── 3. Sync boletos (if adapter supports it) ──
+  if (adapter.listBoletos) {
+    console.log(`[Sync Engine] Syncing boletos for ${franqueadoraId} (${provider})`);
+    let erpBoletos: ERPBoleto[] = [];
+    try {
+      erpBoletos = await adapter.listBoletos(erpCharges.map(c => c.erpId));
+    } catch (err) {
+      const msg = `Failed to list boletos: ${err instanceof Error ? err.message : String(err)}`;
+      result.errorDetails.push(msg);
+      console.error(`[Sync Engine] ${msg}`);
+    }
+
+    for (const erpBoleto of erpBoletos) {
+      try {
+        await upsertBoleto(provider, erpBoleto, result);
+      } catch (err) {
+        result.boletosErrors++;
+        const msg = `Boleto for charge ${erpBoleto.chargeErpId}: ${err instanceof Error ? err.message : String(err)}`;
+        result.errorDetails.push(msg);
+      }
+    }
+  }
+
+  // ── 4. Update lastSyncAt ──
   await prisma.eRPConfig.update({
     where: { franqueadoraId },
     data: { lastSyncAt: new Date() },
   });
 
   console.log(
-    `[Sync Engine] Done (${provider}): customers ${result.customersCreated}c/${result.customersUpdated}u/${result.customersErrors}e, charges ${result.chargesCreated}c/${result.chargesUpdated}u/${result.chargesErrors}e`
+    `[Sync Engine] Done (${provider}): customers ${result.customersCreated}c/${result.customersUpdated}u/${result.customersErrors}e, charges ${result.chargesCreated}c/${result.chargesUpdated}u/${result.chargesErrors}e, boletos ${result.boletosFound}f/${result.boletosErrors}e`
   );
 
   return result;
@@ -204,4 +229,36 @@ async function upsertCharge(
     await prisma.charge.create({ data });
     result.chargesCreated++;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Boleto upsert
+// ---------------------------------------------------------------------------
+
+async function upsertBoleto(
+  provider: ERPProvider,
+  erp: ERPBoleto,
+  result: SyncResult
+): Promise<void> {
+  const charge = await prisma.charge.findFirst({
+    where: { erpProvider: provider, erpChargeId: erp.chargeErpId },
+  });
+
+  if (!charge) return;
+
+  await prisma.boleto.upsert({
+    where: { chargeId: charge.id },
+    create: {
+      chargeId: charge.id,
+      linhaDigitavel: erp.linhaDigitavel,
+      barcodeValue: erp.barcodeValue,
+      publicUrl: erp.publicUrl,
+    },
+    update: {
+      linhaDigitavel: erp.linhaDigitavel,
+      barcodeValue: erp.barcodeValue,
+      publicUrl: erp.publicUrl,
+    },
+  });
+  result.boletosFound++;
 }

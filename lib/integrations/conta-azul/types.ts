@@ -43,6 +43,43 @@ export interface ContaAzulV2Receivable {
   renegociacao: unknown | null;
 }
 
+// ── Parcela detail (official v1 API: GET /parcelas/{id}) ──
+
+export interface ContaAzulV1SolicitacaoCobranca {
+  id: string;
+  versao?: number;
+  status_solicitacao_cobranca: string;
+  tipo_solicitacao_cobranca: string; // BOLETO, LINK_PAGAMENTO, BOLETO_REGISTRADO, PIX_COBRANCA
+  data_vencimento?: string;
+  data_quitacao?: string;
+  descricao?: string;
+  referencia_externa?: string;
+}
+
+export interface ContaAzulV1ParcelaDetail {
+  id: string;
+  status: string;
+  solicitacoes_cobrancas?: ContaAzulV1SolicitacaoCobranca[];
+}
+
+// ── Charge detail (official v1 API: GET /cobranca/{id_cobranca}) ──
+
+export interface ContaAzulV1Cobranca {
+  id: string;
+  url: string;
+  status: string; // REGISTRADO, QUITADO, CANCELADO, PAGO, EXPIRADO, etc.
+}
+
+// ── Public boleto response (public.contaazul.com — no auth needed) ──
+
+export interface ContaAzulPublicBoleto {
+  digitableLine?: string;
+  barcode?: string;
+  qrCode?: string;
+  value?: number;
+  status?: string;
+}
+
 // ── Legacy types (kept for backward compat with old mappers) ──
 
 export interface ContaAzulCustomer {

@@ -3,6 +3,7 @@ import type {
   ERPAdapter,
   ERPCustomer,
   ERPCharge,
+  ERPBoleto,
   ERPInvoice,
   CreateCustomerInput,
   UpdateCustomerInput,
@@ -17,6 +18,9 @@ import type {
   ContaAzulV2Pessoa,
   ContaAzulV2Receivable,
   ContaAzulServiceInvoice,
+  ContaAzulV1ParcelaDetail,
+  ContaAzulV1Cobranca,
+  ContaAzulPublicBoleto,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -152,6 +156,85 @@ export class ContaAzulAdapter implements ERPAdapter {
         { status: "CANCELLED" }
       );
     }
+  }
+
+  // ── Boletos ──
+  // Official v1 API flow:
+  //   1. GET /parcelas/{id}           → solicitacoes_cobrancas
+  //   2. GET /cobranca/{id_cobranca}  → url (boleto payment link)
+  //   3. Public endpoint              → linha digitável, barcode
+
+  async listBoletos(chargeErpIds: string[]): Promise<ERPBoleto[]> {
+    const boletos: ERPBoleto[] = [];
+
+    for (const parcelaId of chargeErpIds) {
+      try {
+        // Step 1: Get parcela details with charge requests
+        const parcela = await this.client.get<ContaAzulV1ParcelaDetail>(
+          `/financeiro/eventos-financeiros/parcelas/${parcelaId}`
+        );
+
+        if (!parcela.solicitacoes_cobrancas?.length) continue;
+
+        // Step 2: Find boleto-type charge requests
+        for (const sc of parcela.solicitacoes_cobrancas) {
+          if (
+            sc.tipo_solicitacao_cobranca !== "BOLETO" &&
+            sc.tipo_solicitacao_cobranca !== "BOLETO_REGISTRADO"
+          ) continue;
+
+          // Step 3: Get charge details for URL
+          const cobranca = await this.client.get<ContaAzulV1Cobranca>(
+            `/financeiro/eventos-financeiros/contas-a-receber/cobranca/${sc.id}`
+          );
+
+          if (!cobranca.url) continue;
+
+          // Step 4: Try to fetch boleto data from public endpoint
+          const uuid = cobranca.url.match(/visualizar\/([a-f0-9-]+)/)?.[1];
+          if (uuid) {
+            try {
+              const boletoData = await this.client.fetchExternalUrl<ContaAzulPublicBoleto>(
+                `https://public.contaazul.com/payments/billing/charge/${uuid}/invoice`,
+                false
+              );
+              boletos.push({
+                chargeErpId: parcelaId,
+                linhaDigitavel: boletoData.digitableLine || "",
+                barcodeValue: (boletoData.barcode || "").replace(/[.\s]/g, ""),
+                publicUrl: cobranca.url,
+              });
+            } catch {
+              // Public endpoint failed — store URL without barcode data
+              boletos.push({
+                chargeErpId: parcelaId,
+                linhaDigitavel: "",
+                barcodeValue: "",
+                publicUrl: cobranca.url,
+              });
+            }
+          } else {
+            // URL doesn't match expected pattern — store as-is
+            boletos.push({
+              chargeErpId: parcelaId,
+              linhaDigitavel: "",
+              barcodeValue: "",
+              publicUrl: cobranca.url,
+            });
+          }
+
+          break; // one boleto per parcela
+        }
+      } catch (err) {
+        console.warn(
+          `[Conta Azul] Failed to get boleto for parcela ${parcelaId}:`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
+
+    console.log(`[Conta Azul] Found ${boletos.length} boletos from ${chargeErpIds.length} parcelas`);
+    return boletos;
   }
 
   // ── Invoices (still using old endpoints — may need update) ──
