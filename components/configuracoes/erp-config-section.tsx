@@ -51,11 +51,13 @@ export function ERPConfigSection() {
     try {
       const res = await fetchWithTenant("/api/integrations/sync", { method: "POST" });
       const data = await res.json();
+      console.log("[Sync] Response:", data);
       if (!res.ok) throw new Error(data.error || "Sync failed");
       const boletoInfo = data.boletosFound ? ` Boletos: ${data.boletosFound} encontrados.` : "";
+      const errorInfo = data.errorDetails?.length ? `\n⚠ ${data.errorDetails.join("; ")}` : "";
       toast({
         title: "Sincronizado",
-        description: `Clientes: ${data.customersCreated} novos, ${data.customersUpdated} atualizados. Cobranças: ${data.chargesCreated} novas, ${data.chargesUpdated} atualizadas.${boletoInfo}`,
+        description: `Clientes: ${data.customersCreated} novos, ${data.customersUpdated} atualizados. Cobranças: ${data.chargesCreated} novas, ${data.chargesUpdated} atualizadas.${boletoInfo}${errorInfo}`,
       });
       fetchConfig();
     } catch (err) {
