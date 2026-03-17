@@ -1,5 +1,21 @@
-import { redirect } from "next/navigation";
+import { LandingNavbar } from "@/components/landing/LandingNavbar";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { DemoAnimation } from "@/components/landing/DemoAnimation";
+import { FeaturesSection } from "@/components/landing/FeaturesSection";
+import { CTASection } from "@/components/landing/CTASection";
 
-export default function RootPage() {
-  redirect("/cobrancas");
+const DEMO_URL = "#"; // Replace with Calendly or booking URL
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-menlo-offwhite">
+      <LandingNavbar />
+      <main>
+        <HeroSection demoUrl={DEMO_URL} />
+        <DemoAnimation />
+        <FeaturesSection />
+        <CTASection demoUrl={DEMO_URL} />
+      </main>
+    </div>
+  );
 }
