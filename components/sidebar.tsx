@@ -36,7 +36,7 @@ type NavItem = {
 const allRoles: UserRole[] = ["ADMINISTRADOR", "FINANCEIRO", "OPERACIONAL", "VISUALIZADOR"];
 
 const baseNavigation: Omit<NavItem, "badge">[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: allRoles },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: allRoles },
   { name: "Cadastro", href: "/clientes", icon: Users, roles: allRoles },
   { name: "Apuração", href: "/apuracao", icon: Calculator, roles: allRoles },
   { name: "Cobranças", href: "/cobrancas", icon: Receipt, roles: allRoles },
