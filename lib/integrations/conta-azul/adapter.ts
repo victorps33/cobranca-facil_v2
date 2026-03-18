@@ -281,6 +281,14 @@ export class ContaAzulAdapter implements ERPAdapter {
   }
 
   private mapCharge(r: ContaAzulV2Receivable): ERPCharge {
+    // data_competencia vem como "2026-03-01" → formatar como "Mar/26"
+    let competencia: string | undefined;
+    if (r.data_competencia) {
+      const d = new Date(r.data_competencia + "T12:00:00");
+      const mes = d.toLocaleString("pt-BR", { month: "short" }).replace(".", "");
+      competencia = `${mes.charAt(0).toUpperCase() + mes.slice(1)}/${String(d.getFullYear()).slice(2)}`;
+    }
+
     return {
       erpId: r.id,
       customerErpId: r.cliente.id,
@@ -290,6 +298,7 @@ export class ContaAzulAdapter implements ERPAdapter {
       dueDate: new Date(r.data_vencimento),
       status: mapContaAzulStatus(r.status),
       statusRaw: r.status,
+      competencia,
     };
   }
 

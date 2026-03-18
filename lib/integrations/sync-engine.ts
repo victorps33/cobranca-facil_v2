@@ -208,6 +208,7 @@ async function upsertCharge(
     erpLastSyncAt: now,
     invoiceNumber: erp.invoiceNumber || existing?.invoiceNumber || null,
     invoicePdfUrl: erp.invoiceUrl || existing?.invoicePdfUrl || null,
+    competencia: erp.competencia || existing?.competencia || null,
   };
 
   if (existing) {

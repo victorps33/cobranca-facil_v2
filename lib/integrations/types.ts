@@ -28,6 +28,7 @@ export interface ERPCharge {
   statusRaw: string;
   invoiceNumber?: string;
   invoiceUrl?: string;
+  competencia?: string;
 }
 
 export interface ERPBoleto {
