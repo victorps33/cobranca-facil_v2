@@ -234,8 +234,8 @@ export default function CobrancaDetalhePage() {
                 </button>
               </div>
 
-              {/* — Resumo 3 colunas — */}
-              <div className="grid grid-cols-3 gap-6 mb-6">
+              {/* — Resumo — */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-6">
                 {/* Valor */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Valor a pagar</p>
@@ -273,6 +273,15 @@ export default function CobrancaDetalhePage() {
                     {cobranca.competencia}
                   </p>
                 </div>
+                {/* Tipo da cobrança */}
+                {cobranca.descricao && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Tipo da cobrança</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {cobranca.descricao}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Botão "Entenda esse valor" */}
@@ -374,7 +383,7 @@ export default function CobrancaDetalhePage() {
                 <div className="px-8 pt-5 pb-8 space-y-0">
                   <div className="flex items-center justify-between py-4 border-b border-gray-100">
                     <span className="text-sm text-gray-600">
-                      {cobranca.descricao}
+                      Valor original
                     </span>
                     <span className="text-sm font-medium text-gray-900 tabular-nums">
                       {fmt(cobranca.valorOriginal)}
