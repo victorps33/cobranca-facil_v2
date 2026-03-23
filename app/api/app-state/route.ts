@@ -4,10 +4,10 @@ import { requireTenant } from "@/lib/auth-helpers";
 
 // GET /api/app-state — Retorna estado atual da aplicação
 export async function GET() {
-  const { session, error } = await requireTenant();
+  const { session, tenantId, error } = await requireTenant();
   if (error) return error;
 
-  const franqueadoraId = session!.user.franqueadoraId as string;
+  const franqueadoraId = tenantId as string;
   const tenantFilter = { customer: { franqueadoraId } };
 
   try {

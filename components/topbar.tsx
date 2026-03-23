@@ -68,7 +68,7 @@ export function TopBar({ onOpenJulia, onOpenCommandPalette, juliaDisabled }: Top
         {/* Right: Actions */}
         <div className="flex items-center gap-2 ml-auto">
           {/* Date Badge */}
-          {appNowInfo && (
+          {appNowInfo && appNowInfo.date && !isNaN(new Date(appNowInfo.date).getTime()) && (
             <div
               className={cn(
                 "hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm",
